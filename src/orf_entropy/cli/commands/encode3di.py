@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Optional
+import traceback
 
 try:
     import typer
@@ -88,4 +89,5 @@ def encode3di_command(
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
+        traceback.print_exc()
         raise typer.Exit(3)

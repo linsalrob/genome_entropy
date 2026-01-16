@@ -1,7 +1,7 @@
 """ProstT5 encoder for amino acid to 3Di structural token conversion."""
 
 from dataclasses import dataclass
-from typing import List, Literal, Optional, Iterable, Iterator, Sequence, Tuple
+from typing import List, Literal, Optional, Iterator, Sequence
 import re
 import math
 import logging
@@ -144,26 +144,22 @@ class ProstT5ThreeDiEncoder:
         self,
         aa_sequences: Sequence[str],
         token_budget: int,
-        max_batch_size: int,
     ) -> Iterator[List[IndexedSeq]]:
         """
         Yield batches of sequences (with original indices) under an approximate token budget.
 
-        The approximation assumes per-batch padding to the maximum length in the batch:
-            estimated_tokens ~  batch_size * max_len_in_batch
+        I think the tokens need to approximate total amino acid lengths ... ?
 
         Strategy:
             1) Keep original indices.
             2) Sort by length to minimize padding within each batch.
             3) Greedily pack adjacent sequences into a batch while staying under token_budget
-            and max_batch_size.
 
         Parameters
         ----------
             aa_sequences : Sequence[str] Unordered amino acid sequences.
             token_budget : int Maximum approximate "tokens" per batch
                                (= batch_size * padded_length).
-            max_batch_size : int Maximum number of sequences per batch.
 
         Yields
         ------
@@ -172,8 +168,6 @@ class ProstT5ThreeDiEncoder:
 
         if token_budget <= 0:
             raise ValueError("token_budget must be > 0")
-        if max_batch_size <= 0:
-            raise ValueError("max_batch_size must be > 0")
 
         indexed: List[IndexedSeq] = [IndexedSeq(i, s) for i, s in enumerate(aa_sequences)]
         indexed.sort(key=lambda x: len(x.seq))  # length-sorted for tight padding
@@ -197,7 +191,7 @@ class ProstT5ThreeDiEncoder:
             new_size = len(batch) + 1
             est_tokens = new_size * new_max_len
 
-            if batch and (est_tokens > token_budget or new_size > max_batch_size):
+            if batch and (est_tokens > token_budget):
                 yield batch
                 batch = [item]
                 batch_max_len = L
@@ -281,7 +275,7 @@ class ProstT5ThreeDiEncoder:
             aa_sequences: List of amino acid sequences.
                 note: Amino acid sequences are expected to be upper-case,
                       while 3Di-sequences need to be lower-case.
-            batch_size: Batch size for processing
+            batch_size: Currently overloaded to mean token size. Needs refactoring
         Returns:
             List of 3Di token sequences (one per input sequence)
 
@@ -302,23 +296,23 @@ class ProstT5ThreeDiEncoder:
 
         three_di_sequences: List[str] = [None] * len(aa_sequences)  # type: ignore[list-item]
 
-
-        total_batches = math.ceil(len(aa_sequences) / batch_size)
+        total_sequences_to_process = len(aa_sequences)
+        processed_sequences = 0
+        total_batches = math.ceil(sum(map(len, aa_sequences)) / batch_size)
         t0 = time.perf_counter()
         avg_batch_sec: float | None = None
-
-        token_budget = batch_size * 1024  # approx 1k tokens per sequence
-        max_batch_size = batch_size * 5  # allow some flexibility in batch size
 
         try:
             # Process in batches
             for idx, batch in enumerate(
-                self.token_budget_batches(aa_sequences, token_budget, max_batch_size),
+                self.token_budget_batches(aa_sequences, batch_size),
                 start=1
             ):
-                logging.info("Preparing batch %d with %d sequences", idx, len(batch))
+                logging.info("Preparing batch %d with %d sequences, total len: %d", 
+                             idx, len(batch), sum(len(x.seq) for x in batch))
                 batch_seqs = [x.seq for x in batch]
                 batch_idxs = [x.idx for x in batch]
+                processed_sequences += len(batch_seqs)
 
                 remaining = total_batches - (idx - 1)
                 if avg_batch_sec is None:
@@ -332,9 +326,11 @@ class ProstT5ThreeDiEncoder:
                     allocated = torch.cuda.memory_allocated() / 1023**3
                     reserved = torch.cuda.memory_reserved() / 1023**3
 
-                logging.info("3Di encoding batch %d of %d batches. Estimated %s remaining. Cuda memory allocated: %d GB reserved: %d GB",
+                logging.info("3Di encoding batch %d of %d batches (sequences %d of %d). Estimated %s remaining. Cuda memory allocated: %d GB reserved: %d GB",
                              idx,
                              total_batches,
+                             processed_sequences,
+                             total_sequences_to_process,
                              eta_str,
                              allocated,
                              reserved
@@ -344,7 +340,7 @@ class ProstT5ThreeDiEncoder:
 
                 if len(batch_results) != len(batch_seqs):
                     raise ValueError(
-                        f"encoder_fn returned {len(enc)} results for a batch of {len(batch_seqs)} sequences"
+                        f"encoder returned {len(batch_results)} results for a batch of {len(batch_seqs)} sequences"
                     )
                 # Reorder results to match original input order
                 for bi, br in zip(batch_idxs, batch_results):
