@@ -20,7 +20,7 @@ if [[ $# -ne 2 ]]; then
     exit 1
 fi
 
-dna23di encode3di -i $1 -o $2
+dna23di encode3di -i $1 -o $2 --batch-size 100
 
 
 

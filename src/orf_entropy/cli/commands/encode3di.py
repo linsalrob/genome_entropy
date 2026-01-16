@@ -78,7 +78,7 @@ def encode3di_command(
         typer.echo(f"  Using device: {encoder.device}")
 
         typer.echo(f"\nEncoding to 3Di tokens...")
-        three_dis = encoder.encode_proteins(proteins)
+        three_dis = encoder.encode_proteins(proteins, batch_size)
         typer.echo(f"  Encoded {len(three_dis)} sequence(s)")
 
         typer.echo(f"\nWriting results to: {output}")

@@ -1,12 +1,14 @@
 """ProstT5 encoder for amino acid to 3Di structural token conversion."""
 
 from dataclasses import dataclass
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Iterable, Iterator, Sequence, Tuple
 import re
 import math
 import logging
+import time
+
 logging.basicConfig(
-    level=logging.INFO, 
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
@@ -47,6 +49,11 @@ class ThreeDiRecord:
     model_name: str
     inference_device: str
 
+@dataclass(frozen=True)
+class IndexedSeq:
+    """A sequence paired with its original position in the input list."""
+    idx: int
+    seq: str
 
 class ProstT5ThreeDiEncoder:
     """Encoder for converting amino acid sequences to 3Di structural tokens.
@@ -123,7 +130,7 @@ class ProstT5ThreeDiEncoder:
             self.tokenizer = T5Tokenizer.from_pretrained(self.model_name, do_lower_case=False)
             self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name).to(self.device)
 
-            logging.info("Loaded model %s on device %s", self.model, self.device)
+            logging.info("Loaded model %s on device %s", self.model_name, self.device)
             logging.info("Model config:\n%s", self.model.config)
         except Exception as e:
             raise ModelError(f"Failed to load ProstT5 model {self.model_name}: {e}") from e
@@ -132,6 +139,74 @@ class ProstT5ThreeDiEncoder:
         # CPU use full-precision (not recommended, much slower)
         _ = self.model.full() if self.device=='cpu' else self.model.half()
 
+
+    def token_budget_batches(
+        self,
+        aa_sequences: Sequence[str],
+        token_budget: int,
+        max_batch_size: int,
+    ) -> Iterator[List[IndexedSeq]]:
+        """
+        Yield batches of sequences (with original indices) under an approximate token budget.
+
+        The approximation assumes per-batch padding to the maximum length in the batch:
+            estimated_tokens ~  batch_size * max_len_in_batch
+
+        Strategy:
+            1) Keep original indices.
+            2) Sort by length to minimize padding within each batch.
+            3) Greedily pack adjacent sequences into a batch while staying under token_budget
+            and max_batch_size.
+
+        Parameters
+        ----------
+            aa_sequences : Sequence[str] Unordered amino acid sequences.
+            token_budget : int Maximum approximate "tokens" per batch
+                               (= batch_size * padded_length).
+            max_batch_size : int Maximum number of sequences per batch.
+
+        Yields
+        ------
+            List[IndexedSeq] A batch of (original_index, sequence) records.
+        """
+
+        if token_budget <= 0:
+            raise ValueError("token_budget must be > 0")
+        if max_batch_size <= 0:
+            raise ValueError("max_batch_size must be > 0")
+
+        indexed: List[IndexedSeq] = [IndexedSeq(i, s) for i, s in enumerate(aa_sequences)]
+        indexed.sort(key=lambda x: len(x.seq))  # length-sorted for tight padding
+
+        batch: List[IndexedSeq] = []
+        batch_max_len = 0
+
+        for item in indexed:
+            L = len(item.seq)
+
+            # If a single sequence exceeds the budget, yield it alone
+            if L > token_budget:
+                if batch:
+                    yield batch
+                    batch = []
+                    batch_max_len = 0
+                    yield [item]
+                    continue
+
+            new_max_len = max(batch_max_len, L)
+            new_size = len(batch) + 1
+            est_tokens = new_size * new_max_len
+
+            if batch and (est_tokens > token_budget or new_size > max_batch_size):
+                yield batch
+                batch = [item]
+                batch_max_len = L
+            else:
+                batch.append(item)
+                batch_max_len = new_max_len
+
+        if batch:
+            yield batch
 
     def _encode_batch(self, aa_sequences: List[str]) -> List[str]:
         """
@@ -186,6 +261,15 @@ class ProstT5ThreeDiEncoder:
 
         return structure_sequences
 
+    def _fmt_seconds(self, seconds: float) -> str:
+        """
+        Format seconds as H:MM:SS (or M:SS for < 1 hour).
+        """
+        seconds = max(0, int(round(seconds)))
+        h, rem = divmod(seconds, 3600)
+        m, s = divmod(rem, 60)
+        return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
     def encode(
         self,
         aa_sequences: List[str],
@@ -216,25 +300,78 @@ class ProstT5ThreeDiEncoder:
         # and we convert to uppercase to fix tha they are proteins not 3Dis
         aa_sequences = [ "<AA2fold>" + " " + s.upper() for s in aa_sequences]
 
-        three_di_sequences = []
+        three_di_sequences: List[str] = [None] * len(aa_sequences)  # type: ignore[list-item]
+
 
         total_batches = math.ceil(len(aa_sequences) / batch_size)
+        t0 = time.perf_counter()
+        avg_batch_sec: float | None = None
+
+        token_budget = batch_size * 1024  # approx 1k tokens per sequence
+        max_batch_size = batch_size * 5  # allow some flexibility in batch size
 
         try:
             # Process in batches
-            for batch_idx, i in enumerate(range(0, len(aa_sequences), batch_size), start=1):
-                logging.info("3Di encoding batch %d of %d batches", batch_idx, total_batches)
-                batch = aa_sequences[i:i+batch_size]
-                batch_results = self._encode_batch(batch)
-                three_di_sequences.extend(batch_results)
+            for idx, batch in enumerate(
+                self.token_budget_batches(aa_sequences, token_budget, max_batch_size),
+                start=1
+            ):
+                logging.info("Preparing batch %d with %d sequences", idx, len(batch))
+                batch_seqs = [x.seq for x in batch]
+                batch_idxs = [x.idx for x in batch]
+
+                remaining = total_batches - (idx - 1)
+                if avg_batch_sec is None:
+                    eta_str = "--"
+                else:
+                    eta_str = self._fmt_seconds(avg_batch_sec * remaining)
+
+                allocated = 0
+                reserved = 0
+                if torch.cuda.is_available():
+                    allocated = torch.cuda.memory_allocated() / 1023**3
+                    reserved = torch.cuda.memory_reserved() / 1023**3
+
+                logging.info("3Di encoding batch %d of %d batches. Estimated %s remaining. Cuda memory allocated: %d GB reserved: %d GB",
+                             idx,
+                             total_batches,
+                             eta_str,
+                             allocated,
+                             reserved
+                            )
+                batch_start = time.perf_counter()
+                batch_results = self._encode_batch(batch_seqs)
+
+                if len(batch_results) != len(batch_seqs):
+                    raise ValueError(
+                        f"encoder_fn returned {len(enc)} results for a batch of {len(batch_seqs)} sequences"
+                    )
+                # Reorder results to match original input order
+                for bi, br in zip(batch_idxs, batch_results):
+                    three_di_sequences[bi] = br
+
+                batch_elapsed = time.perf_counter() - batch_start
+                if idx == 1:
+                    avg_batch_sec = batch_elapsed
+                else:
+                    # Running average over completed batches
+                    elapsed_total = time.perf_counter() - t0
+                    avg_batch_sec = elapsed_total / idx
+
         except Exception as e:
             raise EncodingError(f"Failed to encode sequences: {e}") from e
+
+        # check all sequences encoded
+        missing = [i for i, v in enumerate(three_di_sequences) if v is None]
+        if missing:
+            raise RuntimeError(f"Missing encodings for {len(missing)} sequences (e.g., indices {missing[:10]})")
 
         return three_di_sequences
 
     def encode_proteins(
         self,
         proteins: List[ProteinRecord],
+        batch_size: int = DEFAULT_BATCH_SIZE
     ) -> List[ThreeDiRecord]:
         """Encode protein records to 3Di records.
 
@@ -248,7 +385,7 @@ class ProstT5ThreeDiEncoder:
         aa_sequences = [p.aa_sequence for p in proteins]
 
         # Encode
-        three_di_sequences = self.encode(aa_sequences)
+        three_di_sequences = self.encode(aa_sequences, batch_size)
 
         # Create records
         records = []
