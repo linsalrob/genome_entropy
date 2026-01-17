@@ -37,11 +37,11 @@ def encode3di_command(
         "-d",
         help="Device to use (auto/cuda/mps/cpu)",
     ),
-    batch_size: int = typer.Option(
+    encoding_size: int = typer.Option(
         4,
-        "--batch-size",
-        "-b",
-        help="Batch size for encoding",
+        "--encoding-size",
+        "-e",
+        help="Encoding size (approximates to amino acids)",
     ),
 ) -> None:
     """Encode proteins to 3Di structural tokens.
@@ -79,7 +79,7 @@ def encode3di_command(
         typer.echo(f"  Using device: {encoder.device}")
 
         typer.echo(f"\nEncoding to 3Di tokens...")
-        three_dis = encoder.encode_proteins(proteins, batch_size)
+        three_dis = encoder.encode_proteins(proteins, encoding_size)
         typer.echo(f"  Encoded {len(three_dis)} sequence(s)")
 
         typer.echo(f"\nWriting results to: {output}")

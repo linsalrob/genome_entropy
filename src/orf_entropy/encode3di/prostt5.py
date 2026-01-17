@@ -7,11 +7,6 @@ import math
 import logging
 import time
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
 try:
     import torch
     from transformers import AutoModel, T5Tokenizer, AutoModelForSeq2SeqLM
@@ -23,12 +18,17 @@ from ..config import (
     AUTO_DEVICE,
     CPU_DEVICE,
     CUDA_DEVICE,
-    DEFAULT_BATCH_SIZE,
+    DEFAULT_ENCODING_SIZE,
     DEFAULT_PROSTT5_MODEL,
     MPS_DEVICE,
 )
 from ..errors import DeviceError, EncodingError, ModelError
 from ..translate.translator import ProteinRecord
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 
 @dataclass
@@ -159,7 +159,6 @@ class ProstT5ThreeDiEncoder:
         ----------
             aa_sequences : Sequence[str] Unordered amino acid sequences.
             token_budget : int Maximum approximate "tokens" per batch
-                               (= batch_size * padded_length).
 
         Yields
         ------
@@ -267,7 +266,7 @@ class ProstT5ThreeDiEncoder:
     def encode(
         self,
         aa_sequences: List[str],
-        batch_size: int = DEFAULT_BATCH_SIZE,
+        encoding_size: int = DEFAULT_ENCODING_SIZE,
     ) -> List[str]:
         """Encode amino acid sequences to 3Di tokens.
 
@@ -275,7 +274,7 @@ class ProstT5ThreeDiEncoder:
             aa_sequences: List of amino acid sequences.
                 note: Amino acid sequences are expected to be upper-case,
                       while 3Di-sequences need to be lower-case.
-            batch_size: Currently overloaded to mean token size. Needs refactoring
+            encoding_size: Maximum size (approx. amino acids) to encode per gpu
         Returns:
             List of 3Di token sequences (one per input sequence)
 
@@ -298,14 +297,14 @@ class ProstT5ThreeDiEncoder:
 
         total_sequences_to_process = len(aa_sequences)
         processed_sequences = 0
-        total_batches = math.ceil(sum(map(len, aa_sequences)) / batch_size)
+        total_batches = math.ceil(sum(map(len, aa_sequences)) / encoding_size)
         t0 = time.perf_counter()
         avg_batch_sec: float | None = None
 
         try:
             # Process in batches
             for idx, batch in enumerate(
-                self.token_budget_batches(aa_sequences, batch_size),
+                self.token_budget_batches(aa_sequences, encoding_size),
                 start=1
             ):
                 logging.info("Preparing batch %d with %d sequences, total len: %d", 
@@ -367,7 +366,7 @@ class ProstT5ThreeDiEncoder:
     def encode_proteins(
         self,
         proteins: List[ProteinRecord],
-        batch_size: int = DEFAULT_BATCH_SIZE
+        encoding_size: int = DEFAULT_ENCODING_SIZE
     ) -> List[ThreeDiRecord]:
         """Encode protein records to 3Di records.
 
@@ -381,7 +380,7 @@ class ProstT5ThreeDiEncoder:
         aa_sequences = [p.aa_sequence for p in proteins]
 
         # Encode
-        three_di_sequences = self.encode(aa_sequences, batch_size)
+        three_di_sequences = self.encode(aa_sequences, encoding_size)
 
         # Create records
         records = []

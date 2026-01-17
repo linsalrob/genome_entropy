@@ -15,7 +15,7 @@ DEFAULT_MIN_AA_LENGTH = 30  # amino acids
 
 # ProstT5 model configuration
 DEFAULT_PROSTT5_MODEL = "Rostlab/ProstT5_fp16"
-DEFAULT_BATCH_SIZE = 10
+DEFAULT_ENCODING_SIZE = 10
 
 # 3Di alphabet (20 structural states)
 THREEDDI_ALPHABET = set("ACDEFGHIKLMNPQRSTVWY")
