@@ -38,7 +38,7 @@ class OrfRecord:
         """Validate ORF attributes."""
         if self.strand not in ("+", "-"):
             raise ValueError(f"Invalid strand: {self.strand}")
-        if self.frame not in (0, 1, 2):
+        if self.frame not in (0, 1, 2, 3):
             raise ValueError(f"Invalid frame: {self.frame}")
         if self.start < 0:
             raise ValueError(f"Invalid start position: {self.start}")
