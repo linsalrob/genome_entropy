@@ -1,12 +1,25 @@
 # orf_entropy (dna23di)
 
 [![Python CI](https://github.com/linsalrob/orf_entropy/workflows/Python%20CI/badge.svg)](https://github.com/linsalrob/orf_entropy/actions)
+[![Documentation](https://github.com/linsalrob/orf_entropy/workflows/Documentation/badge.svg)](https://linsalrob.github.io/orf_entropy/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Compare and contrast the entropy of sequences, ORFs, proteins, and 3Di structural encodings.
 
 **dna23di** is a complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.
+
+## Documentation
+
+📚 **[Read the full documentation on GitHub Pages](https://linsalrob.github.io/orf_entropy/)**
+
+The documentation includes:
+- Installation guide
+- Quick start tutorial
+- Complete CLI reference
+- Python API documentation
+- User guide with detailed explanations
+- Developer guide for contributors
 
 ## Features
 
