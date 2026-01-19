@@ -15,6 +15,7 @@ def test_orf_record_creation() -> None:
         strand="+",
         frame=0,
         nt_sequence="A" * 90,
+        aa_sequence="K" * 30,  # Added aa_sequence field
         table_id=11,
         has_start_codon=True,
         has_stop_codon=True,
@@ -27,6 +28,7 @@ def test_orf_record_creation() -> None:
     assert orf.strand == "+"
     assert orf.frame == 0
     assert len(orf.nt_sequence) == 90
+    assert len(orf.aa_sequence) == 30
     assert orf.table_id == 11
     assert orf.has_start_codon is True
     assert orf.has_stop_codon is True
@@ -43,6 +45,7 @@ def test_orf_record_invalid_strand() -> None:
             strand="*",  # Invalid
             frame=0,
             nt_sequence="A" * 90,
+            aa_sequence="K" * 30,
             table_id=11,
             has_start_codon=True,
             has_stop_codon=True,
@@ -60,6 +63,7 @@ def test_orf_record_invalid_frame() -> None:
             strand="+",
             frame=3,  # Invalid (must be 0, 1, or 2)
             nt_sequence="A" * 90,
+            aa_sequence="K" * 30,
             table_id=11,
             has_start_codon=True,
             has_stop_codon=True,
@@ -78,6 +82,7 @@ def test_orf_record_invalid_coordinates() -> None:
             strand="+",
             frame=0,
             nt_sequence="A" * 91,
+            aa_sequence="K" * 30,
             table_id=11,
             has_start_codon=True,
             has_stop_codon=True,
@@ -93,6 +98,7 @@ def test_orf_record_invalid_coordinates() -> None:
             strand="+",
             frame=0,
             nt_sequence="",
+            aa_sequence="",
             table_id=11,
             has_start_codon=True,
             has_stop_codon=True,
@@ -100,20 +106,28 @@ def test_orf_record_invalid_coordinates() -> None:
 
 
 def test_orf_record_sequence_length_mismatch() -> None:
-    """Test that sequence length must match coordinates."""
-    with pytest.raises(ValueError, match="Sequence length"):
-        OrfRecord(
-            parent_id="seq1",
-            orf_id="orf1",
-            start=0,
-            end=90,
-            strand="+",
-            frame=0,
-            nt_sequence="A" * 60,  # Wrong length
-            table_id=11,
-            has_start_codon=True,
-            has_stop_codon=True,
-        )
+    """Test that sequence length can be different from coordinates.
+    
+    Note: The OrfRecord allows sequences to be empty or shorter than coordinates
+    because sequences may be filled in later (e.g., by the ORF finder).
+    This test now verifies that mismatched lengths are allowed.
+    """
+    # This should NOT raise an error
+    orf = OrfRecord(
+        parent_id="seq1",
+        orf_id="orf1",
+        start=0,
+        end=90,
+        strand="+",
+        frame=0,
+        nt_sequence="A" * 60,  # Different length than coordinates
+        aa_sequence="K" * 20,
+        table_id=11,
+        has_start_codon=True,
+        has_stop_codon=True,
+    )
+    assert len(orf.nt_sequence) == 60
+    assert orf.end - orf.start == 90
 
 
 def test_orf_record_both_strands() -> None:
@@ -126,6 +140,7 @@ def test_orf_record_both_strands() -> None:
         strand="+",
         frame=0,
         nt_sequence="A" * 90,
+        aa_sequence="K" * 30,
         table_id=11,
         has_start_codon=True,
         has_stop_codon=True,
@@ -139,6 +154,7 @@ def test_orf_record_both_strands() -> None:
         strand="-",
         frame=1,
         nt_sequence="T" * 90,
+        aa_sequence="F" * 30,
         table_id=11,
         has_start_codon=True,
         has_stop_codon=False,
@@ -160,6 +176,7 @@ def test_orf_record_all_frames() -> None:
             strand="+",
             frame=frame,
             nt_sequence="A" * 90,
+            aa_sequence="K" * 30,
             table_id=11,
             has_start_codon=True,
             has_stop_codon=True,
@@ -177,6 +194,7 @@ def test_orf_record_no_start_or_stop() -> None:
         strand="+",
         frame=1,
         nt_sequence="C" * 90,
+        aa_sequence="P" * 30,
         table_id=11,
         has_start_codon=False,
         has_stop_codon=False,

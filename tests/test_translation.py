@@ -16,6 +16,7 @@ def test_protein_record_creation() -> None:
         strand="+",
         frame=0,
         nt_sequence="ATG" * 30,  # 90 nt = 30 codons
+        aa_sequence="M" * 30,
         table_id=11,
         has_start_codon=True,
         has_stop_codon=False,
@@ -42,6 +43,7 @@ def test_protein_record_length_mismatch() -> None:
         strand="+",
         frame=0,
         nt_sequence="ATG" * 30,
+        aa_sequence="M" * 30,
         table_id=11,
         has_start_codon=True,
         has_stop_codon=False,
@@ -65,6 +67,7 @@ def test_protein_record_with_stop() -> None:
         strand="+",
         frame=0,
         nt_sequence="ATGGCATAG" * 10 + "TAG",  # Ends with stop
+        aa_sequence="MA*" * 10 + "*",
         table_id=11,
         has_start_codon=True,
         has_stop_codon=True,
@@ -91,6 +94,7 @@ def test_protein_record_various_amino_acids() -> None:
         strand="+",
         frame=0,
         nt_sequence="N" * 60,  # Ambiguous sequence
+        aa_sequence="X" * 20,
         table_id=11,
         has_start_codon=False,
         has_stop_codon=False,
@@ -117,6 +121,7 @@ def test_protein_record_short_protein() -> None:
         strand="+",
         frame=0,
         nt_sequence="ATGGCATAG",  # 3 codons
+        aa_sequence="MA*",
         table_id=11,
         has_start_codon=True,
         has_stop_codon=False,
@@ -141,6 +146,7 @@ def test_protein_record_ambiguous_codons() -> None:
         strand="+",
         frame=0,
         nt_sequence="ATGNNNGGGTTT",  # ATG, NNN (ambiguous), GGG, TTT
+        aa_sequence="MXGF",
         table_id=11,
         has_start_codon=True,
         has_stop_codon=False,

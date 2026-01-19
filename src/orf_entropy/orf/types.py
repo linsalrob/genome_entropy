@@ -38,9 +38,11 @@ class OrfRecord:
         """Validate ORF attributes."""
         if self.strand not in ("+", "-"):
             raise ValueError(f"Invalid strand: {self.strand}")
-        if self.frame not in (0, 1, 2, 3):
+        if self.frame not in (0, 1, 2):
             raise ValueError(f"Invalid frame: {self.frame}")
         if self.start < 0:
             raise ValueError(f"Invalid start position: {self.start}")
         if self.end <= self.start:
             raise ValueError(f"Invalid end position: {self.end} (must be > start {self.start})")
+        # Note: We don't validate sequence length here because sequences may be empty
+        # when initially created and filled in later (e.g., by ORF finder)

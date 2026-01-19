@@ -54,14 +54,14 @@ ATGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAA
 def mock_prostt5_encoder(monkeypatch):
     """Mock ProstT5 encoder to return deterministic 3Di sequences.
     
-    Returns 'A' repeated for the length of each input sequence.
+    Returns 'a' repeated for the length of each input sequence.
     This avoids needing to download models during testing.
     """
     from orf_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
     
-    def mock_encode(self, aa_sequences, batch_size=4):
-        # Return 'A' * length for each sequence
-        return ['A' * len(seq) for seq in aa_sequences]
+    def mock_encode(self, aa_sequences, encoding_size=10):
+        # Return 'a' * length for each sequence (lowercase for 3Di)
+        return ['a' * len(seq.replace(' ', '').replace('<AA2fold>', '').strip()) for seq in aa_sequences]
     
     monkeypatch.setattr(ProstT5ThreeDiEncoder, "encode", mock_encode)
     monkeypatch.setattr(ProstT5ThreeDiEncoder, "_load_model", lambda self: None)
