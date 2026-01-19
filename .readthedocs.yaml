@@ -13,11 +13,6 @@ build:
     post_create_environment:
       # Install poetry or other tools if needed
       - pip install --upgrade pip setuptools wheel
-    post_install:
-      # Install package dependencies
-      - pip install -e .
-      # Install documentation dependencies
-      - pip install sphinx sphinx-rtd-theme myst-parser
 
 # Sphinx configuration
 sphinx:
@@ -30,7 +25,7 @@ python:
     - method: pip
       path: .
       extra_requirements:
-        - dev
+        - docs
 
 # Formats to build
 formats:
