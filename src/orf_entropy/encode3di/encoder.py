@@ -1,0 +1,301 @@
+"""ProstT5-based encoder for amino acid to 3Di structural token conversion."""
+
+import logging
+from typing import Any, Iterator, List, Optional, Sequence
+
+try:
+    import torch
+    from transformers import AutoModelForSeq2SeqLM, T5Tokenizer
+except ImportError:
+    torch = None  # type: ignore[assignment]
+    AutoModelForSeq2SeqLM = None  # type: ignore[assignment,misc]
+    T5Tokenizer = None  # type: ignore[assignment,misc]
+
+from ..config import (
+    AUTO_DEVICE,
+    CPU_DEVICE,
+    CUDA_DEVICE,
+    DEFAULT_ENCODING_SIZE,
+    DEFAULT_PROSTT5_MODEL,
+    MPS_DEVICE,
+)
+from ..errors import DeviceError, ModelError
+from ..translate.translator import ProteinRecord
+from .encoding import encode
+from .types import IndexedSeq, ThreeDiRecord
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+
+class ProstT5ThreeDiEncoder:
+    """Encoder for converting amino acid sequences to 3Di structural tokens.
+
+    Uses the ProstT5 model from HuggingFace to predict 3Di tokens directly
+    from protein sequences without requiring 3D structures.
+    """
+
+    def __init__(
+        self,
+        model_name: str = DEFAULT_PROSTT5_MODEL,
+        device: Optional[str] = None,
+    ):
+        """Initialize the ProstT5 encoder.
+
+        Args:
+            model_name: HuggingFace model identifier
+            device: Device to use ("cuda", "mps", "cpu", or None for auto-detect)
+
+        Raises:
+            ModelError: If PyTorch or Transformers are not installed
+            DeviceError: If specified device is not available
+        """
+        if torch is None or AutoModelForSeq2SeqLM is None:
+            raise ModelError(
+                "PyTorch and Transformers are required for 3Di encoding. "
+                "Install with: pip install torch transformers"
+            )
+
+        self.model_name = model_name
+        self.device = self._select_device(device)
+        self.model: Any = None
+        self.tokenizer: Any = None
+
+    def _select_device(self, device_hint: Optional[str]) -> str:
+        """Select the best available device for inference.
+
+        Args:
+            device_hint: User-specified device or None for auto-detection
+
+        Returns:
+            Device string ("cuda", "mps", or "cpu")
+
+        Raises:
+            DeviceError: If specified device is not available
+        """
+        # If user specified a device other than "auto", use it
+        if device_hint and device_hint != AUTO_DEVICE:
+            if device_hint == CUDA_DEVICE and not torch.cuda.is_available():
+                raise DeviceError("CUDA requested but not available")
+            if device_hint == MPS_DEVICE and not (
+                hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+            ):
+                raise DeviceError("MPS requested but not available")
+            return device_hint
+
+        # Auto-detect best device
+        if torch.cuda.is_available():
+            return CUDA_DEVICE
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return MPS_DEVICE
+        return CPU_DEVICE
+
+    def _load_model(self) -> None:
+        """Load the ProstT5 model and tokenizer.
+
+        Raises:
+            ModelError: If model loading fails
+        """
+        if self.model is not None:
+            return  # Already loaded
+
+        try:
+            self.tokenizer = T5Tokenizer.from_pretrained(
+                self.model_name, do_lower_case=False
+            )
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name).to(
+                self.device
+            )
+
+            logging.info("Loaded model %s on device %s", self.model_name, self.device)
+            logging.info("Model config:\n%s", self.model.config)
+        except Exception as e:
+            raise ModelError(
+                f"Failed to load ProstT5 model {self.model_name}: {e}"
+            ) from e
+
+        # only GPUs support half-precision currently; if you want to run on
+        # CPU use full-precision (not recommended, much slower)
+        _ = self.model.full() if self.device == "cpu" else self.model.half()
+
+    def token_budget_batches(
+        self,
+        aa_sequences: Sequence[str],
+        token_budget: int,
+    ) -> Iterator[List[IndexedSeq]]:
+        """
+        Yield batches of sequences (with original indices) under an approximate token budget.
+
+        I think the tokens need to approximate total amino acid lengths ... ?
+
+        Strategy:
+            1) Keep original indices.
+            2) Sort by length to minimize padding within each batch.
+            3) Greedily pack adjacent sequences into a batch while staying under token_budget
+
+        Parameters
+        ----------
+            aa_sequences : Sequence[str] Unordered amino acid sequences.
+            token_budget : int Maximum approximate "tokens" per batch
+
+        Yields
+        ------
+            List[IndexedSeq] A batch of (original_index, sequence) records.
+        """
+
+        if token_budget <= 0:
+            raise ValueError("token_budget must be > 0")
+
+        indexed: List[IndexedSeq] = [
+            IndexedSeq(i, s) for i, s in enumerate(aa_sequences)
+        ]
+        indexed.sort(key=lambda x: len(x.seq))  # length-sorted for tight padding
+
+        batch: List[IndexedSeq] = []
+        batch_max_len = 0
+
+        for item in indexed:
+            L = len(item.seq)
+
+            # If a single sequence exceeds the budget, yield it alone
+            if L > token_budget:
+                if batch:
+                    yield batch
+                    batch = []
+                    batch_max_len = 0
+                yield [item]
+                continue
+
+            new_max_len = max(batch_max_len, L)
+            new_size = len(batch) + 1
+            est_tokens = new_size * new_max_len
+
+            if batch and (est_tokens > token_budget):
+                yield batch
+                batch = [item]
+                batch_max_len = L
+            else:
+                batch.append(item)
+                batch_max_len = new_max_len
+
+        if batch:
+            yield batch
+
+    def _encode_batch(self, aa_sequences: List[str]) -> List[str]:
+        """
+        Encode a smaller batch of sequences - we don't have enough
+        memory to encode the whole thing.
+
+        Args:
+            aa_sequences: List of preprocessed amino acid sequences.
+                note: Amino acid sequences are expected to be upper-case,
+                      while 3Di-sequences need to be lower-case.
+        Returns:
+            List of 3Di token sequences (one per input sequence)
+
+        Raises:
+            EncodingError: If encoding fails
+        """
+
+        min_len = min((len(s) for s in aa_sequences), default=0)
+        max_len = max((len(s) for s in aa_sequences), default=1000)
+
+        # tokenize sequences and pad up to the longest sequence in the batch
+        ids = self.tokenizer(
+            aa_sequences,
+            add_special_tokens=True,
+            padding="longest",
+            return_tensors="pt",
+        ).to(self.device)
+
+        # Generation configuration for "folding" (AA-->3Di)
+        gen_kwargs_aa2fold = {
+            "do_sample": True,
+            "num_beams": 3,
+            "top_p": 0.95,
+            "temperature": 1.2,
+            "top_k": 6,
+            "repetition_penalty": 1.2,
+        }
+
+        # translate from AA to 3Di (AA-->3Di)
+        with torch.no_grad():
+            translations = self.model.generate(
+                ids.input_ids,
+                attention_mask=ids.attention_mask,
+                max_length=max_len,
+                min_length=min_len,
+                early_stopping=True,  # stop early if end-of-text token is generated
+                num_return_sequences=1,  # return only a single sequence
+                **gen_kwargs_aa2fold,
+            )
+        # Decode and remove white-spaces between tokens
+        decoded_translations = self.tokenizer.batch_decode(
+            translations, skip_special_tokens=True
+        )
+        # predicted 3Di strings
+        structure_sequences = ["".join(ts.split(" ")) for ts in decoded_translations]
+
+        return structure_sequences
+
+    def encode(
+        self,
+        aa_sequences: List[str],
+        encoding_size: int = DEFAULT_ENCODING_SIZE,
+    ) -> List[str]:
+        """Encode amino acid sequences to 3Di tokens.
+
+        Args:
+            aa_sequences: List of amino acid sequences.
+                note: Amino acid sequences are expected to be upper-case,
+                      while 3Di-sequences need to be lower-case.
+            encoding_size: Maximum size (approx. amino acids) to encode per gpu
+        Returns:
+            List of 3Di token sequences (one per input sequence)
+
+        Raises:
+            EncodingError: If encoding fails
+        """
+        self._load_model()
+
+        return encode(
+            aa_sequences,
+            self._encode_batch,
+            self.token_budget_batches,
+            encoding_size,
+        )
+
+    def encode_proteins(
+        self,
+        proteins: List[ProteinRecord],
+        encoding_size: int = DEFAULT_ENCODING_SIZE,
+    ) -> List[ThreeDiRecord]:
+        """Encode protein records to 3Di records.
+
+        Args:
+            proteins: List of ProteinRecord objects
+            encoding_size: Maximum size (approx. amino acids) to encode per batch
+
+        Returns:
+            List of ThreeDiRecord objects
+        """
+        # Extract sequences
+        aa_sequences = [p.aa_sequence for p in proteins]
+
+        # Encode
+        three_di_sequences = self.encode(aa_sequences, encoding_size)
+
+        # Create records
+        records = []
+        for protein, three_di in zip(proteins, three_di_sequences):
+            record = ThreeDiRecord(
+                protein=protein,
+                three_di=three_di,
+                method="prostt5_aa2fold",
+                model_name=self.model_name,
+                inference_device=self.device,
+            )
+            records.append(record)
+
+        return records

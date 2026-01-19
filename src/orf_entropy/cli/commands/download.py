@@ -1,7 +1,6 @@
 """Download command for pre-downloading models and datasets."""
 
 from pathlib import Path
-from typing import Optional
 
 try:
     import typer

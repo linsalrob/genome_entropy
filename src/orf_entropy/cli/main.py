@@ -31,7 +31,7 @@ if typer:
 
     # Import and register commands
     try:
-        from .commands import download, encode3di, entropy, orf, run, translate
+        from .commands import download, encode3di, entropy, orf, run, translate, estimate_tokens
         
         app.command(name="download")(download.download_command)
         app.command(name="orf")(orf.orf_command)
@@ -39,6 +39,7 @@ if typer:
         app.command(name="encode3di")(encode3di.encode3di_command)
         app.command(name="entropy")(entropy.entropy_command)
         app.command(name="run")(run.run_command)
+        app.command(name="estimate-tokens")(estimate_tokens.estimate_token_size_command)
     except ImportError as e:
         # Commands not yet implemented
         pass

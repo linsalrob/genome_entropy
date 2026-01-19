@@ -1,0 +1,112 @@
+"""Token size estimation command."""
+
+from typing import Optional
+import traceback
+
+try:
+    import typer
+except ImportError:
+    typer = None
+
+
+def estimate_token_size_command(
+    model: str = typer.Option(
+        "Rostlab/ProstT5_fp16",
+        "--model",
+        "-m",
+        help="ProstT5 model name",
+    ),
+    device: Optional[str] = typer.Option(
+        None,
+        "--device",
+        "-d",
+        help="Device to use (auto/cuda/mps/cpu)",
+    ),
+    start_length: int = typer.Option(
+        3000,
+        "--start",
+        "-s",
+        help="Starting total protein length to test (amino acids)",
+    ),
+    end_length: int = typer.Option(
+        10000,
+        "--end",
+        "-e",
+        help="Maximum total protein length to test (amino acids)",
+    ),
+    step: int = typer.Option(
+        1000,
+        "--step",
+        help="Increment between test lengths (amino acids)",
+    ),
+    num_trials: int = typer.Option(
+        3,
+        "--trials",
+        "-t",
+        help="Number of trials per length for robustness",
+    ),
+    base_protein_length: int = typer.Option(
+        100,
+        "--base-length",
+        "-b",
+        help="Approximate length of individual proteins (amino acids)",
+    ),
+) -> None:
+    """Estimate optimal token size for GPU encoding.
+
+    This command generates random protein sequences of increasing length
+    and tests encoding to find the maximum that can be encoded on the
+    available GPU without running out of memory.
+
+    The recommended token size is returned as 90% of the maximum for safety.
+    """
+    try:
+        from ...encode3di import ProstT5ThreeDiEncoder, estimate_token_size
+
+        typer.echo("=" * 60)
+        typer.echo("Token Size Estimation")
+        typer.echo("=" * 60)
+        typer.echo(f"Model: {model}")
+        typer.echo(f"Testing range: {start_length} to {end_length} AA (step: {step})")
+        typer.echo(f"Trials per length: {num_trials}")
+        typer.echo(f"Base protein length: {base_protein_length} AA")
+        typer.echo("=" * 60)
+
+        typer.echo("\nInitializing ProstT5 encoder...")
+        encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
+        typer.echo(f"Using device: {encoder.device}")
+
+        typer.echo("\nStarting estimation (this may take several minutes)...")
+        typer.echo("Watch for Out of Memory errors to identify the limit.\n")
+
+        results = estimate_token_size(
+            encoder=encoder,
+            start_length=start_length,
+            end_length=end_length,
+            step=step,
+            num_trials=num_trials,
+            base_protein_length=base_protein_length,
+        )
+
+        typer.echo("\n" + "=" * 60)
+        typer.echo("RESULTS")
+        typer.echo("=" * 60)
+        typer.echo(f"Device: {results['device']}")
+        typer.echo(f"Max successful length: {results['max_length']} amino acids")
+        typer.echo(
+            f"Recommended token size: {results['recommended_token_size']} amino acids"
+        )
+        typer.echo("\nTrials per length:")
+        for length, trials in sorted(results["trials_per_length"].items()):
+            status = "✓" if trials > 0 else "✗"
+            typer.echo(f"  {status} {length} AA: {trials}/{num_trials} successful")
+        typer.echo("=" * 60)
+        typer.echo("\n✓ Estimation complete!")
+        typer.echo(
+            f"\nTo use this in encoding, add: --encoding-size {results['recommended_token_size']}"
+        )
+
+    except Exception as e:
+        typer.echo(f"Error: {e}", err=True)
+        traceback.print_exc()
+        raise typer.Exit(3)
