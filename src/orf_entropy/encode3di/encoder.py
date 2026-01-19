@@ -202,7 +202,7 @@ class ProstT5ThreeDiEncoder:
         max_len = max((len(s) for s in aa_sequences), default=1000)
 
         # tokenize sequences and pad up to the longest sequence in the batch
-        ids = self.tokenizer.batch_encode_plus(
+        ids = self.tokenizer(
             aa_sequences,
             add_special_tokens=True,
             padding="longest",
