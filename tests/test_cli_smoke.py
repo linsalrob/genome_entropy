@@ -84,3 +84,12 @@ def test_cli_invalid_command() -> None:
     """Test CLI with invalid command."""
     result = runner.invoke(app, ["invalid_command"])
     assert result.exit_code != 0
+
+
+def test_estimate_tokens_command_help() -> None:
+    """Test estimate-tokens command help."""
+    result = runner.invoke(app, ["estimate-tokens", "--help"])
+    assert result.exit_code == 0
+    assert "token size" in result.stdout.lower()
+    assert "model" in result.stdout.lower()
+    assert "device" in result.stdout.lower()
