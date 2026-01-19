@@ -38,7 +38,7 @@ def encode3di_command(
         help="Device to use (auto/cuda/mps/cpu)",
     ),
     encoding_size: int = typer.Option(
-        4,
+        10000,
         "--encoding-size",
         "-e",
         help="Encoding size (approximates to amino acids)",
