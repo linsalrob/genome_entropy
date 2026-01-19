@@ -16,6 +16,7 @@ Compare and contrast the entropy of sequences, ORFs, proteins, and 3Di structura
 - 📊 **Entropy Analysis**: Calculate Shannon entropy at DNA, ORF, protein, and 3Di levels
 - ⚡ **GPU Acceleration**: Auto-detect and use CUDA, MPS (Apple Silicon), or CPU
 - 🔧 **Modular CLI**: Run complete pipeline or individual steps
+- 📝 **Comprehensive Logging**: Configurable log levels and output to file or STDOUT
 
 ## Quick Start
 
@@ -149,6 +150,80 @@ Pre-download ProstT5 models to cache:
 
 ```bash
 dna23di download --model Rostlab/ProstT5_fp16
+```
+
+## Logging
+
+All `dna23di` commands support comprehensive logging with configurable output and verbosity.
+
+### Global Logging Options
+
+Every command accepts these logging options:
+
+```bash
+dna23di [OPTIONS] COMMAND [ARGS]
+
+Global Options:
+  --log-level, -l  TEXT  Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: INFO]
+  --log-file       PATH  Path to log file (default: log to STDOUT)
+```
+
+### Usage Examples
+
+**Default logging (INFO level to STDOUT):**
+```bash
+dna23di run --input data.fasta --output results.json
+```
+
+**Debug logging to see detailed progress:**
+```bash
+dna23di --log-level DEBUG run --input data.fasta --output results.json
+```
+
+**Log to a file:**
+```bash
+dna23di --log-file pipeline.log run --input data.fasta --output results.json
+```
+
+**Debug logging to file:**
+```bash
+dna23di --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
+```
+
+**Quiet mode (only warnings and errors):**
+```bash
+dna23di --log-level WARNING run --input data.fasta --output results.json
+```
+
+### Log Levels
+
+- **DEBUG**: Detailed information for diagnosing problems (sequence lengths, batch info, etc.)
+- **INFO**: General informational messages (default - shows major steps and progress)
+- **WARNING**: Warning messages for unusual conditions
+- **ERROR**: Error messages for failures
+- **CRITICAL**: Critical errors that may cause the program to abort
+
+### What Gets Logged
+
+The logging system tracks:
+
+- **File I/O**: Reading/writing FASTA and JSON files with sequence counts
+- **ORF Finding**: Number of ORFs found, binary checks, parsing progress
+- **Translation**: Translation progress, codon handling, error details
+- **3Di Encoding**: Model loading, batch processing, memory usage, timing estimates
+- **Entropy Calculation**: Entropy values at each representation level
+- **Pipeline Progress**: Step-by-step progress through the complete pipeline
+
+Example log output (INFO level):
+```
+2026-01-19 10:30:15 - orf_entropy.io.fasta - INFO - Reading FASTA file: input.fasta
+2026-01-19 10:30:15 - orf_entropy.io.fasta - INFO - Successfully read 5 sequence(s) from input.fasta
+2026-01-19 10:30:15 - orf_entropy.orf.finder - INFO - Starting ORF finding for 5 sequence(s) (table=11, min_length=90)
+2026-01-19 10:30:16 - orf_entropy.orf.finder - INFO - Found 47 ORF(s) in 5 sequence(s)
+2026-01-19 10:30:16 - orf_entropy.translate.translator - INFO - Translating 47 ORF(s) with table 11
+2026-01-19 10:30:16 - orf_entropy.encode3di.encoder - INFO - Loading ProstT5 model: Rostlab/ProstT5_fp16
+2026-01-19 10:30:20 - orf_entropy.encode3di.encoder - INFO - Loaded model Rostlab/ProstT5_fp16 on device cuda
+2026-01-19 10:30:20 - orf_entropy.encode3di.encoding - INFO - 3Di encoding batch 1 of 12 batches...
 ```
 
 ## Data Flow

@@ -1,6 +1,5 @@
 """Core encoding functions for amino acid to 3Di conversion."""
 
-import logging
 import math
 import re
 import time
@@ -12,6 +11,9 @@ except ImportError:
     torch = None  # type: ignore[assignment]
 
 from ..errors import EncodingError
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def preprocess_sequences(aa_sequences: List[str]) -> List[str]:
@@ -88,7 +90,7 @@ def process_batches(
 
     try:
         for idx, batch in enumerate(batches_iter, start=1):
-            logging.info(
+            logger.info(
                 "Preparing batch %d with %d sequences, total len: %d",
                 idx,
                 len(batch),
@@ -110,7 +112,7 @@ def process_batches(
             # Get memory info
             allocated, reserved = get_memory_info()
 
-            logging.info(
+            logger.info(
                 "3Di encoding batch %d of %d batches (sequences %d of %d). "
                 "Estimated %s remaining. Cuda memory allocated: %.1f GB reserved: %.1f GB",
                 idx,

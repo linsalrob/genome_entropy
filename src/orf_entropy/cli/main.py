@@ -1,11 +1,15 @@
 """Main CLI entry point for dna23di."""
 
+from pathlib import Path
+from typing import Optional
+
 try:
     import typer
 except ImportError:
     typer = None
 
-from ..config import __version__
+from ..config import __version__, DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS
+from ..logging_config import configure_logging
 
 # Create main app
 if typer:
@@ -19,11 +23,31 @@ if typer:
     def main(
         ctx: typer.Context,
         version: bool = typer.Option(False, "--version", "-v", help="Show version and exit"),
+        log_level: str = typer.Option(
+            DEFAULT_LOG_LEVEL,
+            "--log-level",
+            "-l",
+            help=f"Logging level ({', '.join(VALID_LOG_LEVELS)})",
+        ),
+        log_file: Optional[Path] = typer.Option(
+            None,
+            "--log-file",
+            help="Path to log file (default: log to STDOUT)",
+        ),
     ) -> None:
         """DNA to 3Di pipeline with entropy analysis."""
         if version:
             typer.echo(f"dna23di version {__version__}")
             raise typer.Exit()
+        
+        # Configure logging before executing any commands
+        if ctx.invoked_subcommand is not None:
+            # Validate log level
+            if log_level.upper() not in VALID_LOG_LEVELS:
+                typer.echo(f"Error: Invalid log level '{log_level}'. Must be one of: {', '.join(VALID_LOG_LEVELS)}", err=True)
+                raise typer.Exit(2)
+            
+            configure_logging(level=log_level.upper(), log_file=log_file)
         
         if ctx.invoked_subcommand is None:
             typer.echo(ctx.get_help())
