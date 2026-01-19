@@ -35,7 +35,7 @@ def encode3di_command(
         None,
         "--device",
         "-d",
-        help="Device to use (auto/cuda/mps/cpu)",
+        help="Device to use (auto/cuda/mps/cpu). Ignored if --multi-gpu is set.",
     ),
     encoding_size: int = typer.Option(
         10000,
@@ -43,17 +43,42 @@ def encode3di_command(
         "-e",
         help="Encoding size (approximates to amino acids)",
     ),
+    multi_gpu: bool = typer.Option(
+        False,
+        "--multi-gpu",
+        help="Use multi-GPU parallel encoding when available",
+    ),
+    gpu_ids: Optional[str] = typer.Option(
+        None,
+        "--gpu-ids",
+        help="Comma-separated list of GPU IDs to use (e.g., '0,1,2'). "
+             "If not specified, auto-discovers available GPUs.",
+    ),
 ) -> None:
     """Encode proteins to 3Di structural tokens.
 
     Uses ProstT5 model to predict 3Di structural alphabet tokens
     directly from amino acid sequences.
+    
+    Multi-GPU encoding can significantly speed up encoding by distributing
+    batches across multiple GPUs. Use --multi-gpu to enable, and optionally
+    specify --gpu-ids to select specific GPUs.
     """
     try:
         from ...encode3di.prostt5 import ProstT5ThreeDiEncoder
         from ...io.jsonio import read_json, write_json
         from ...orf.types import OrfRecord
         from ...translate.translator import ProteinRecord
+
+        # Parse GPU IDs if provided
+        parsed_gpu_ids = None
+        if gpu_ids:
+            try:
+                parsed_gpu_ids = [int(x.strip()) for x in gpu_ids.split(",")]
+            except ValueError:
+                typer.echo(f"Error: Invalid GPU IDs format: {gpu_ids}", err=True)
+                typer.echo("Expected comma-separated integers, e.g., '0,1,2'", err=True)
+                raise typer.Exit(2)
 
         typer.echo(f"Reading proteins from: {input}")
         protein_data = read_json(input)
@@ -76,10 +101,23 @@ def encode3di_command(
 
         typer.echo(f"\nInitializing ProstT5 encoder (model: {model})...")
         encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
-        typer.echo(f"  Using device: {encoder.device}")
+        
+        if multi_gpu:
+            typer.echo(f"  Multi-GPU encoding: enabled")
+            if parsed_gpu_ids:
+                typer.echo(f"  GPU IDs: {parsed_gpu_ids}")
+            else:
+                typer.echo(f"  GPU IDs: auto-discover")
+        else:
+            typer.echo(f"  Using device: {encoder.device}")
 
         typer.echo(f"\nEncoding to 3Di tokens...")
-        three_dis = encoder.encode_proteins(proteins, encoding_size)
+        three_dis = encoder.encode_proteins(
+            proteins,
+            encoding_size,
+            use_multi_gpu=multi_gpu,
+            gpu_ids=parsed_gpu_ids,
+        )
         typer.echo(f"  Encoded {len(three_dis)} sequence(s)")
 
         typer.echo(f"\nWriting results to: {output}")

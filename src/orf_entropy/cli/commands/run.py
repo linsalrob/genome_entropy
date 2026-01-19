@@ -45,12 +45,23 @@ def run_command(
         None,
         "--device",
         "-d",
-        help="Device to use (auto/cuda/mps/cpu)",
+        help="Device to use (auto/cuda/mps/cpu). Ignored if --multi-gpu is set.",
     ),
     skip_entropy: bool = typer.Option(
         False,
         "--skip-entropy",
         help="Skip entropy calculation",
+    ),
+    multi_gpu: bool = typer.Option(
+        False,
+        "--multi-gpu",
+        help="Use multi-GPU parallel encoding when available",
+    ),
+    gpu_ids: Optional[str] = typer.Option(
+        None,
+        "--gpu-ids",
+        help="Comma-separated list of GPU IDs to use (e.g., '0,1,2'). "
+             "If not specified, auto-discovers available GPUs.",
     ),
 ) -> None:
     """Run the complete DNA to 3Di pipeline.
@@ -60,9 +71,23 @@ def run_command(
     2. Translate ORFs to proteins
     3. Encode proteins to 3Di tokens
     4. Calculate entropy at all levels
+    
+    Multi-GPU encoding can significantly speed up 3Di encoding by distributing
+    batches across multiple GPUs. Use --multi-gpu to enable, and optionally
+    specify --gpu-ids to select specific GPUs.
     """
     try:
         from ...pipeline.runner import run_pipeline
+        
+        # Parse GPU IDs if provided
+        parsed_gpu_ids = None
+        if gpu_ids:
+            try:
+                parsed_gpu_ids = [int(x.strip()) for x in gpu_ids.split(",")]
+            except ValueError:
+                typer.echo(f"Error: Invalid GPU IDs format: {gpu_ids}", err=True)
+                typer.echo("Expected comma-separated integers, e.g., '0,1,2'", err=True)
+                raise typer.Exit(2)
         
         typer.echo(f"Starting DNA to 3Di pipeline...")
         typer.echo(f"  Input: {input}")
@@ -70,6 +95,15 @@ def run_command(
         typer.echo(f"  Genetic code table: {table}")
         typer.echo(f"  Minimum AA length: {min_aa}")
         typer.echo(f"  Model: {model}")
+        
+        if multi_gpu:
+            typer.echo(f"  Multi-GPU encoding: enabled")
+            if parsed_gpu_ids:
+                typer.echo(f"  GPU IDs: {parsed_gpu_ids}")
+            else:
+                typer.echo(f"  GPU IDs: auto-discover")
+        else:
+            typer.echo(f"  Device: {device if device else 'auto'}")
         
         typer.echo(f"\nRunning pipeline...")
         
@@ -81,6 +115,8 @@ def run_command(
             compute_entropy=not skip_entropy,
             output_json=output,
             device=device,
+            use_multi_gpu=multi_gpu,
+            gpu_ids=parsed_gpu_ids,
         )
         
         typer.echo(f"\n✓ Pipeline complete!")
