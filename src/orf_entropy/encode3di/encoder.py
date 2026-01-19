@@ -127,12 +127,15 @@ class ProstT5ThreeDiEncoder:
         """
         Yield batches of sequences (with original indices) under an approximate token budget.
 
-        I think the tokens need to approximate total amino acid lengths ... ?
-
-        Strategy:
+        Optimized strategy to address the problem of isolated long sequences:
             1) Keep original indices.
             2) Sort by length to minimize padding within each batch.
-            3) Greedily pack adjacent sequences into a batch while staying under token_budget
+            3) For each batch:
+               - Start with long sequences from the end (largest first)
+               - Add long sequences until adding another would exceed budget
+               - Fill remaining budget with short sequences from the beginning
+            4) This approach avoids ending up with long proteins that can't be combined,
+               resulting in better token budget utilization and fewer iterations.
 
         Parameters
         ----------
@@ -152,35 +155,61 @@ class ProstT5ThreeDiEncoder:
         ]
         indexed.sort(key=lambda x: len(x.seq))  # length-sorted for tight padding
 
-        batch: List[IndexedSeq] = []
-        batch_max_len = 0
+        start_idx = 0  # Points to shortest remaining sequence
+        end_idx = len(indexed) - 1  # Points to longest remaining sequence
 
-        for item in indexed:
-            L = len(item.seq)
+        while start_idx <= end_idx:
+            batch: List[IndexedSeq] = []
+            batch_max_len = 0
 
-            # If a single sequence exceeds the budget, yield it alone
-            if L > token_budget:
-                if batch:
-                    yield batch
-                    batch = []
-                    batch_max_len = 0
-                yield [item]
-                continue
+            # Phase 1: Add long sequences from the end
+            while end_idx >= start_idx:
+                item = indexed[end_idx]
+                L = len(item.seq)
 
-            new_max_len = max(batch_max_len, L)
-            new_size = len(batch) + 1
-            est_tokens = new_size * new_max_len
+                # If a single sequence exceeds the budget, yield it alone
+                if L > token_budget:
+                    if batch:
+                        yield batch
+                        batch = []
+                        batch_max_len = 0
+                    yield [item]
+                    end_idx -= 1
+                    continue
 
-            if batch and (est_tokens > token_budget):
+                new_max_len = max(batch_max_len, L)
+                new_size = len(batch) + 1
+                est_tokens = new_size * new_max_len
+
+                if est_tokens <= token_budget:
+                    # Add this long sequence to the batch
+                    batch.append(item)
+                    batch_max_len = new_max_len
+                    end_idx -= 1
+                else:
+                    # Can't add more long sequences, move to phase 2
+                    break
+
+            # Phase 2: Fill remaining budget with short sequences from the start
+            while start_idx <= end_idx:
+                item = indexed[start_idx]
+                L = len(item.seq)
+
+                new_max_len = max(batch_max_len, L)
+                new_size = len(batch) + 1
+                est_tokens = new_size * new_max_len
+
+                if est_tokens <= token_budget:
+                    # Add this short sequence to fill the gap
+                    batch.append(item)
+                    batch_max_len = new_max_len
+                    start_idx += 1
+                else:
+                    # Can't fit more sequences, yield this batch
+                    break
+
+            if batch:
                 yield batch
-                batch = [item]
-                batch_max_len = L
-            else:
-                batch.append(item)
-                batch_max_len = new_max_len
-
-        if batch:
-            yield batch
 
     def _encode_batch(self, aa_sequences: List[str]) -> List[str]:
         """
