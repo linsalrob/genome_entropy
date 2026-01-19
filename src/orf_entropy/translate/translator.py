@@ -7,7 +7,10 @@ import PyGeneticCode
 
 from ..config import DEFAULT_GENETIC_CODE_TABLE
 from ..errors import TranslationError
+from ..logging_config import get_logger
 from ..orf.types import OrfRecord
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -50,6 +53,8 @@ def translate_orf(orf: OrfRecord, table_id: int = DEFAULT_GENETIC_CODE_TABLE) ->
         TranslationError: If translation fails
     """
     
+    logger.debug("Translating ORF %s (length=%d nt) with table %d", orf.orf_id, len(orf.nt_sequence), table_id)
+    
     try:
         
         # Translate sequence
@@ -67,11 +72,14 @@ def translate_orf(orf: OrfRecord, table_id: int = DEFAULT_GENETIC_CODE_TABLE) ->
             Location:
             Start: {orf.start} Stop: {orf.end} Frame: {orf.frame} Strand: {orf.strand}
             """
+            logger.error("Translation mismatch for ORF %s", orf.orf_id)
             raise ValueError(errmsg)
         
         # Remove stop codon (*) if present at the end
         if aa_sequence.endswith("*"):
             aa_sequence = aa_sequence[:-1]
+        
+        logger.debug("Successfully translated ORF %s to %d amino acids", orf.orf_id, len(aa_sequence))
         
         return ProteinRecord(
             orf=orf,
@@ -80,6 +88,7 @@ def translate_orf(orf: OrfRecord, table_id: int = DEFAULT_GENETIC_CODE_TABLE) ->
         )
         
     except Exception as e:
+        logger.error("Failed to translate ORF %s: %s", orf.orf_id, e)
         raise TranslationError(f"Failed to translate ORF {orf.orf_id}: {e}")
 
 
@@ -95,4 +104,7 @@ def translate_orfs(
     Returns:
         List of ProteinRecord objects
     """
-    return [translate_orf(orf, table_id=table_id) for orf in orfs]
+    logger.info("Translating %d ORF(s) with table %d", len(orfs), table_id)
+    proteins = [translate_orf(orf, table_id=table_id) for orf in orfs]
+    logger.info("Successfully translated %d ORF(s) to proteins", len(proteins))
+    return proteins

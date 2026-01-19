@@ -1,6 +1,5 @@
 """ProstT5-based encoder for amino acid to 3Di structural token conversion."""
 
-import logging
 from typing import Any, Iterator, List, Optional, Sequence
 
 try:
@@ -20,13 +19,12 @@ from ..config import (
     MPS_DEVICE,
 )
 from ..errors import DeviceError, ModelError
+from ..logging_config import get_logger
 from ..translate.translator import ProteinRecord
 from .encoding import encode
 from .types import IndexedSeq, ThreeDiRecord
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = get_logger(__name__)
 
 
 class ProstT5ThreeDiEncoder:
@@ -101,6 +99,7 @@ class ProstT5ThreeDiEncoder:
             return  # Already loaded
 
         try:
+            logger.info("Loading ProstT5 model: %s", self.model_name)
             self.tokenizer = T5Tokenizer.from_pretrained(
                 self.model_name, do_lower_case=False
             )
@@ -108,9 +107,10 @@ class ProstT5ThreeDiEncoder:
                 self.device
             )
 
-            logging.info("Loaded model %s on device %s", self.model_name, self.device)
-            logging.info("Model config:\n%s", self.model.config)
+            logger.info("Loaded model %s on device %s", self.model_name, self.device)
+            logger.debug("Model config:\n%s", self.model.config)
         except Exception as e:
+            logger.error("Failed to load ProstT5 model %s: %s", self.model_name, e)
             raise ModelError(
                 f"Failed to load ProstT5 model {self.model_name}: {e}"
             ) from e

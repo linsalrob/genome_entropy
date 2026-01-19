@@ -5,6 +5,10 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Dict, Optional, Set
 
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class EntropyReport:
@@ -109,7 +113,10 @@ def calculate_entropies_for_sequences(
     Returns:
         Dictionary mapping IDs to entropy values
     """
-    return {
+    logger.debug("Calculating entropy for %d sequence(s)", len(sequences))
+    entropies = {
         seq_id: calculate_sequence_entropy(seq, alphabet=alphabet, normalize=normalize)
         for seq_id, seq in sequences.items()
     }
+    logger.debug("Calculated entropy for %d sequence(s)", len(entropies))
+    return entropies

@@ -1,6 +1,5 @@
 """Token size estimation for optimal GPU memory usage in 3Di encoding."""
 
-import logging
 import random
 from typing import Any, Dict, List, Optional
 
@@ -10,6 +9,9 @@ except ImportError:
     torch = None  # type: ignore[assignment]
 
 from ..config import AA_ALPHABET
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 def generate_random_protein(length: int, seed: Optional[int] = None) -> str:
@@ -101,18 +103,18 @@ def estimate_token_size(
     if not hasattr(encoder, "_load_model"):
         raise ValueError("encoder must have _load_model method")
 
-    logging.info("Starting token size estimation on device: %s", encoder.device)
-    logging.info("Testing range: %d to %d (step: %d)", start_length, end_length, step)
+    logger.info("Starting token size estimation on device: %s", encoder.device)
+    logger.info("Testing range: %d to %d (step: %d)", start_length, end_length, step)
 
     # Load the model before starting estimation
-    logging.info("Loading model...")
+    logger.info("Loading model...")
     encoder._load_model()
 
     max_successful_length = 0
     trials_per_length: Dict[int, int] = {}
 
     for total_length in range(start_length, end_length + 1, step):
-        logging.info("Testing total length: %d amino acids", total_length)
+        logger.info("Testing total length: %d amino acids", total_length)
 
         successful_trials = 0
 
@@ -125,7 +127,7 @@ def estimate_token_size(
                     seed=trial,  # Different seed per trial
                 )
 
-                logging.info(
+                logger.info(
                     "  Trial %d/%d: encoding %d proteins (total %d AA)",
                     trial + 1,
                     num_trials,
@@ -141,17 +143,17 @@ def estimate_token_size(
                 for batch_idx, batch in enumerate(batches):
                     batch_seqs = [item.seq for item in batch]
                     _ = encoder._encode_batch(batch_seqs)
-                    logging.info(
+                    logger.info(
                         "    Batch %d/%d encoded successfully",
                         batch_idx + 1,
                         len(batches),
                     )
 
                 successful_trials += 1
-                logging.info("  Trial %d/%d: SUCCESS", trial + 1, num_trials)
+                logger.info("  Trial %d/%d: SUCCESS", trial + 1, num_trials)
 
             except torch.cuda.OutOfMemoryError as e:
-                logging.warning(
+                logger.warning(
                     "  Trial %d/%d: Out of memory at length %d: %s",
                     trial + 1,
                     num_trials,
@@ -163,7 +165,7 @@ def estimate_token_size(
                     torch.cuda.empty_cache()
                 break
             except Exception as e:
-                logging.error(
+                logger.error(
                     "  Trial %d/%d: Unexpected error at length %d: %s",
                     trial + 1,
                     num_trials,
@@ -177,7 +179,7 @@ def estimate_token_size(
 
         # If no trials succeeded, we've hit the limit
         if successful_trials == 0:
-            logging.info(
+            logger.info(
                 "No successful trials at length %d, stopping estimation", total_length
             )
             break
@@ -198,15 +200,15 @@ def estimate_token_size(
         "device": encoder.device,
     }
 
-    logging.info("=" * 60)
-    logging.info("Token Size Estimation Complete")
-    logging.info("=" * 60)
-    logging.info("Device: %s", results["device"])
-    logging.info("Max successful length: %d amino acids", results["max_length"])
-    logging.info(
+    logger.info("=" * 60)
+    logger.info("Token Size Estimation Complete")
+    logger.info("=" * 60)
+    logger.info("Device: %s", results["device"])
+    logger.info("Max successful length: %d amino acids", results["max_length"])
+    logger.info(
         "Recommended token size: %d amino acids", results["recommended_token_size"]
     )
-    logging.info("Trials per length: %s", results["trials_per_length"])
-    logging.info("=" * 60)
+    logger.info("Trials per length: %s", results["trials_per_length"])
+    logger.info("=" * 60)
 
     return results

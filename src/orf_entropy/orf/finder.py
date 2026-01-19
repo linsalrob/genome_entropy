@@ -9,7 +9,10 @@ from typing import Dict, List, Union
 
 from ..config import DEFAULT_GENETIC_CODE_TABLE, GET_ORFS_BINARY
 from ..errors import OrfFinderError
+from ..logging_config import get_logger
 from .types import OrfRecord
+
+logger = get_logger(__name__)
 
 
 def find_orfs(
@@ -35,8 +38,16 @@ def find_orfs(
     Raises:
         OrfFinderError: If get_orfs binary is not found or fails
     """
+    logger.info(
+        "Starting ORF finding for %d sequence(s) (table=%d, min_length=%d)",
+        len(sequences),
+        table_id,
+        min_nt_length,
+    )
+    
     # Check if binary exists
     try:
+        logger.debug("Checking get_orfs binary at: %s", binary_path)
         result = subprocess.run(
             [binary_path, "-v"],
             capture_output=True,
@@ -45,13 +56,16 @@ def find_orfs(
         )
         if result.returncode != 0:
             raise OrfFinderError(f"get_orfs binary check failed: {result.stderr}")
+        logger.debug("get_orfs binary check successful")
     except FileNotFoundError:
+        logger.error("get_orfs binary not found at: %s", binary_path)
         raise OrfFinderError(
             f"get_orfs binary not found at: {binary_path}\n"
             "Please install from https://github.com/linsalrob/get_orfs\n"
             "or set GET_ORFS_PATH environment variable."
         )
     except subprocess.TimeoutExpired:
+        logger.error("get_orfs binary check timed out")
         raise OrfFinderError("get_orfs binary check timed out")
     
     # Write sequences to temporary FASTA file
@@ -59,6 +73,8 @@ def find_orfs(
         tmp_fasta_path = tmp_fasta.name
         for seq_id, sequence in sequences.items():
             tmp_fasta.write(f">{seq_id}\n{sequence}\n")
+    
+    logger.debug("Wrote sequences to temporary file: %s", tmp_fasta_path)
     
     try:
         # Run get_orfs
@@ -70,6 +86,7 @@ def find_orfs(
             "-l", str(min_nt_length),
         ]
         
+        logger.debug("Running command: %s", " ".join(cmd))
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -78,15 +95,20 @@ def find_orfs(
         )
         
         if result.returncode != 0:
+            logger.error("get_orfs failed with return code %d: %s", result.returncode, result.stderr)
             raise OrfFinderError(f"get_orfs failed: {result.stderr}")
+        
+        logger.debug("get_orfs completed successfully")
         
         # Parse output
         orfs = _parse_get_orfs_output(result.stdout, sequences, table_id)
+        logger.info("Found %d ORF(s) in %d sequence(s)", len(orfs), len(sequences))
         return orfs
         
     finally:
         # Clean up temporary file
         Path(tmp_fasta_path).unlink(missing_ok=True)
+        logger.debug("Cleaned up temporary file: %s", tmp_fasta_path)
 
 def _parse_orf_header_line(header: str, table_id: int) -> OrfRecord:
 
@@ -179,6 +201,7 @@ def _parse_get_orfs_output(
     Returns:
         List of OrfRecord objects
     """
+    logger.debug("Parsing get_orfs output")
     orfs = []
     current_orf = None
     
@@ -191,12 +214,15 @@ def _parse_get_orfs_output(
                     current_orf.has_start_codon = True if 'M' in current_orf.aa_sequence else False
                     current_orf.has_stop_codon  = True if '*' in current_orf.aa_sequence else False
                     orfs.append(current_orf)
+                    logger.debug("Parsed ORF: %s (length=%d nt)", current_orf.orf_id, len(current_orf.nt_sequence))
                 current_orf = _parse_orf_header_line(line, table_id)
             else:
                 current_orf.aa_sequence += line.strip()
         except (ValueError, IndexError) as e:
+            logger.error("Error handling sequence line '%s': %s", line, e)
             print(f"Error handling sequence {line}", file=sys.stderr)
             raise Exception(f"Error as {e}")
             continue
     
+    logger.debug("Parsed %d ORF(s) from get_orfs output", len(orfs))
     return orfs

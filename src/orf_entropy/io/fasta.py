@@ -3,6 +3,10 @@
 from pathlib import Path
 from typing import Dict, Iterator, List, Tuple, Union
 
+from ..logging_config import get_logger
+
+logger = get_logger(__name__)
+
 
 def read_fasta(fasta_path: Union[str, Path]) -> Dict[str, str]:
     """Read a FASTA file and return a dictionary of sequence_id -> sequence.
@@ -18,7 +22,10 @@ def read_fasta(fasta_path: Union[str, Path]) -> Dict[str, str]:
         ValueError: If the FASTA file is malformed
     """
     fasta_path = Path(fasta_path)
+    logger.info("Reading FASTA file: %s", fasta_path)
+    
     if not fasta_path.exists():
+        logger.error("FASTA file not found: %s", fasta_path)
         raise FileNotFoundError(f"FASTA file not found: {fasta_path}")
     
     sequences = {}
@@ -35,22 +42,27 @@ def read_fasta(fasta_path: Union[str, Path]) -> Dict[str, str]:
                 # Save previous sequence if exists
                 if current_id is not None:
                     sequences[current_id] = "".join(current_seq_parts)
+                    logger.debug("Read sequence '%s' (length=%d)", current_id, len(sequences[current_id]))
                 
                 # Start new sequence
                 current_id = line[1:].split()[0]  # Take first word after >
                 current_seq_parts = []
             else:
                 if current_id is None:
+                    logger.error("FASTA sequence found before header in %s", fasta_path)
                     raise ValueError("FASTA sequence found before header")
                 current_seq_parts.append(line.upper())
         
         # Save last sequence
         if current_id is not None:
             sequences[current_id] = "".join(current_seq_parts)
+            logger.debug("Read sequence '%s' (length=%d)", current_id, len(sequences[current_id]))
     
     if not sequences:
+        logger.error("No sequences found in FASTA file: %s", fasta_path)
         raise ValueError(f"No sequences found in FASTA file: {fasta_path}")
     
+    logger.info("Successfully read %d sequence(s) from %s", len(sequences), fasta_path)
     return sequences
 
 
@@ -109,6 +121,8 @@ def write_fasta(sequences: Dict[str, str], output_path: Union[str, Path], line_w
         line_width: Maximum line width for sequence lines (default: 80)
     """
     output_path = Path(output_path)
+    logger.info("Writing %d sequence(s) to FASTA file: %s", len(sequences), output_path)
+    
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     with open(output_path, "w") as f:
@@ -117,3 +131,6 @@ def write_fasta(sequences: Dict[str, str], output_path: Union[str, Path], line_w
             # Write sequence in chunks of line_width
             for i in range(0, len(sequence), line_width):
                 f.write(sequence[i:i+line_width] + "\n")
+            logger.debug("Wrote sequence '%s' (length=%d)", seq_id, len(sequence))
+    
+    logger.info("Successfully wrote FASTA file: %s", output_path)
