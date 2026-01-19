@@ -12,7 +12,6 @@ import sys
 from pathlib import Path
 from typing import Optional, Union
 
-
 # Default logging format
 DEFAULT_LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 DEFAULT_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -33,14 +32,14 @@ def configure_logging(
     """Configure logging for the entire application.
 
     This should be called once at application startup (e.g., in CLI main).
-    
+
     Args:
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) as int or string
         log_file: Optional path to log file. If None, logs to STDOUT
         log_format: Format string for log messages
         date_format: Format string for timestamps
         force: If True, reconfigure even if already configured
-        
+
     Examples:
         >>> configure_logging(level=logging.DEBUG, log_file="app.log")
         >>> configure_logging(level="INFO")  # Log to STDOUT
@@ -88,13 +87,13 @@ def get_logger(name: str) -> logging.Logger:
     """Get a logger instance for a module.
 
     This is the preferred way to get loggers in the application.
-    
+
     Args:
         name: Name of the logger (usually __name__ of the module)
-        
+
     Returns:
         Configured logger instance
-        
+
     Example:
         >>> logger = get_logger(__name__)
         >>> logger.info("Processing started")
@@ -104,7 +103,7 @@ def get_logger(name: str) -> logging.Logger:
 
 def is_configured() -> bool:
     """Check if logging has been configured.
-    
+
     Returns:
         True if configure_logging() has been called
     """
@@ -113,7 +112,7 @@ def is_configured() -> bool:
 
 def get_log_file() -> Optional[Path]:
     """Get the current log file path.
-    
+
     Returns:
         Path to log file, or None if logging to STDOUT
     """
@@ -122,7 +121,7 @@ def get_log_file() -> Optional[Path]:
 
 def get_log_level() -> int:
     """Get the current logging level.
-    
+
     Returns:
         Current logging level as integer
     """
@@ -131,10 +130,10 @@ def get_log_level() -> int:
 
 def set_log_level(level: Union[int, str]) -> None:
     """Change the logging level at runtime.
-    
+
     Args:
         level: New logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-        
+
     Example:
         >>> set_log_level("DEBUG")
         >>> set_log_level(logging.WARNING)
