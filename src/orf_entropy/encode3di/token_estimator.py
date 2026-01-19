@@ -98,8 +98,15 @@ def estimate_token_size(
     if not hasattr(encoder, "encode") or not hasattr(encoder, "device"):
         raise ValueError("encoder must be a ProstT5ThreeDiEncoder instance")
 
+    if not hasattr(encoder, "_load_model"):
+        raise ValueError("encoder must have _load_model method")
+
     logging.info("Starting token size estimation on device: %s", encoder.device)
     logging.info("Testing range: %d to %d (step: %d)", start_length, end_length, step)
+
+    # Load the model before starting estimation
+    logging.info("Loading model...")
+    encoder._load_model()
 
     max_successful_length = 0
     trials_per_length: Dict[int, int] = {}
