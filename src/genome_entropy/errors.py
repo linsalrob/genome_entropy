@@ -1,8 +1,8 @@
-"""Custom exceptions for orf_entropy."""
+"""Custom exceptions for genome_entropy."""
 
 
 class OrfEntropyError(Exception):
-    """Base exception for orf_entropy package."""
+    """Base exception for genome_entropy package."""
 
     pass
 

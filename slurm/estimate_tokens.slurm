@@ -13,7 +13,7 @@ set -euo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 eval "$(conda shell.bash hook)"
-conda activate orf_entropy
+conda activate genome_entropy
 
 genome_entropy estimate-tokens --start 3000 --end 20000
 

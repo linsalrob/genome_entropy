@@ -1,7 +1,7 @@
 # genome_entropy
 
-[![Python CI](https://github.com/linsalrob/orf_entropy/workflows/Python%20CI/badge.svg)](https://github.com/linsalrob/orf_entropy/actions)
-[![Documentation](https://github.com/linsalrob/orf_entropy/workflows/Documentation/badge.svg)](https://linsalrob.github.io/orf_entropy/)
+[![Python CI](https://github.com/linsalrob/genome_entropy/workflows/Python%20CI/badge.svg)](https://github.com/linsalrob/genome_entropy/actions)
+[![Documentation](https://github.com/linsalrob/genome_entropy/workflows/Documentation/badge.svg)](https://linsalrob.github.io/genome_entropy/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -15,7 +15,7 @@ We refer to this framework as **genome-entropy** to emphasise its unifying focus
 
 ## Documentation
 
-📚 **[Read the full documentation on GitHub Pages](https://linsalrob.github.io/orf_entropy/)**
+📚 **[Read the full documentation on GitHub Pages](https://linsalrob.github.io/genome_entropy/)**
 
 The documentation includes:
 - Installation guide
@@ -43,7 +43,7 @@ The documentation includes:
 ```bash
 # Clone repository
 git clone https://github.com/linsalrob/genome_entropy.git
-cd orf_entropy
+cd genome_entropy
 
 # Create virtual environment
 python3 -m venv venv

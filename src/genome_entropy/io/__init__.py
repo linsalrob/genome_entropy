@@ -1,1 +1,1 @@
-"""I/O utilities for orf_entropy."""
+"""I/O utilities for genome_entropy."""

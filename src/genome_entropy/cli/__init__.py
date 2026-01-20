@@ -1,1 +1,1 @@
-"""Command-line interface for orf_entropy."""
+"""Command-line interface for genome_entropy."""

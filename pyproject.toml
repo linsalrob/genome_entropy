@@ -50,8 +50,8 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/linsalrob/orf_entropy"
-Repository = "https://github.com/linsalrob/orf_entropy"
+Homepage = "https://github.com/linsalrob/genome_entropy"
+Repository = "https://github.com/linsalrob/genome_entropy"
 
 [project.scripts]
 genome_entropy = "genome_entropy.cli.main:app"

@@ -1,4 +1,4 @@
-"""Sphinx configuration for orf_entropy documentation."""
+"""Sphinx configuration for genome_entropy documentation."""
 
 import os
 import sys
@@ -105,13 +105,13 @@ intersphinx_mapping = {
 html_css_files = []
 
 # Output file base name for HTML help builder
-htmlhelp_basename = 'orf_entropydoc'
+htmlhelp_basename = 'genome_entropydoc'
 
 # GitHub link
 html_context = {
     'display_github': True,
     'github_user': 'linsalrob',
-    'github_repo': 'orf_entropy',
+    'github_repo': 'genome_entropy',
     'github_version': 'main',
     'conf_py_path': '/docs/source/',
 }

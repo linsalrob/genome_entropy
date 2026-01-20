@@ -13,7 +13,7 @@ set -euo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 eval "$(conda shell.bash hook)"
-conda activate orf_entropy
+conda activate genome_entropy
 
 if [[ $# -ne 2 ]]; then
     echo "Usage: sbatch pipeline.slurm <input fasta file> <output results>"

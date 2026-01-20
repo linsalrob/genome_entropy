@@ -68,17 +68,17 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/orf_entropy.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/genome_entropy.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/orf_entropy.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/genome_entropy.qhc"
 
 devhelp:
 	$(SPHINXBUILD) -b devhelp $(SOURCEDIR) $(BUILDDIR)/devhelp $(SPHINXOPTS)
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $$HOME/.local/share/devhelp/orf_entropy"
-	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/orf_entropy"
+	@echo "# mkdir -p $$HOME/.local/share/devhelp/genome_entropy"
+	@echo "# ln -s $(BUILDDIR)/devhelp $$HOME/.local/share/devhelp/genome_entropy"
 	@echo "# devhelp"
 
 epub:
