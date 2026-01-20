@@ -1,4 +1,4 @@
-"""Main CLI entry point for dna23di."""
+"""Main CLI entry point for genome_entropy."""
 
 from pathlib import Path
 from typing import Optional
@@ -14,7 +14,7 @@ from ..logging_config import configure_logging
 # Create main app
 if typer:
     app = typer.Typer(
-        name="dna23di",
+        name="genome_entropy",
         help="DNA to 3Di pipeline: Convert DNA sequences to ORFs, proteins, and 3Di structural tokens with entropy analysis.",
         add_completion=False,
     )
@@ -37,7 +37,7 @@ if typer:
     ) -> None:
         """DNA to 3Di pipeline with entropy analysis."""
         if version:
-            typer.echo(f"dna23di version {__version__}")
+            typer.echo(f"genome_entropy version {__version__}")
             raise typer.Exit()
         
         # Configure logging before executing any commands

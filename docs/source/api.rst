@@ -1,7 +1,7 @@
 API Reference
 =============
 
-This page documents the Python API for **orf_entropy**. You can use these modules directly in your Python code for more fine-grained control over the pipeline.
+This page documents the Python API for **genome_entropy**. You can use these modules directly in your Python code for more fine-grained control over the pipeline.
 
 Core Modules
 ------------
@@ -10,17 +10,17 @@ Core Modules
    :toctree: _autosummary
    :recursive:
 
-   orf_entropy.orf
-   orf_entropy.translate
-   orf_entropy.encode3di
-   orf_entropy.entropy
-   orf_entropy.pipeline
-   orf_entropy.io
+   genome_entropy.orf
+   genome_entropy.translate
+   genome_entropy.encode3di
+   genome_entropy.entropy
+   genome_entropy.pipeline
+   genome_entropy.io
 
 ORF Finding
 -----------
 
-.. automodule:: orf_entropy.orf
+.. automodule:: genome_entropy.orf
    :members:
    :undoc-members:
    :show-inheritance:
@@ -28,7 +28,7 @@ ORF Finding
 Types
 ^^^^^
 
-.. autoclass:: orf_entropy.orf.types.OrfRecord
+.. autoclass:: genome_entropy.orf.types.OrfRecord
    :members:
    :undoc-members:
    :show-inheritance:
@@ -36,7 +36,7 @@ Types
 Finder
 ^^^^^^
 
-.. automodule:: orf_entropy.orf.finder
+.. automodule:: genome_entropy.orf.finder
    :members:
    :undoc-members:
    :show-inheritance:
@@ -44,7 +44,7 @@ Finder
 Translation
 -----------
 
-.. automodule:: orf_entropy.translate
+.. automodule:: genome_entropy.translate
    :members:
    :undoc-members:
    :show-inheritance:
@@ -52,7 +52,7 @@ Translation
 Translator
 ^^^^^^^^^^
 
-.. automodule:: orf_entropy.translate.translator
+.. automodule:: genome_entropy.translate.translator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -60,7 +60,7 @@ Translator
 3Di Encoding
 ------------
 
-.. automodule:: orf_entropy.encode3di
+.. automodule:: genome_entropy.encode3di
    :members:
    :undoc-members:
    :show-inheritance:
@@ -68,7 +68,7 @@ Translator
 Types
 ^^^^^
 
-.. automodule:: orf_entropy.encode3di.types
+.. automodule:: genome_entropy.encode3di.types
    :members:
    :undoc-members:
    :show-inheritance:
@@ -76,7 +76,7 @@ Types
 Encoder
 ^^^^^^^
 
-.. automodule:: orf_entropy.encode3di.encoder
+.. automodule:: genome_entropy.encode3di.encoder
    :members:
    :undoc-members:
    :show-inheritance:
@@ -84,7 +84,7 @@ Encoder
 Encoding Functions
 ^^^^^^^^^^^^^^^^^^
 
-.. automodule:: orf_entropy.encode3di.encoding
+.. automodule:: genome_entropy.encode3di.encoding
    :members:
    :undoc-members:
    :show-inheritance:
@@ -92,7 +92,7 @@ Encoding Functions
 Token Estimator
 ^^^^^^^^^^^^^^^
 
-.. automodule:: orf_entropy.encode3di.token_estimator
+.. automodule:: genome_entropy.encode3di.token_estimator
    :members:
    :undoc-members:
    :show-inheritance:
@@ -100,7 +100,7 @@ Token Estimator
 Entropy Calculation
 -------------------
 
-.. automodule:: orf_entropy.entropy
+.. automodule:: genome_entropy.entropy
    :members:
    :undoc-members:
    :show-inheritance:
@@ -108,7 +108,7 @@ Entropy Calculation
 Shannon Entropy
 ^^^^^^^^^^^^^^^
 
-.. automodule:: orf_entropy.entropy.shannon
+.. automodule:: genome_entropy.entropy.shannon
    :members:
    :undoc-members:
    :show-inheritance:
@@ -116,7 +116,7 @@ Shannon Entropy
 Pipeline
 --------
 
-.. automodule:: orf_entropy.pipeline
+.. automodule:: genome_entropy.pipeline
    :members:
    :undoc-members:
    :show-inheritance:
@@ -124,7 +124,7 @@ Pipeline
 Runner
 ^^^^^^
 
-.. automodule:: orf_entropy.pipeline.runner
+.. automodule:: genome_entropy.pipeline.runner
    :members:
    :undoc-members:
    :show-inheritance:
@@ -132,7 +132,7 @@ Runner
 I/O
 ---
 
-.. automodule:: orf_entropy.io
+.. automodule:: genome_entropy.io
    :members:
    :undoc-members:
    :show-inheritance:
@@ -140,7 +140,7 @@ I/O
 FASTA I/O
 ^^^^^^^^^
 
-.. automodule:: orf_entropy.io.fasta
+.. automodule:: genome_entropy.io.fasta
    :members:
    :undoc-members:
    :show-inheritance:
@@ -148,7 +148,7 @@ FASTA I/O
 JSON I/O
 ^^^^^^^^
 
-.. automodule:: orf_entropy.io.jsonio
+.. automodule:: genome_entropy.io.jsonio
    :members:
    :undoc-members:
    :show-inheritance:
@@ -156,7 +156,7 @@ JSON I/O
 Configuration
 -------------
 
-.. automodule:: orf_entropy.config
+.. automodule:: genome_entropy.config
    :members:
    :undoc-members:
    :show-inheritance:
@@ -164,7 +164,7 @@ Configuration
 Errors
 ------
 
-.. automodule:: orf_entropy.errors
+.. automodule:: genome_entropy.errors
    :members:
    :undoc-members:
    :show-inheritance:
@@ -172,7 +172,7 @@ Errors
 Logging
 -------
 
-.. automodule:: orf_entropy.logging_config
+.. automodule:: genome_entropy.logging_config
    :members:
    :undoc-members:
    :show-inheritance:
@@ -185,7 +185,7 @@ ORF Finding
 
 .. code-block:: python
 
-   from orf_entropy.orf.finder import find_orfs
+   from genome_entropy.orf.finder import find_orfs
 
    # Find ORFs in a FASTA file
    orfs = find_orfs(
@@ -205,7 +205,7 @@ Translation
 
 .. code-block:: python
 
-   from orf_entropy.translate.translator import translate_orfs
+   from genome_entropy.translate.translator import translate_orfs
 
    # Translate ORFs
    proteins = translate_orfs(orfs, table_id=11)
@@ -219,7 +219,7 @@ Translation
 
 .. code-block:: python
 
-   from orf_entropy.encode3di import ProstT5ThreeDiEncoder
+   from genome_entropy.encode3di import ProstT5ThreeDiEncoder
 
    # Initialize encoder
    encoder = ProstT5ThreeDiEncoder(
@@ -243,7 +243,7 @@ Token Estimation
 
 .. code-block:: python
 
-   from orf_entropy.encode3di import ProstT5ThreeDiEncoder, estimate_token_size
+   from genome_entropy.encode3di import ProstT5ThreeDiEncoder, estimate_token_size
 
    # Initialize encoder
    encoder = ProstT5ThreeDiEncoder()
@@ -270,7 +270,7 @@ Shannon Entropy
 
 .. code-block:: python
 
-   from orf_entropy.entropy.shannon import shannon_entropy, calculate_sequence_entropy
+   from genome_entropy.entropy.shannon import shannon_entropy, calculate_sequence_entropy
 
    # Calculate basic entropy
    dna = "ATCGATCGATCG"
@@ -296,7 +296,7 @@ Complete Pipeline
 .. code-block:: python
 
    from pathlib import Path
-   from orf_entropy.pipeline.runner import run_pipeline
+   from genome_entropy.pipeline.runner import run_pipeline
 
    # Run complete pipeline
    results = run_pipeline(
@@ -324,8 +324,8 @@ I/O Operations
 
 .. code-block:: python
 
-   from orf_entropy.io.fasta import read_fasta, write_fasta
-   from orf_entropy.io.jsonio import save_json, load_json
+   from genome_entropy.io.fasta import read_fasta, write_fasta
+   from genome_entropy.io.jsonio import save_json, load_json
 
    # Read FASTA
    sequences = read_fasta("genome.fasta")
@@ -349,7 +349,7 @@ Error Handling
 
 .. code-block:: python
 
-   from orf_entropy.errors import (
+   from genome_entropy.errors import (
        OrfEntropyError,
        OrfFinderError,
        TranslationError,
@@ -368,7 +368,7 @@ Custom Logging
 
 .. code-block:: python
 
-   from orf_entropy.logging_config import configure_logging
+   from genome_entropy.logging_config import configure_logging
    import logging
 
    # Configure logging
@@ -384,7 +384,7 @@ Advanced: Custom Batching
 
 .. code-block:: python
 
-   from orf_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
+   from genome_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
 
    encoder = ProstT5ThreeDiEncoder()
 
