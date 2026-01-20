@@ -53,6 +53,7 @@ class MultiGPUEncoder:
         
         # Create encoders for each GPU
         self.encoders: List[Any] = []
+        self.executors: List[Any] = []
         if self.gpu_ids:
             logger.info("Initializing multi-GPU encoding with %d GPU(s): %s", 
                        len(self.gpu_ids), self.gpu_ids)
@@ -60,6 +61,7 @@ class MultiGPUEncoder:
                 device = select_device_for_gpu(gpu_id)
                 encoder = encoder_class(model_name=model_name, device=device)
                 self.encoders.append(encoder)
+                self.executors.append(ThreadPoolExecutor(max_workers=1))
                 logger.info("Created encoder for %s", device)
         else:
             # Fallback to single GPU/CPU encoder
@@ -91,6 +93,7 @@ class MultiGPUEncoder:
             Tuple of (original_indices, encoded_3di_sequences)
         """
         encoder = self.encoders[encoder_idx]
+        executor = self.executors[encoder_idx]
         gpu_id = self.gpu_ids[encoder_idx] if self.gpu_ids else None
         
         batch_seqs = [x.seq for x in batch]
@@ -104,14 +107,13 @@ class MultiGPUEncoder:
         )
         
         # Run encoding in thread pool to avoid blocking asyncio
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            # Use encoder's _encode_batch method directly
-            results = await loop.run_in_executor(
-                executor,
-                encoder._encode_batch,
-                batch_seqs
-            )
+        loop = asyncio.get_running_loop()
+        # Use encoder's _encode_batch method directly
+        results = await loop.run_in_executor(
+            executor,
+            encoder._encode_batch,
+            batch_seqs
+        )
         
         return batch_idxs, results
     
