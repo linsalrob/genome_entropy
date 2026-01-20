@@ -1,7 +1,6 @@
 """Multi-GPU asynchronous encoding for protein to 3Di conversion."""
 
 import asyncio
-import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Iterator, List, Optional, Tuple
