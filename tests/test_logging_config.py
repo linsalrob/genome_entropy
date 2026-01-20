@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from orf_entropy.logging_config import (
+from genome_entropy.logging_config import (
     configure_logging,
     get_log_file,
     get_log_level,

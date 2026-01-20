@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains the Sphinx documentation for **orf_entropy** (dna23di).
+This directory contains the Sphinx documentation for **genome_entropy** (dna23di).
 
 ## Building Documentation Locally
 
@@ -58,7 +58,7 @@ make clean
 
 Documentation is automatically built and deployed to GitHub Pages when changes are pushed to the `main` branch via the `.github/workflows/docs.yml` GitHub Action.
 
-View the live documentation at: https://linsalrob.github.io/orf_entropy/
+View the live documentation at: https://linsalrob.github.io/genome_entropy/
 
 ## ReadTheDocs Integration
 

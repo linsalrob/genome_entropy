@@ -2,13 +2,13 @@
 
 import pytest
 
-from orf_entropy.encode3di.types import IndexedSeq
+from genome_entropy.encode3di.types import IndexedSeq
 
 
 @pytest.fixture
 def mock_encoder():
     """Create a mock encoder for testing batching logic."""
-    from orf_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
 
     # Create encoder without loading model
     class MockEncoder(ProstT5ThreeDiEncoder):
@@ -18,7 +18,7 @@ def mock_encoder():
 
     encoder = MockEncoder()
     # Copy the method we want to test
-    from orf_entropy.encode3di import encoder as encoder_module
+    from genome_entropy.encode3di import encoder as encoder_module
 
     encoder.token_budget_batches = (
         encoder_module.ProstT5ThreeDiEncoder.token_budget_batches.__get__(

@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 [0.1.0] - 2026-01-19
 --------------------
 
-Initial release of orf_entropy (dna23di).
+Initial release of genome_entropy (dna23di).
 
 Added
 ^^^^^

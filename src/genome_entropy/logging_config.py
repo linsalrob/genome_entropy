@@ -1,4 +1,4 @@
-"""Centralized logging configuration for orf_entropy/dna23di.
+"""Centralized logging configuration for genome_entropy.
 
 This module provides a single source for configuring logging throughout the application.
 It supports:

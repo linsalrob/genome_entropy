@@ -37,11 +37,11 @@ jobs:
     
     - name: Run mypy type checking
       run: |
-        mypy src/orf_entropy/ || true
+        mypy src/genome_entropy/ || true
     
     - name: Run unit tests
       run: |
-        pytest -k "not integration" -v --cov=orf_entropy --cov-report=xml --cov-report=term
+        pytest -k "not integration" -v --cov=genome_entropy --cov-report=xml --cov-report=term
     
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3

@@ -1,7 +1,7 @@
 CLI Commands Reference
 ======================
 
-The **dna23di** command-line interface provides modular commands for each step of the pipeline, plus a unified ``run`` command to execute the entire workflow.
+The **genome_entropy** command-line interface provides modular commands for each step of the pipeline, plus a unified ``run`` command to execute the entire workflow.
 
 Global Options
 --------------
@@ -10,7 +10,7 @@ All commands support these global options:
 
 .. code-block:: bash
 
-   dna23di [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
+   genome_entropy [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
 
 **Global Options:**
 
@@ -29,7 +29,7 @@ All commands support these global options:
 
 .. code-block:: bash
 
-   dna23di --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
+   genome_entropy --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
 
 Commands
 --------
@@ -43,7 +43,7 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
 
 .. code-block:: bash
 
-   dna23di run [OPTIONS]
+   genome_entropy run [OPTIONS]
 
 **Required Options:**
 
@@ -93,10 +93,10 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
 .. code-block:: bash
 
    # Basic usage with defaults
-   dna23di run --input genome.fasta --output results.json
+   genome_entropy run --input genome.fasta --output results.json
 
    # Use GPU and custom parameters
-   dna23di run \
+   genome_entropy run \
        --input genome.fasta \
        --output results.json \
        --table 1 \
@@ -105,7 +105,7 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
        --batch-size 8
 
    # Skip entropy for faster processing
-   dna23di run --input genome.fasta --output results.json --skip-entropy
+   genome_entropy run --input genome.fasta --output results.json --skip-entropy
 
 orf
 ^^^
@@ -116,7 +116,7 @@ Extract Open Reading Frames from DNA sequences.
 
 .. code-block:: bash
 
-   dna23di orf [OPTIONS]
+   genome_entropy orf [OPTIONS]
 
 **Required Options:**
 
@@ -143,10 +143,10 @@ Extract Open Reading Frames from DNA sequences.
 .. code-block:: bash
 
    # Find ORFs with default settings
-   dna23di orf --input genome.fasta --output orfs.json
+   genome_entropy orf --input genome.fasta --output orfs.json
 
    # Use standard genetic code and longer minimum length
-   dna23di orf \
+   genome_entropy orf \
        --input genome.fasta \
        --output orfs.json \
        --table 1 \
@@ -161,7 +161,7 @@ Translate ORFs to protein sequences.
 
 .. code-block:: bash
 
-   dna23di translate [OPTIONS]
+   genome_entropy translate [OPTIONS]
 
 **Required Options:**
 
@@ -183,10 +183,10 @@ Translate ORFs to protein sequences.
 .. code-block:: bash
 
    # Translate ORFs
-   dna23di translate --input orfs.json --output proteins.json
+   genome_entropy translate --input orfs.json --output proteins.json
 
    # Use different genetic code
-   dna23di translate \
+   genome_entropy translate \
        --input orfs.json \
        --output proteins.json \
        --table 4
@@ -200,7 +200,7 @@ Encode protein sequences to 3Di structural tokens using ProstT5.
 
 .. code-block:: bash
 
-   dna23di encode3di [OPTIONS]
+   genome_entropy encode3di [OPTIONS]
 
 **Required Options:**
 
@@ -237,10 +237,10 @@ Encode protein sequences to 3Di structural tokens using ProstT5.
 .. code-block:: bash
 
    # Basic encoding
-   dna23di encode3di --input proteins.json --output 3di.json
+   genome_entropy encode3di --input proteins.json --output 3di.json
 
    # Use GPU with larger batches
-   dna23di encode3di \
+   genome_entropy encode3di \
        --input proteins.json \
        --output 3di.json \
        --device cuda \
@@ -248,7 +248,7 @@ Encode protein sequences to 3Di structural tokens using ProstT5.
        --encoding-size 10000
 
    # Force CPU usage
-   dna23di encode3di \
+   genome_entropy encode3di \
        --input proteins.json \
        --output 3di.json \
        --device cpu
@@ -262,7 +262,7 @@ Calculate Shannon entropy at all representation levels.
 
 .. code-block:: bash
 
-   dna23di entropy [OPTIONS]
+   genome_entropy entropy [OPTIONS]
 
 **Required Options:**
 
@@ -282,10 +282,10 @@ Calculate Shannon entropy at all representation levels.
 .. code-block:: bash
 
    # Calculate entropy
-   dna23di entropy --input 3di.json --output entropy.json
+   genome_entropy entropy --input 3di.json --output entropy.json
 
    # Calculate normalized entropy
-   dna23di entropy \
+   genome_entropy entropy \
        --input 3di.json \
        --output entropy.json \
        --normalize
@@ -299,7 +299,7 @@ Pre-download ProstT5 models to cache.
 
 .. code-block:: bash
 
-   dna23di download [OPTIONS]
+   genome_entropy download [OPTIONS]
 
 **Optional Options:**
 
@@ -313,10 +313,10 @@ Pre-download ProstT5 models to cache.
 .. code-block:: bash
 
    # Download default model
-   dna23di download
+   genome_entropy download
 
    # Download specific model
-   dna23di download --model Rostlab/ProstT5
+   genome_entropy download --model Rostlab/ProstT5
 
 estimate-tokens
 ^^^^^^^^^^^^^^^
@@ -327,7 +327,7 @@ Estimate optimal encoding size for your GPU.
 
 .. code-block:: bash
 
-   dna23di estimate-tokens [OPTIONS]
+   genome_entropy estimate-tokens [OPTIONS]
 
 **Optional Options:**
 
@@ -366,17 +366,17 @@ Estimate optimal encoding size for your GPU.
 .. code-block:: bash
 
    # Basic estimation
-   dna23di estimate-tokens
+   genome_entropy estimate-tokens
 
    # Custom range for powerful GPU
-   dna23di estimate-tokens \
+   genome_entropy estimate-tokens \
        --device cuda \
        --start 5000 \
        --end 20000 \
        --step 2000
 
    # Test CPU limits
-   dna23di estimate-tokens --device cpu
+   genome_entropy estimate-tokens --device cpu
 
 Common Workflows
 ----------------
@@ -387,7 +387,7 @@ Standard Analysis
 .. code-block:: bash
 
    # Complete pipeline with logging
-   dna23di --log-file analysis.log run \
+   genome_entropy --log-file analysis.log run \
        --input genome.fasta \
        --output results.json \
        --table 11 \
@@ -400,20 +400,20 @@ Step-by-Step Analysis
 .. code-block:: bash
 
    # Step 1: Find ORFs
-   dna23di orf --input genome.fasta --output orfs.json --table 11
+   genome_entropy orf --input genome.fasta --output orfs.json --table 11
 
    # Step 2: Translate
-   dna23di translate --input orfs.json --output proteins.json --table 11
+   genome_entropy translate --input orfs.json --output proteins.json --table 11
 
    # Step 3: Encode to 3Di
-   dna23di encode3di \
+   genome_entropy encode3di \
        --input proteins.json \
        --output 3di.json \
        --device cuda \
        --batch-size 8
 
    # Step 4: Calculate entropy
-   dna23di entropy --input 3di.json --output entropy.json --normalize
+   genome_entropy entropy --input 3di.json --output entropy.json --normalize
 
 Optimizing Performance
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -421,10 +421,10 @@ Optimizing Performance
 .. code-block:: bash
 
    # First, find optimal encoding size
-   dna23di estimate-tokens --device cuda
+   genome_entropy estimate-tokens --device cuda
 
    # Then use it in the pipeline
-   dna23di run \
+   genome_entropy run \
        --input genome.fasta \
        --output results.json \
        --device cuda \
@@ -445,7 +445,7 @@ Examples:
 .. code-block:: bash
 
    # Check exit code
-   dna23di run --input genome.fasta --output results.json
+   genome_entropy run --input genome.fasta --output results.json
    echo $?  # Should print 0 on success
 
 Genetic Code Tables

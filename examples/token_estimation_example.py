@@ -6,7 +6,7 @@ This script shows how to use the new token estimator module to find
 the optimal encoding size for your GPU when encoding proteins to 3Di.
 """
 
-from orf_entropy.encode3di import (
+from genome_entropy.encode3di import (
     ProstT5ThreeDiEncoder,
     estimate_token_size,
     generate_random_protein,
@@ -94,7 +94,7 @@ def example_encoder_usage():
     print("  results = encoder.encode(proteins, encoding_size=5000)")
     print()
     print("Or via CLI:")
-    print("  dna23di encode3di --input proteins.json --output 3di.json \\")
+    print("  genome_entropy encode3di --input proteins.json --output 3di.json \\")
     print("                    --encoding-size 5000")
     print()
 
@@ -121,5 +121,5 @@ if __name__ == "__main__":
     print("=" * 60)
     print()
     print("To run token size estimation via CLI:")
-    print("  dna23di estimate-tokens --start 3000 --end 10000 --step 1000")
+    print("  genome_entropy estimate-tokens --start 3000 --end 10000 --step 1000")
     print()

@@ -2,7 +2,7 @@
 
 import pytest
 
-from orf_entropy.orf.types import OrfRecord
+from genome_entropy.orf.types import OrfRecord
 
 
 def test_orf_record_creation() -> None:

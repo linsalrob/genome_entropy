@@ -11,7 +11,7 @@ The `encode3di` module is now organized into separate files for better clarity:
 ### New Module Organization
 
 ```
-src/orf_entropy/encode3di/
+src/genome_entropy/encode3di/
 ├── __init__.py          # Public API exports
 ├── types.py             # Data types (ThreeDiRecord, IndexedSeq)
 ├── encoder.py           # ProstT5ThreeDiEncoder class
@@ -68,7 +68,7 @@ dna23di estimate-tokens --device cuda --model Rostlab/ProstT5_fp16
 #### Via Python API
 
 ```python
-from orf_entropy.encode3di import ProstT5ThreeDiEncoder, estimate_token_size
+from genome_entropy.encode3di import ProstT5ThreeDiEncoder, estimate_token_size
 
 # Initialize encoder
 encoder = ProstT5ThreeDiEncoder()
@@ -112,10 +112,10 @@ All existing imports continue to work:
 
 ```python
 # Old style - still works
-from orf_entropy.encode3di.prostt5 import ThreeDiRecord, ProstT5ThreeDiEncoder
+from genome_entropy.encode3di.prostt5 import ThreeDiRecord, ProstT5ThreeDiEncoder
 
 # New style - also works
-from orf_entropy.encode3di import ThreeDiRecord, ProstT5ThreeDiEncoder
+from genome_entropy.encode3di import ThreeDiRecord, ProstT5ThreeDiEncoder
 ```
 
 ## Testing

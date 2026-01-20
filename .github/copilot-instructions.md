@@ -1,11 +1,11 @@
-# Copilot Instructions for orf_entropy (dna23di pipeline)
+# Copilot Instructions for genome_entropy (dna23di pipeline)
 
 ## Repository Overview
 
 **Purpose**: Complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.  
 **Type**: Python 3.8+ bioinformatics library with CLI | **License**: MIT | **Author**: Rob Edwards (@linsalrob)
 
-**Project Name**: Repository is `orf_entropy`, but CLI tool is `dna23di` (reflects DNA→3Di transformation pipeline).
+**Project Name**: Repository is `genome_entropy`, but CLI tool is `dna23di` (reflects DNA→3Di transformation pipeline).
 
 **Current State**: Initial repository with basic structure. Full pipeline implementation needed.
 
@@ -177,7 +177,7 @@ cmake --install . --prefix ..
 **Unit Tests** (fast, models mocked):
 ```bash
 pytest                           # All tests
-pytest --cov=orf_entropy        # With coverage
+pytest --cov=genome_entropy        # With coverage
 pytest tests/test_entropy.py    # Specific file
 pytest -v                        # Verbose
 pytest -k "not integration"     # Skip integration tests
@@ -198,7 +198,7 @@ RUN_INTEGRATION=1 pytest -v -m integration
 ```bash
 black src/ tests/               # Format (modifies files)
 ruff check src/ tests/          # Lint (fast, replaces flake8)
-mypy src/orf_entropy/           # Type check
+mypy src/genome_entropy/           # Type check
 ```
 
 **Style**: PEP 8, black defaults (88 char line length), full type hints required.
@@ -207,7 +207,7 @@ mypy src/orf_entropy/           # Type check
 
 | Issue | Solution |
 |-------|----------|
-| `ModuleNotFoundError` importing orf_entropy | Run `pip install -e .` from repo root |
+| `ModuleNotFoundError` importing genome_entropy | Run `pip install -e .` from repo root |
 | Tests fail with import errors | Activate venv, install dependencies including `[dev]` extras |
 | `get_orfs` binary not found | Install get_orfs from GitHub and add to PATH or configure location |
 | CUDA errors on CPU-only machine | Code auto-detects device; check torch installation |
@@ -256,7 +256,7 @@ def select_device() -> str:
 **Pre-commit Checklist**:
 1. Format: `black src/ tests/`
 2. Lint: `ruff check src/ tests/`
-3. Type check: `mypy src/orf_entropy/`
+3. Type check: `mypy src/genome_entropy/`
 4. Unit tests: `pytest -k "not integration"`
 5. All pass → commit and push
 
@@ -269,7 +269,7 @@ RUN_INTEGRATION=1 pytest -v -m integration
 
 **Key Directories**:
 - `.github/`: Workflows and this instruction file
-- `src/orf_entropy/`: Main package source code
+- `src/genome_entropy/`: Main package source code
   - `io/`: FASTA and JSON I/O
   - `orf/`: ORF finding and types
   - `translate/`: Protein translation
@@ -285,7 +285,7 @@ RUN_INTEGRATION=1 pytest -v -m integration
   - Build system: setuptools
   - Dependencies: torch, transformers, pygenetic-code, typer
   - Dev dependencies: pytest, pytest-cov, pytest-mock, black, ruff, mypy
-  - CLI entry point: `[project.scripts] dna23di = "orf_entropy.cli.main:app"`
+  - CLI entry point: `[project.scripts] dna23di = "genome_entropy.cli.main:app"`
 - No requirements.txt (use pyproject.toml only for modern packaging)
 
 **Code Principles**:
@@ -669,7 +669,7 @@ def run_pipeline(
 - Avoid adding unless necessary
 - Choose well-maintained, widely-used libraries
 - Document dependency purpose in comments
-- Consider optional dependencies for heavy features (e.g., `pip install orf_entropy[viz]` for visualization)
+- Consider optional dependencies for heavy features (e.g., `pip install genome_entropy[viz]` for visualization)
 
 **Code Quality**:
 - Full type hints (Python 3.8+ compatible)
@@ -695,7 +695,7 @@ export PATH="/tmp/get_orfs/bin:$PATH"
 # Development
 black src/ tests/           # Format
 ruff check src/ tests/      # Lint
-mypy src/orf_entropy/       # Type check
+mypy src/genome_entropy/       # Type check
 pytest                      # Unit tests only
 pytest -k "not integration" # Explicitly skip integration
 

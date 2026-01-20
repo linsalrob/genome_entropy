@@ -6,7 +6,7 @@ parallelize 3Di encoding across multiple GPUs when available.
 """
 
 import os
-from orf_entropy.encode3di.gpu_utils import discover_available_gpus
+from genome_entropy.encode3di.gpu_utils import discover_available_gpus
 
 def main():
     print("=" * 60)
@@ -35,20 +35,20 @@ def main():
     print()
     
     print("1. Run pipeline with multi-GPU (auto-discover GPUs):")
-    print("   dna23di run --input input.fasta --output output.json --multi-gpu")
+    print("   genome_entropy run --input input.fasta --output output.json --multi-gpu")
     print()
     
     print("2. Run pipeline with specific GPUs:")
-    print("   dna23di run --input input.fasta --output output.json --multi-gpu --gpu-ids 0,1,2")
+    print("   genome_entropy run --input input.fasta --output output.json --multi-gpu --gpu-ids 0,1,2")
     print()
     
     print("3. Encode proteins with multi-GPU:")
-    print("   dna23di encode3di --input proteins.json --output 3di.json --multi-gpu")
+    print("   genome_entropy encode3di --input proteins.json --output 3di.json --multi-gpu")
     print()
     
     print("4. Run pipeline in SLURM with allocated GPUs:")
     print("   # GPUs automatically discovered from SLURM_JOB_GPUS")
-    print("   srun --gres=gpu:4 dna23di run --input input.fasta --output output.json --multi-gpu")
+    print("   srun --gres=gpu:4 genome_entropy run --input input.fasta --output output.json --multi-gpu")
     print()
     
     print("=" * 60)
@@ -56,8 +56,8 @@ def main():
     print("=" * 60)
     print()
     
-    print("from orf_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder")
-    print("from orf_entropy.translate.translator import ProteinRecord")
+    print("from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder")
+    print("from genome_entropy.translate.translator import ProteinRecord")
     print()
     print("# Initialize encoder")
     print("encoder = ProstT5ThreeDiEncoder(model_name='Rostlab/ProstT5_fp16')")

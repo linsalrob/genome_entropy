@@ -15,7 +15,7 @@ trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 eval "$(conda shell.bash hook)"
 conda activate orf_entropy
 
-dna23di download
+genome_entropy download
 
 
 

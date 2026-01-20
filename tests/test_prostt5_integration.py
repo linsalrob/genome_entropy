@@ -15,7 +15,7 @@ def test_prostt5_real_inference() -> None:
     This test downloads the actual model and performs inference.
     Only run when RUN_INTEGRATION=1 environment variable is set.
     """
-    from orf_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
     
     # Initialize encoder (will download model on first run)
     encoder = ProstT5ThreeDiEncoder()
@@ -43,7 +43,7 @@ def test_prostt5_real_inference() -> None:
 @pytest.mark.skipif(not os.getenv("RUN_INTEGRATION"), reason="Integration tests disabled")
 def test_prostt5_device_selection() -> None:
     """Test that device selection works correctly."""
-    from orf_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
     
     # Test auto device selection
     encoder = ProstT5ThreeDiEncoder(device=None)
@@ -57,7 +57,7 @@ def test_prostt5_device_selection() -> None:
 @pytest.mark.skipif(not os.getenv("RUN_INTEGRATION"), reason="Integration tests disabled")
 def test_prostt5_batch_processing() -> None:
     """Test batch processing of multiple sequences."""
-    from orf_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
     
     encoder = ProstT5ThreeDiEncoder()
     

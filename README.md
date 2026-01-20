@@ -1,13 +1,17 @@
-# orf_entropy (dna23di)
+# genome_entropy
 
 [![Python CI](https://github.com/linsalrob/orf_entropy/workflows/Python%20CI/badge.svg)](https://github.com/linsalrob/orf_entropy/actions)
 [![Documentation](https://github.com/linsalrob/orf_entropy/workflows/Documentation/badge.svg)](https://linsalrob.github.io/orf_entropy/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Compare and contrast the entropy of sequences, ORFs, proteins, and 3Di structural encodings.
+Quantify information content across multiple biological representations derived from genomic sequences.
 
-**dna23di** is a complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.
+**genome_entropy** is a complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.
+
+## Why genome_entropy?
+
+We refer to this framework as **genome-entropy** to emphasise its unifying focus on quantifying information content across multiple biological representations derived from the same genomic sequence. Rather than restricting analysis to a single abstraction, such as nucleotide composition or predicted coding regions, genome-entropy integrates DNA sequences, open reading frames, translated proteins, and structure-derived encodings (3Di) within a common information-theoretic framework. The name reflects both the biological scope of the approach—operating at the level of whole genomes and metagenomes—and the central analytical principle, entropy, which provides a consistent and comparable measure of complexity, organisation, and constraint across representations. This design allows direct comparison of informational signatures across molecular layers while remaining extensible to additional encodings as methods and data evolve.
 
 ## Documentation
 
@@ -38,7 +42,7 @@ The documentation includes:
 
 ```bash
 # Clone repository
-git clone https://github.com/linsalrob/orf_entropy.git
+git clone https://github.com/linsalrob/genome_entropy.git
 cd orf_entropy
 
 # Create virtual environment
@@ -56,13 +60,13 @@ pip install -e ".[dev]"
 
 ```bash
 # Run complete pipeline
-dna23di run --input examples/example_small.fasta --output results.json
+genome_entropy run --input examples/example_small.fasta --output results.json
 
 # Or run individual steps
-dna23di orf --input input.fasta --output orfs.json
-dna23di translate --input orfs.json --output proteins.json
-dna23di encode3di --input proteins.json --output 3di.json
-dna23di entropy --input 3di.json --output entropy.json
+genome_entropy orf --input input.fasta --output orfs.json
+genome_entropy translate --input orfs.json --output proteins.json
+genome_entropy encode3di --input proteins.json --output 3di.json
+genome_entropy entropy --input 3di.json --output entropy.json
 ```
 
 ### Multi-GPU Usage
@@ -71,16 +75,16 @@ Speed up 3Di encoding by distributing batches across multiple GPUs:
 
 ```bash
 # Auto-discover and use all available GPUs
-dna23di run --input input.fasta --output results.json --multi-gpu
+genome_entropy run --input input.fasta --output results.json --multi-gpu
 
 # Use specific GPUs
-dna23di run --input input.fasta --output results.json --multi-gpu --gpu-ids 0,1,2
+genome_entropy run --input input.fasta --output results.json --multi-gpu --gpu-ids 0,1,2
 
 # Works with SLURM job schedulers (GPUs auto-discovered from SLURM_JOB_GPUS)
-srun --gres=gpu:4 dna23di run --input input.fasta --output results.json --multi-gpu
+srun --gres=gpu:4 genome_entropy run --input input.fasta --output results.json --multi-gpu
 
 # Multi-GPU encoding also works for the encode3di command
-dna23di encode3di --input proteins.json --output 3di.json --multi-gpu
+genome_entropy encode3di --input proteins.json --output 3di.json --multi-gpu
 ```
 
 **GPU Discovery Priority:**
@@ -124,12 +128,12 @@ export GET_ORFS_PATH=/tmp/get_orfs/bin/get_orfs
 
 ## CLI Commands
 
-### `dna23di run` - Complete Pipeline
+### `genome_entropy run` - Complete Pipeline
 
 Run all steps from DNA to 3Di with entropy calculation:
 
 ```bash
-dna23di run \
+genome_entropy run \
     --input input.fasta \
     --output results.json \
     --table 11 \
@@ -147,28 +151,28 @@ dna23di run \
 - `--device, -d`: Device for inference (auto/cuda/mps/cpu)
 - `--skip-entropy`: Skip entropy calculation
 
-### `dna23di orf` - Find ORFs
+### `genome_entropy orf` - Find ORFs
 
 Extract Open Reading Frames from DNA sequences:
 
 ```bash
-dna23di orf --input input.fasta --output orfs.json --table 11 --min-nt 90
+genome_entropy orf --input input.fasta --output orfs.json --table 11 --min-nt 90
 ```
 
-### `dna23di translate` - Translate ORFs
+### `genome_entropy translate` - Translate ORFs
 
 Translate ORFs to protein sequences:
 
 ```bash
-dna23di translate --input orfs.json --output proteins.json --table 11
+genome_entropy translate --input orfs.json --output proteins.json --table 11
 ```
 
-### `dna23di encode3di` - Encode to 3Di
+### `genome_entropy encode3di` - Encode to 3Di
 
 Convert proteins to 3Di structural tokens using ProstT5:
 
 ```bash
-dna23di encode3di \
+genome_entropy encode3di \
     --input proteins.json \
     --output 3di.json \
     --model Rostlab/ProstT5_fp16 \
@@ -176,32 +180,32 @@ dna23di encode3di \
     --batch-size 4
 ```
 
-### `dna23di entropy` - Calculate Entropy
+### `genome_entropy entropy` - Calculate Entropy
 
 Compute Shannon entropy at all representation levels:
 
 ```bash
-dna23di entropy --input 3di.json --output entropy.json --normalize
+genome_entropy entropy --input 3di.json --output entropy.json --normalize
 ```
 
-### `dna23di download` - Pre-download Models
+### `genome_entropy download` - Pre-download Models
 
 Pre-download ProstT5 models to cache:
 
 ```bash
-dna23di download --model Rostlab/ProstT5_fp16
+genome_entropy download --model Rostlab/ProstT5_fp16
 ```
 
 ## Logging
 
-All `dna23di` commands support comprehensive logging with configurable output and verbosity.
+All `genome_entropy` commands support comprehensive logging with configurable output and verbosity.
 
 ### Global Logging Options
 
 Every command accepts these logging options:
 
 ```bash
-dna23di [OPTIONS] COMMAND [ARGS]
+genome_entropy [OPTIONS] COMMAND [ARGS]
 
 Global Options:
   --log-level, -l  TEXT  Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) [default: INFO]
@@ -212,27 +216,27 @@ Global Options:
 
 **Default logging (INFO level to STDOUT):**
 ```bash
-dna23di run --input data.fasta --output results.json
+genome_entropy run --input data.fasta --output results.json
 ```
 
 **Debug logging to see detailed progress:**
 ```bash
-dna23di --log-level DEBUG run --input data.fasta --output results.json
+genome_entropy --log-level DEBUG run --input data.fasta --output results.json
 ```
 
 **Log to a file:**
 ```bash
-dna23di --log-file pipeline.log run --input data.fasta --output results.json
+genome_entropy --log-file pipeline.log run --input data.fasta --output results.json
 ```
 
 **Debug logging to file:**
 ```bash
-dna23di --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
+genome_entropy --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
 ```
 
 **Quiet mode (only warnings and errors):**
 ```bash
-dna23di --log-level WARNING run --input data.fasta --output results.json
+genome_entropy --log-level WARNING run --input data.fasta --output results.json
 ```
 
 ### Log Levels
@@ -256,14 +260,14 @@ The logging system tracks:
 
 Example log output (INFO level):
 ```
-2026-01-19 10:30:15 - orf_entropy.io.fasta - INFO - Reading FASTA file: input.fasta
-2026-01-19 10:30:15 - orf_entropy.io.fasta - INFO - Successfully read 5 sequence(s) from input.fasta
-2026-01-19 10:30:15 - orf_entropy.orf.finder - INFO - Starting ORF finding for 5 sequence(s) (table=11, min_length=90)
-2026-01-19 10:30:16 - orf_entropy.orf.finder - INFO - Found 47 ORF(s) in 5 sequence(s)
-2026-01-19 10:30:16 - orf_entropy.translate.translator - INFO - Translating 47 ORF(s) with table 11
-2026-01-19 10:30:16 - orf_entropy.encode3di.encoder - INFO - Loading ProstT5 model: Rostlab/ProstT5_fp16
-2026-01-19 10:30:20 - orf_entropy.encode3di.encoder - INFO - Loaded model Rostlab/ProstT5_fp16 on device cuda
-2026-01-19 10:30:20 - orf_entropy.encode3di.encoding - INFO - 3Di encoding batch 1 of 12 batches...
+2026-01-19 10:30:15 - genome_entropy.io.fasta - INFO - Reading FASTA file: input.fasta
+2026-01-19 10:30:15 - genome_entropy.io.fasta - INFO - Successfully read 5 sequence(s) from input.fasta
+2026-01-19 10:30:15 - genome_entropy.orf.finder - INFO - Starting ORF finding for 5 sequence(s) (table=11, min_length=90)
+2026-01-19 10:30:16 - genome_entropy.orf.finder - INFO - Found 47 ORF(s) in 5 sequence(s)
+2026-01-19 10:30:16 - genome_entropy.translate.translator - INFO - Translating 47 ORF(s) with table 11
+2026-01-19 10:30:16 - genome_entropy.encode3di.encoder - INFO - Loading ProstT5 model: Rostlab/ProstT5_fp16
+2026-01-19 10:30:20 - genome_entropy.encode3di.encoder - INFO - Loaded model Rostlab/ProstT5_fp16 on device cuda
+2026-01-19 10:30:20 - genome_entropy.encode3di.encoding - INFO - 3Di encoding batch 1 of 12 batches...
 ```
 
 ## Data Flow
@@ -320,7 +324,7 @@ Results are saved as JSON with the following structure:
 pytest
 
 # Run with coverage
-pytest --cov=orf_entropy
+pytest --cov=genome_entropy
 
 # Skip integration tests (default)
 pytest -k "not integration"
@@ -339,14 +343,14 @@ black src/ tests/
 ruff check src/ tests/
 
 # Type check
-mypy src/orf_entropy/
+mypy src/genome_entropy/
 ```
 
 ### Project Structure
 
 ```
-orf_entropy/
-├── src/orf_entropy/
+genome_entropy/
+├── src/genome_entropy/
 │   ├── io/              # FASTA and JSON I/O
 │   ├── orf/             # ORF finding and types
 │   ├── translate/       # Protein translation
@@ -389,7 +393,7 @@ Contributions welcome! Please:
 
 ### Common Issues
 
-**ModuleNotFoundError: No module named 'orf_entropy'**
+**ModuleNotFoundError: No module named 'genome_entropy'**
 - Run `pip install -e .` from repository root
 
 **get_orfs binary not found**

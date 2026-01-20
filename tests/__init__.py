@@ -1,1 +1,1 @@
-"""Tests for orf_entropy package."""
+"""Tests for genome_entropy package."""

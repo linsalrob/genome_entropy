@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=dna23di_pipeline
+#SBATCH --job-name=genome_entropy_pipeline
 #SBATCH --time=0-10
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -20,7 +20,7 @@ if [[ $# -ne 2 ]]; then
     exit 1
 fi
 
-dna23di run -i $1 -o $2
+genome_entropy run -i $1 -o $2
 
 
 

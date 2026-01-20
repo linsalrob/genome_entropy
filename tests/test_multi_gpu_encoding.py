@@ -8,7 +8,7 @@ import pytest
 
 def test_multi_gpu_encoder_initialization():
     """Test MultiGPUEncoder initialization with specified GPUs."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
     
     # Mock encoder class
     mock_encoder_class = MagicMock()
@@ -16,7 +16,7 @@ def test_multi_gpu_encoder_initialization():
     mock_encoder_class.return_value = mock_encoder_instance
     
     # Test with specified GPU IDs
-    with patch("orf_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
+    with patch("genome_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
         mock_validate.return_value = [0, 1, 2]
         
         encoder = MultiGPUEncoder(
@@ -32,14 +32,14 @@ def test_multi_gpu_encoder_initialization():
 
 def test_multi_gpu_encoder_auto_discovery():
     """Test MultiGPUEncoder with automatic GPU discovery."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
     
     # Mock encoder class
     mock_encoder_class = MagicMock()
     
     # Mock GPU discovery
-    with patch("orf_entropy.encode3di.multi_gpu.discover_available_gpus") as mock_discover:
-        with patch("orf_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
+    with patch("genome_entropy.encode3di.multi_gpu.discover_available_gpus") as mock_discover:
+        with patch("genome_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
             mock_discover.return_value = [0, 1]
             mock_validate.return_value = [0, 1]
             
@@ -55,13 +55,13 @@ def test_multi_gpu_encoder_auto_discovery():
 
 def test_multi_gpu_encoder_fallback_no_gpus():
     """Test MultiGPUEncoder fallback when no GPUs are available."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
     
     # Mock encoder class
     mock_encoder_class = MagicMock()
     
     # Mock no GPUs available
-    with patch("orf_entropy.encode3di.multi_gpu.discover_available_gpus") as mock_discover:
+    with patch("genome_entropy.encode3di.multi_gpu.discover_available_gpus") as mock_discover:
         mock_discover.return_value = []
         
         encoder = MultiGPUEncoder(
@@ -78,8 +78,8 @@ def test_multi_gpu_encoder_fallback_no_gpus():
 @pytest.mark.asyncio
 async def test_encode_batch_async():
     """Test asynchronous batch encoding."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
-    from orf_entropy.encode3di.types import IndexedSeq
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.types import IndexedSeq
     
     # Mock encoder class and instance
     mock_encoder_class = MagicMock()
@@ -87,7 +87,7 @@ async def test_encode_batch_async():
     mock_encoder_instance._encode_batch = MagicMock(return_value=["aaa", "bbb"])
     mock_encoder_class.return_value = mock_encoder_instance
     
-    with patch("orf_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
+    with patch("genome_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
         mock_validate.return_value = [0]
         
         encoder = MultiGPUEncoder(
@@ -112,8 +112,8 @@ async def test_encode_batch_async():
 @pytest.mark.asyncio
 async def test_encode_all_batches_async():
     """Test encoding multiple batches across GPUs."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
-    from orf_entropy.encode3di.types import IndexedSeq
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.types import IndexedSeq
     
     # Mock encoder class and instances
     mock_encoder_class = MagicMock()
@@ -126,7 +126,7 @@ async def test_encode_all_batches_async():
     
     mock_encoder_class.side_effect = [mock_encoder1, mock_encoder2]
     
-    with patch("orf_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
+    with patch("genome_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
         mock_validate.return_value = [0, 1]
         
         encoder = MultiGPUEncoder(
@@ -153,8 +153,8 @@ async def test_encode_all_batches_async():
 
 def test_encode_multi_gpu_with_multiple_gpus():
     """Test multi-GPU encoding with multiple GPUs."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
-    from orf_entropy.encode3di.types import IndexedSeq
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.types import IndexedSeq
     
     # Mock encoder class and instances
     mock_encoder_class = MagicMock()
@@ -175,7 +175,7 @@ def test_encode_multi_gpu_with_multiple_gpus():
             [IndexedSeq(idx=1, seq=seqs[1])],
         ]
     
-    with patch("orf_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
+    with patch("genome_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
         mock_validate.return_value = [0, 1]
         
         encoder = MultiGPUEncoder(
@@ -197,8 +197,8 @@ def test_encode_multi_gpu_with_multiple_gpus():
 
 def test_encode_multi_gpu_single_gpu_fallback():
     """Test that single GPU falls back to sequential processing."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
-    from orf_entropy.encode3di.types import IndexedSeq
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.types import IndexedSeq
     
     # Mock encoder class
     mock_encoder_class = MagicMock()
@@ -214,7 +214,7 @@ def test_encode_multi_gpu_single_gpu_fallback():
             [IndexedSeq(idx=1, seq=seqs[1])],
         ]
     
-    with patch("orf_entropy.encode3di.multi_gpu.discover_available_gpus") as mock_discover:
+    with patch("genome_entropy.encode3di.multi_gpu.discover_available_gpus") as mock_discover:
         mock_discover.return_value = []
         
         encoder = MultiGPUEncoder(
@@ -240,9 +240,9 @@ def test_encode_multi_gpu_single_gpu_fallback():
 @pytest.mark.asyncio
 async def test_encode_all_batches_error_handling():
     """Test error handling in multi-GPU encoding."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
-    from orf_entropy.encode3di.types import IndexedSeq
-    from orf_entropy.errors import EncodingError
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.types import IndexedSeq
+    from genome_entropy.errors import EncodingError
     
     # Mock encoder class
     mock_encoder_class = MagicMock()
@@ -250,7 +250,7 @@ async def test_encode_all_batches_error_handling():
     mock_encoder._encode_batch = MagicMock(side_effect=RuntimeError("GPU error"))
     mock_encoder_class.return_value = mock_encoder
     
-    with patch("orf_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
+    with patch("genome_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
         mock_validate.return_value = [0]
         
         encoder = MultiGPUEncoder(
@@ -268,8 +268,8 @@ async def test_encode_all_batches_error_handling():
 
 def test_single_gpu_sequential_encoding():
     """Test sequential encoding for single GPU."""
-    from orf_entropy.encode3di.multi_gpu import MultiGPUEncoder
-    from orf_entropy.encode3di.types import IndexedSeq
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
+    from genome_entropy.encode3di.types import IndexedSeq
     
     # Mock encoder class
     mock_encoder_class = MagicMock()
@@ -277,7 +277,7 @@ def test_single_gpu_sequential_encoding():
     mock_encoder._encode_batch = MagicMock(side_effect=[["aaa"], ["bbb"], ["ccc"]])
     mock_encoder_class.return_value = mock_encoder
     
-    with patch("orf_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
+    with patch("genome_entropy.encode3di.multi_gpu.validate_gpu_availability") as mock_validate:
         mock_validate.return_value = [0]
         
         encoder = MultiGPUEncoder(
