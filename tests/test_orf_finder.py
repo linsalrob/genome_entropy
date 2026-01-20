@@ -61,7 +61,7 @@ def test_orf_record_invalid_frame() -> None:
             start=0,
             end=90,
             strand="+",
-            frame=3,  # Invalid (must be 0, 1, or 2)
+            frame=4,  # Invalid (must be 0, 1, 2, or 3)
             nt_sequence="A" * 90,
             aa_sequence="K" * 30,
             table_id=11,
