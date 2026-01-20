@@ -96,7 +96,7 @@ class MultiGPUEncoder:
         batch_seqs = [x.seq for x in batch]
         batch_idxs = [x.idx for x in batch]
         
-        logger.debug(
+        logger.info(
             "GPU %s: Encoding batch with %d sequences (total len: %d)",
             gpu_id if gpu_id is not None else "default",
             len(batch_seqs),
