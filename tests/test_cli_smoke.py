@@ -16,7 +16,7 @@ def test_cli_help() -> None:
     """Test that main help command works."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "dna23di" in result.stdout.lower() or "DNA to 3Di" in result.stdout
+    assert "genome_entropy" in result.stdout.lower() or "DNA to 3Di" in result.stdout
 
 
 def test_cli_version() -> None:
@@ -77,7 +77,7 @@ def test_cli_no_command() -> None:
     """Test CLI with no command shows help."""
     result = runner.invoke(app, [])
     # Should show help and exit gracefully
-    assert "dna23di" in result.stdout.lower() or "DNA" in result.stdout
+    assert "genome_entropy" in result.stdout.lower() or "DNA" in result.stdout
 
 
 def test_cli_invalid_command() -> None:

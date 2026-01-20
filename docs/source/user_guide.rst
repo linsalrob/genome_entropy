@@ -1,12 +1,12 @@
 User Guide
 ==========
 
-This guide provides a comprehensive overview of the **dna23di** pipeline, explaining concepts, data flow, and best practices.
+This guide provides a comprehensive overview of the **genome_entropy** pipeline, explaining concepts, data flow, and best practices.
 
 Pipeline Overview
 -----------------
 
-The **dna23di** pipeline transforms DNA sequences through multiple representation levels, computing Shannon entropy at each stage:
+The **genome_entropy** pipeline transforms DNA sequences through multiple representation levels, computing Shannon entropy at each stage:
 
 .. code-block:: text
 
@@ -310,7 +310,7 @@ Use ``estimate-tokens`` to find optimal settings:
 
 .. code-block:: bash
 
-   dna23di estimate-tokens --device cuda
+   genome_entropy estimate-tokens --device cuda
 
 This tests different encoding sizes and recommends the best value for your GPU.
 
@@ -345,7 +345,7 @@ Enable debug logging for troubleshooting:
 
 .. code-block:: bash
 
-   dna23di --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
+   genome_entropy --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
 
 Log files help diagnose:
 
@@ -425,7 +425,7 @@ Common Issues
 
 **Encoding fails:**
 
-* Verify model downloaded: ``dna23di download``
+* Verify model downloaded: ``genome_entropy download``
 * Check GPU memory: Use ``--device cpu`` or reduce batch size
 * Update PyTorch/Transformers: ``pip install --upgrade torch transformers``
 

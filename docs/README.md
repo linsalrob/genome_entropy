@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains the Sphinx documentation for **genome_entropy** (dna23di).
+This directory contains the Sphinx documentation for **genome_entropy**.
 
 ## Building Documentation Locally
 

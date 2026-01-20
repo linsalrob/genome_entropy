@@ -1,4 +1,4 @@
-"""Configuration and constants for orf_entropy."""
+"""Configuration and constants for genome_entropy."""
 
 import os
 from pathlib import Path

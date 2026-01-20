@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 [0.1.0] - 2026-01-19
 --------------------
 
-Initial release of genome_entropy (dna23di).
+Initial release of genome_entropy.
 
 Added
 ^^^^^
@@ -18,13 +18,13 @@ Added
 * Shannon entropy calculation at all levels
 * Modular CLI with individual commands:
   
-  * ``dna23di run`` - Complete pipeline
-  * ``dna23di orf`` - Find ORFs
-  * ``dna23di translate`` - Translate to proteins
-  * ``dna23di encode3di`` - Encode to 3Di
-  * ``dna23di entropy`` - Calculate entropy
-  * ``dna23di download`` - Pre-download models
-  * ``dna23di estimate-tokens`` - Estimate optimal encoding size
+  * ``genome_entropy run`` - Complete pipeline
+  * ``genome_entropy orf`` - Find ORFs
+  * ``genome_entropy translate`` - Translate to proteins
+  * ``genome_entropy encode3di`` - Encode to 3Di
+  * ``genome_entropy entropy`` - Calculate entropy
+  * ``genome_entropy download`` - Pre-download models
+  * ``genome_entropy estimate-tokens`` - Estimate optimal encoding size
 
 * GPU acceleration support:
   

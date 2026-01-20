@@ -56,13 +56,13 @@ The token size estimator helps you find the optimal value for your GPU.
 
 ```bash
 # Basic usage
-dna23di estimate-tokens
+genome_entropy estimate-tokens
 
 # Custom range and parameters
-dna23di estimate-tokens --start 3000 --end 10000 --step 1000 --trials 3
+genome_entropy estimate-tokens --start 3000 --end 10000 --step 1000 --trials 3
 
 # Specify device
-dna23di estimate-tokens --device cuda --model Rostlab/ProstT5_fp16
+genome_entropy estimate-tokens --device cuda --model Rostlab/ProstT5_fp16
 ```
 
 #### Via Python API

@@ -1,1 +1,1 @@
-"""CLI commands for orf_entropy."""
+"""CLI commands for genome_entropy."""
