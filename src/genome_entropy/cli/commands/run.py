@@ -63,6 +63,15 @@ def run_command(
         help="Comma-separated list of GPU IDs to use (e.g., '0,1,2'). "
              "If not specified, auto-discovers available GPUs.",
     ),
+    genbank: Optional[Path] = typer.Option(
+        None,
+        "--genbank",
+        "-g",
+        help="Optional GenBank file for CDS annotation matching. "
+             "If provided, ORFs will be matched to GenBank CDS features by C-terminal sequence.",
+        exists=True,
+        dir_okay=False,
+    ),
 ) -> None:
     """Run the complete DNA to 3Di pipeline.
     
@@ -71,10 +80,15 @@ def run_command(
     2. Translate ORFs to proteins
     3. Encode proteins to 3Di tokens
     4. Calculate entropy at all levels
+    5. Optionally match ORFs to GenBank CDS annotations
     
     Multi-GPU encoding can significantly speed up 3Di encoding by distributing
     batches across multiple GPUs. Use --multi-gpu to enable, and optionally
     specify --gpu-ids to select specific GPUs.
+    
+    GenBank file support: If --genbank is provided, the DNA sequences will be
+    read from the GenBank file instead of the FASTA file, and ORFs will be
+    matched to CDS features by comparing C-terminal protein sequences.
     """
     try:
         from ...pipeline.runner import run_pipeline
@@ -95,6 +109,9 @@ def run_command(
         typer.echo(f"  Genetic code table: {table}")
         typer.echo(f"  Minimum AA length: {min_aa}")
         typer.echo(f"  Model: {model}")
+        
+        if genbank:
+            typer.echo(f"  GenBank file: {genbank}")
         
         if multi_gpu:
             typer.echo(f"  Multi-GPU encoding: enabled")
@@ -117,6 +134,7 @@ def run_command(
             device=device,
             use_multi_gpu=multi_gpu,
             gpu_ids=parsed_gpu_ids,
+            genbank_file=genbank,
         )
         
         typer.echo(f"\n✓ Pipeline complete!")

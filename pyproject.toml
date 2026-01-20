@@ -29,7 +29,8 @@ dependencies = [
     "typer>=0.9.0",
     "tqdm>=4.65.0",
     "protobuf>=6.33.1",
-    "sentencepiece>=0.2.1"
+    "sentencepiece>=0.2.1",
+    "biopython>=1.80",
 ]
 
 [project.optional-dependencies]

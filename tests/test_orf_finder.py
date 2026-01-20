@@ -32,6 +32,7 @@ def test_orf_record_creation() -> None:
     assert orf.table_id == 11
     assert orf.has_start_codon is True
     assert orf.has_stop_codon is True
+    assert orf.in_genbank is False  # Default value
 
 
 def test_orf_record_invalid_strand() -> None:
