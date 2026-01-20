@@ -16,7 +16,8 @@ We refer to this framework as **genome-entropy** to emphasise its unifying focus
 ## Documentation
 
 📚 **[Read the full documentation on GitHub Pages](https://linsalrob.github.io/genome_entropy/)**
-📚 **[Read the full documentation onRead The Docs](https://genome-entropy.readthedocs.io/en/latest/)**
+
+📚 **[Read the full documentation on Read The Docs](https://genome-entropy.readthedocs.io/en/latest/)**
 
 The documentation includes:
 - Installation guide
