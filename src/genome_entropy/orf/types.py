@@ -20,6 +20,7 @@ class OrfRecord:
         table_id: NCBI genetic code table ID used
         has_start_codon: Whether the ORF has a start codon
         has_stop_codon: Whether the ORF has a stop codon
+        in_genbank: Whether this ORF matches a CDS annotated in GenBank
     """
 
     parent_id: str
@@ -33,6 +34,7 @@ class OrfRecord:
     table_id: int
     has_start_codon: bool
     has_stop_codon: bool
+    in_genbank: bool = False
     
     def __post_init__(self) -> None:
         """Validate ORF attributes."""

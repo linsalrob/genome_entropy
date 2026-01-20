@@ -10,11 +10,11 @@ except ImportError:
 
 
 def run_command(
-    input: Path = typer.Option(
-        ...,
+    input: Optional[Path] = typer.Option(
+        None,
         "--input",
         "-i",
-        help="Input FASTA file with DNA sequences",
+        help="Input FASTA file with DNA sequences. Required if --genbank is not provided.",
         exists=True,
         dir_okay=False,
     ),
@@ -63,6 +63,16 @@ def run_command(
         help="Comma-separated list of GPU IDs to use (e.g., '0,1,2'). "
              "If not specified, auto-discovers available GPUs.",
     ),
+    genbank: Optional[Path] = typer.Option(
+        None,
+        "--genbank",
+        "-g",
+        help="GenBank file with DNA sequences and CDS annotations. "
+             "Can be used instead of --input to provide both sequences and annotations. "
+             "ORFs will be matched to GenBank CDS features by C-terminal sequence.",
+        exists=True,
+        dir_okay=False,
+    ),
 ) -> None:
     """Run the complete DNA to 3Di pipeline.
     
@@ -71,6 +81,13 @@ def run_command(
     2. Translate ORFs to proteins
     3. Encode proteins to 3Di tokens
     4. Calculate entropy at all levels
+    5. Optionally match ORFs to GenBank CDS annotations
+    
+    Input options:
+    - Provide --input for FASTA file (standard usage)
+    - Provide --genbank for GenBank file (extracts sequences and CDS annotations)
+    - Provide both --input and --genbank to use FASTA sequences with GenBank annotations
+    - At least one of --input or --genbank must be provided
     
     Multi-GPU encoding can significantly speed up 3Di encoding by distributing
     batches across multiple GPUs. Use --multi-gpu to enable, and optionally
@@ -78,6 +95,12 @@ def run_command(
     """
     try:
         from ...pipeline.runner import run_pipeline
+        
+        # Validate that at least one input source is provided
+        if not input and not genbank:
+            typer.echo("Error: Must provide either --input or --genbank", err=True)
+            typer.echo("Use --help for more information", err=True)
+            raise typer.Exit(2)
         
         # Parse GPU IDs if provided
         parsed_gpu_ids = None
@@ -90,7 +113,14 @@ def run_command(
                 raise typer.Exit(2)
         
         typer.echo(f"Starting DNA to 3Di pipeline...")
-        typer.echo(f"  Input: {input}")
+        
+        if input:
+            typer.echo(f"  Input FASTA: {input}")
+        if genbank:
+            typer.echo(f"  GenBank file: {genbank}")
+            if not input:
+                typer.echo(f"  (Using GenBank for DNA sequences)")
+        
         typer.echo(f"  Output: {output}")
         typer.echo(f"  Genetic code table: {table}")
         typer.echo(f"  Minimum AA length: {min_aa}")
@@ -117,6 +147,7 @@ def run_command(
             device=device,
             use_multi_gpu=multi_gpu,
             gpu_ids=parsed_gpu_ids,
+            genbank_file=genbank,
         )
         
         typer.echo(f"\n✓ Pipeline complete!")

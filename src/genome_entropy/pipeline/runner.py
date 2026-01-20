@@ -9,6 +9,7 @@ from ..encode3di.prostt5 import ProstT5ThreeDiEncoder, ThreeDiRecord
 from ..entropy.shannon import EntropyReport, calculate_sequence_entropy, calculate_entropies_for_sequences
 from ..errors import PipelineError
 from ..io.fasta import read_fasta
+from ..io.genbank import read_genbank, extract_cds_features, match_orf_to_genbank_cds
 from ..io.jsonio import write_json
 from ..logging_config import get_logger
 from ..orf.finder import find_orfs
@@ -40,7 +41,7 @@ class PipelineResult:
 
 
 def run_pipeline(
-    input_fasta: Union[str, Path],
+    input_fasta: Optional[Union[str, Path]] = None,
     table_id: int = DEFAULT_GENETIC_CODE_TABLE,
     min_aa_len: int = DEFAULT_MIN_AA_LENGTH,
     model_name: str = DEFAULT_PROSTT5_MODEL,
@@ -49,19 +50,21 @@ def run_pipeline(
     device: Optional[str] = None,
     use_multi_gpu: bool = False,
     gpu_ids: Optional[List[int]] = None,
+    genbank_file: Optional[Union[str, Path]] = None,
 ) -> List[PipelineResult]:
     """Run the complete DNA to 3Di pipeline with entropy calculation.
     
     Pipeline steps:
-    1. Read FASTA file
+    1. Read FASTA file or GenBank file
     2. Find ORFs in all 6 reading frames
     3. Translate ORFs to proteins
     4. Encode proteins to 3Di structural tokens
     5. Calculate entropy at all levels
-    6. Optionally write results to JSON
+    6. Optionally match ORFs to GenBank CDS annotations
+    7. Optionally write results to JSON
     
     Args:
-        input_fasta: Path to input FASTA file
+        input_fasta: Path to input FASTA file. Optional if genbank_file is provided.
         table_id: NCBI genetic code table ID
         min_aa_len: Minimum protein length in amino acids
         model_name: ProstT5 model name
@@ -72,17 +75,28 @@ def run_pipeline(
         use_multi_gpu: If True, use multi-GPU parallel encoding when available
         gpu_ids: Optional list of GPU IDs for multi-GPU encoding.
                 If None and use_multi_gpu=True, auto-discover available GPUs.
+        genbank_file: Optional path to GenBank file. If provided alone, extracts
+                DNA sequences from it. Can be combined with input_fasta to use
+                FASTA sequences with GenBank CDS annotations.
         
     Returns:
         List of PipelineResult objects (one per input sequence)
         
     Raises:
         PipelineError: If any pipeline step fails
+        ValueError: If neither input_fasta nor genbank_file is provided
     """
+    # Validate that at least one input source is provided
+    if not input_fasta and not genbank_file:
+        raise ValueError("Must provide either input_fasta or genbank_file")
+    
     logger.info("=" * 60)
     logger.info("Starting DNA to 3Di pipeline")
     logger.info("=" * 60)
-    logger.info("Input FASTA: %s", input_fasta)
+    if input_fasta:
+        logger.info("Input FASTA: %s", input_fasta)
+    if genbank_file:
+        logger.info("GenBank file: %s", genbank_file)
     logger.info("Genetic code table: %d", table_id)
     logger.info("Minimum AA length: %d", min_aa_len)
     logger.info("Model: %s", model_name)
@@ -97,9 +111,25 @@ def run_pipeline(
         logger.info("Device: %s", device if device else "auto")
     
     try:
-        # Step 1: Read FASTA
-        logger.info("Step 1: Reading FASTA file...")
-        sequences = read_fasta(input_fasta)
+        # Step 1: Read FASTA or GenBank file
+        logger.info("Step 1: Reading input file...")
+        
+        # Parse GenBank CDS features if GenBank file is provided
+        genbank_cds_list = []
+        if genbank_file:
+            logger.info("Reading GenBank file...")
+            sequences = read_genbank(genbank_file)
+            genbank_cds_list = extract_cds_features(genbank_file)
+            logger.info("Extracted %d CDS features from GenBank", len(genbank_cds_list))
+            
+            # If input_fasta is also provided, use it for sequences instead
+            if input_fasta:
+                logger.info("Also reading FASTA file for DNA sequences...")
+                sequences = read_fasta(input_fasta)
+        else:
+            # Only FASTA file provided
+            sequences = read_fasta(input_fasta)
+        
         logger.info("Read %d sequence(s)", len(sequences))
         
         results = []
@@ -138,6 +168,16 @@ def run_pipeline(
                 continue
             
             logger.info("Found %d ORF(s)", len(orfs))
+            
+            # Match ORFs to GenBank CDS if GenBank file was provided
+            if genbank_file and genbank_cds_list:
+                logger.info("Matching ORFs to GenBank CDS annotations...")
+                for orf in orfs:
+                    orf.in_genbank = match_orf_to_genbank_cds(
+                        orf.aa_sequence, genbank_cds_list
+                    )
+                matched_count = sum(1 for orf in orfs if orf.in_genbank)
+                logger.info("Matched %d/%d ORFs to GenBank CDS", matched_count, len(orfs))
             
             # Step 3: Translate ORFs
             logger.info("Step 3: Translating ORFs to proteins...")
