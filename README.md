@@ -2,7 +2,7 @@
 
 [![Python CI](https://github.com/linsalrob/genome_entropy/workflows/Python%20CI/badge.svg)](https://github.com/linsalrob/genome_entropy/actions)
 [![Documentation](https://github.com/linsalrob/genome_entropy/workflows/Documentation/badge.svg)](https://linsalrob.github.io/genome_entropy/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Quantify information content across multiple biological representations derived from genomic sequences.
