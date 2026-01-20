@@ -16,11 +16,11 @@ eval "$(conda shell.bash hook)"
 conda activate genome_entropy
 
 if [[ $# -ne 2 ]]; then
-    echo "Usage: sbatch pipeline.slurm <input fasta file> <output results>"
+    echo "Usage: sbatch pipeline.slurm <input genbank file> <output results>"
     exit 1
 fi
 
-genome_entropy run -i $1 -o $2
+genome_entropy run -g $1 -o $2 --multi-gpu
 
 
 
