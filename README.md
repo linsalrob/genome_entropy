@@ -42,6 +42,16 @@ The documentation includes:
 
 ### Installation
 
+#### Recommended
+
+Install with pip:
+
+```bash
+pip install genome-entropy
+```
+
+#### For developers
+
 ```bash
 # Clone repository
 git clone https://github.com/linsalrob/genome_entropy.git
@@ -50,9 +60,6 @@ cd genome_entropy
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install package
-pip install -e .
 
 # Install development dependencies (optional)
 pip install -e ".[dev]"
