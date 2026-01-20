@@ -47,6 +47,8 @@ def run_pipeline(
     compute_entropy: bool = True,
     output_json: Optional[Union[str, Path]] = None,
     device: Optional[str] = None,
+    use_multi_gpu: bool = False,
+    gpu_ids: Optional[List[int]] = None,
 ) -> List[PipelineResult]:
     """Run the complete DNA to 3Di pipeline with entropy calculation.
     
@@ -66,6 +68,10 @@ def run_pipeline(
         compute_entropy: Whether to compute entropy values
         output_json: Optional path to save results as JSON
         device: Device for 3Di encoding ("cuda", "mps", "cpu", or None for auto)
+                Ignored if use_multi_gpu is True.
+        use_multi_gpu: If True, use multi-GPU parallel encoding when available
+        gpu_ids: Optional list of GPU IDs for multi-GPU encoding.
+                If None and use_multi_gpu=True, auto-discover available GPUs.
         
     Returns:
         List of PipelineResult objects (one per input sequence)
@@ -81,7 +87,14 @@ def run_pipeline(
     logger.info("Minimum AA length: %d", min_aa_len)
     logger.info("Model: %s", model_name)
     logger.info("Compute entropy: %s", compute_entropy)
-    logger.info("Device: %s", device if device else "auto")
+    if use_multi_gpu:
+        logger.info("Multi-GPU encoding: enabled")
+        if gpu_ids:
+            logger.info("GPU IDs: %s", gpu_ids)
+        else:
+            logger.info("GPU IDs: auto-discover")
+    else:
+        logger.info("Device: %s", device if device else "auto")
     
     try:
         # Step 1: Read FASTA
@@ -134,7 +147,11 @@ def run_pipeline(
             # Step 4: Encode to 3Di
             logger.info("Step 4: Encoding proteins to 3Di tokens...")
             encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
-            three_dis = encoder.encode_proteins(proteins)
+            three_dis = encoder.encode_proteins(
+                proteins,
+                use_multi_gpu=use_multi_gpu,
+                gpu_ids=gpu_ids,
+            )
             logger.info("Encoded %d 3Di sequence(s)", len(three_dis))
             
             # Step 5: Calculate entropy

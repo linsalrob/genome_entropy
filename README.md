@@ -28,6 +28,7 @@ The documentation includes:
 - 🏗️ **3Di Encoding**: Predict structural alphabet tokens directly from sequences using ProstT5
 - 📊 **Entropy Analysis**: Calculate Shannon entropy at DNA, ORF, protein, and 3Di levels
 - ⚡ **GPU Acceleration**: Auto-detect and use CUDA, MPS (Apple Silicon), or CPU
+- 🚀 **Multi-GPU Support**: Parallelize 3Di encoding across multiple GPUs for faster processing
 - 🔧 **Modular CLI**: Run complete pipeline or individual steps
 - 📝 **Comprehensive Logging**: Configurable log levels and output to file or STDOUT
 
@@ -63,6 +64,32 @@ dna23di translate --input orfs.json --output proteins.json
 dna23di encode3di --input proteins.json --output 3di.json
 dna23di entropy --input 3di.json --output entropy.json
 ```
+
+### Multi-GPU Usage
+
+Speed up 3Di encoding by distributing batches across multiple GPUs:
+
+```bash
+# Auto-discover and use all available GPUs
+dna23di run --input input.fasta --output results.json --multi-gpu
+
+# Use specific GPUs
+dna23di run --input input.fasta --output results.json --multi-gpu --gpu-ids 0,1,2
+
+# Works with SLURM job schedulers (GPUs auto-discovered from SLURM_JOB_GPUS)
+srun --gres=gpu:4 dna23di run --input input.fasta --output results.json --multi-gpu
+
+# Multi-GPU encoding also works for the encode3di command
+dna23di encode3di --input proteins.json --output 3di.json --multi-gpu
+```
+
+**GPU Discovery Priority:**
+1. `SLURM_JOB_GPUS` environment variable (SLURM job allocations)
+2. `SLURM_GPUS` environment variable
+3. `CUDA_VISIBLE_DEVICES` environment variable
+4. `torch.cuda.device_count()` (all available GPUs)
+
+See `examples/multi_gpu_example.py` for more usage examples.
 
 ## Requirements
 

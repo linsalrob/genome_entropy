@@ -3,7 +3,7 @@
 #SBATCH --time=0-10
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --partition=gpu
 #SBATCH --mem=20G
 #SBATCH -o %x-%j.out
@@ -20,7 +20,7 @@ if [[ $# -ne 2 ]]; then
     exit 1
 fi
 
-dna23di encode3di -i $1 -o $2 --batch-size 5000
+dna23di encode3di -i $1 -o $2 --encoding-size 10000 --multi-gpu
 
 
 
