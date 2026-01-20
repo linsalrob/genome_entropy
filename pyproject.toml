@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "orf_entropy"
+name = "genome_entropy"
 version = "0.1.0"
-description = "Compare and contrast the entropy of sequences, ORFs, proteins, and 3Di encodings"
+description = "Quantify information content across multiple biological representations derived from genomic sequences"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -54,7 +54,7 @@ Homepage = "https://github.com/linsalrob/orf_entropy"
 Repository = "https://github.com/linsalrob/orf_entropy"
 
 [project.scripts]
-dna23di = "orf_entropy.cli.main:app"
+genome_entropy = "genome_entropy.cli.main:app"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

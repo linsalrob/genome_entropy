@@ -11,7 +11,7 @@ def test_encoder_uses_correct_tokenizer_api() -> None:
     (calling the tokenizer directly via __call__) rather than deprecated
     methods like batch_encode_plus.
     """
-    from orf_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
 
     # Get the source code of _encode_batch
     source = inspect.getsource(ProstT5ThreeDiEncoder._encode_batch)
@@ -35,7 +35,7 @@ def test_encoder_tokenizer_methods() -> None:
 
     This test is skipped by default as it requires torch and transformers.
     """
-    from orf_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
 
     try:
         # Test that encoder can be instantiated (without loading model)
@@ -57,7 +57,7 @@ def test_encoder_methods_exist() -> None:
 
     This test is skipped by default as it requires torch and transformers.
     """
-    from orf_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
 
     try:
         encoder = ProstT5ThreeDiEncoder(device="cpu")

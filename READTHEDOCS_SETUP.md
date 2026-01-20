@@ -1,6 +1,6 @@
 # ReadTheDocs Setup Instructions
 
-This document provides instructions for setting up ReadTheDocs for the orf_entropy project.
+This document provides instructions for setting up ReadTheDocs for the genome_entropy project.
 
 ## What Has Been Implemented
 
@@ -55,7 +55,7 @@ Required packages:
 A GitHub Action (`.github/workflows/docs.yml`) automatically:
 1. Builds documentation on every push to `main`
 2. Runs link checking
-3. Deploys to GitHub Pages at: https://linsalrob.github.io/orf_entropy/
+3. Deploys to GitHub Pages at: https://linsalrob.github.io/genome_entropy/
 
 The workflow:
 - Triggers on push to main and pull requests
@@ -83,7 +83,7 @@ If you want to host on ReadTheDocs.org in addition to GitHub Pages:
 1. Go to https://readthedocs.org/
 2. Sign in with your GitHub account
 3. Click "Import a Project"
-4. Select `linsalrob/orf_entropy`
+4. Select `linsalrob/genome_entropy`
 5. Click "Next"
 
 ### Step 2: Configure Project (Auto-configured)
@@ -148,7 +148,7 @@ This verifies all external links are valid.
 
 Check:
 1. All dependencies installed: `pip install -e ".[docs]"`
-2. Package can be imported: `python -c "import orf_entropy"`
+2. Package can be imported: `python -c "import genome_entropy"`
 3. Sphinx configuration is valid: `python docs/source/conf.py`
 
 ### Missing Dependencies
@@ -185,7 +185,7 @@ pip install -e ".[docs]"
 
 ## Documentation URLs
 
-- **GitHub Pages**: https://linsalrob.github.io/orf_entropy/ (Active)
+- **GitHub Pages**: https://linsalrob.github.io/genome_entropy/ (Active)
 - **ReadTheDocs**: https://orf-entropy.readthedocs.io/ (Setup required)
 
 ## Next Steps for Repository Owner

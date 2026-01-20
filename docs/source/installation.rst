@@ -11,7 +11,7 @@ System Requirements
 Python Dependencies
 -------------------
 
-The following packages are automatically installed with orf_entropy:
+The following packages are automatically installed with genome_entropy:
 
 * **PyTorch** >= 2.0.0 (GPU support optional)
 * **Transformers** >= 4.30.0 (HuggingFace)
@@ -31,8 +31,8 @@ From Source (Recommended)
 
    .. code-block:: bash
 
-      git clone https://github.com/linsalrob/orf_entropy.git
-      cd orf_entropy
+      git clone https://github.com/linsalrob/genome_entropy.git
+      cd genome_entropy
 
 2. Create and activate a virtual environment:
 
@@ -95,7 +95,7 @@ Check that the installation was successful:
 .. code-block:: bash
 
    # Check CLI is available
-   dna23di --version
+   genome_entropy --version
 
    # Check get_orfs is available
    which get_orfs
@@ -103,7 +103,7 @@ Check that the installation was successful:
    echo $GET_ORFS_PATH
 
    # Run a simple test
-   dna23di download --help
+   genome_entropy download --help
 
 GPU Support
 -----------
@@ -150,7 +150,7 @@ Pre-download the ProstT5 model to avoid delays during first use:
 
 .. code-block:: bash
 
-   dna23di download --model Rostlab/ProstT5_fp16
+   genome_entropy download --model Rostlab/ProstT5_fp16
 
 This downloads the model to your HuggingFace cache directory (typically ``~/.cache/huggingface/``).
 
@@ -160,13 +160,13 @@ Troubleshooting
 ModuleNotFoundError
 ^^^^^^^^^^^^^^^^^^^
 
-**Error**: ``ModuleNotFoundError: No module named 'orf_entropy'``
+**Error**: ``ModuleNotFoundError: No module named 'genome_entropy'``
 
 **Solution**: Make sure you installed the package:
 
 .. code-block:: bash
 
-   cd /path/to/orf_entropy
+   cd /path/to/genome_entropy
    pip install -e .
 
 get_orfs Not Found
@@ -190,10 +190,10 @@ CUDA Out of Memory
 .. code-block:: bash
 
    # Use CPU
-   dna23di run --input data.fasta --output results.json --device cpu
+   genome_entropy run --input data.fasta --output results.json --device cpu
 
    # Or reduce batch size
-   dna23di encode3di --input proteins.json --output 3di.json --batch-size 1
+   genome_entropy encode3di --input proteins.json --output 3di.json --batch-size 1
 
 Model Download Fails
 ^^^^^^^^^^^^^^^^^^^^

@@ -1,12 +1,12 @@
 Quick Start Guide
 =================
 
-This guide will help you get started with **dna23di** in minutes.
+This guide will help you get started with **genome_entropy** in minutes.
 
 Prerequisites
 -------------
 
-* orf_entropy installed (see :doc:`installation`)
+* genome_entropy installed (see :doc:`installation`)
 * get_orfs binary available in PATH
 * Sample FASTA file with DNA sequences
 
@@ -20,7 +20,7 @@ Run the entire pipeline from DNA to 3Di with a single command:
 
 .. code-block:: bash
 
-   dna23di run --input examples/example_small.fasta --output results.json
+   genome_entropy run --input examples/example_small.fasta --output results.json
 
 This command will:
 
@@ -38,16 +38,16 @@ Alternatively, run each step individually:
 .. code-block:: bash
 
    # Step 1: Find ORFs
-   dna23di orf --input input.fasta --output orfs.json
+   genome_entropy orf --input input.fasta --output orfs.json
 
    # Step 2: Translate ORFs to proteins
-   dna23di translate --input orfs.json --output proteins.json
+   genome_entropy translate --input orfs.json --output proteins.json
 
    # Step 3: Encode proteins to 3Di
-   dna23di encode3di --input proteins.json --output 3di.json
+   genome_entropy encode3di --input proteins.json --output 3di.json
 
    # Step 4: Calculate entropy
-   dna23di entropy --input 3di.json --output entropy.json
+   genome_entropy entropy --input 3di.json --output entropy.json
 
 Example Output
 --------------
@@ -106,7 +106,7 @@ Use GPU for Faster Processing
 
 .. code-block:: bash
 
-   dna23di run --input data.fasta --output results.json --device cuda
+   genome_entropy run --input data.fasta --output results.json --device cuda
 
 Use Different Genetic Code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -114,10 +114,10 @@ Use Different Genetic Code
 .. code-block:: bash
 
    # Standard genetic code (Table 1)
-   dna23di run --input data.fasta --output results.json --table 1
+   genome_entropy run --input data.fasta --output results.json --table 1
 
    # Bacterial code (Table 11, default)
-   dna23di run --input data.fasta --output results.json --table 11
+   genome_entropy run --input data.fasta --output results.json --table 11
 
 Filter Short ORFs
 ^^^^^^^^^^^^^^^^^
@@ -125,21 +125,21 @@ Filter Short ORFs
 .. code-block:: bash
 
    # Only keep proteins >= 50 amino acids
-   dna23di run --input data.fasta --output results.json --min-aa 50
+   genome_entropy run --input data.fasta --output results.json --min-aa 50
 
 Enable Debug Logging
 ^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
-   dna23di --log-level DEBUG run --input data.fasta --output results.json
+   genome_entropy --log-level DEBUG run --input data.fasta --output results.json
 
 Log to File
 ^^^^^^^^^^^
 
 .. code-block:: bash
 
-   dna23di --log-file pipeline.log run --input data.fasta --output results.json
+   genome_entropy --log-file pipeline.log run --input data.fasta --output results.json
 
 Pre-download Models
 ^^^^^^^^^^^^^^^^^^^
@@ -148,7 +148,7 @@ Download models before running the pipeline:
 
 .. code-block:: bash
 
-   dna23di download --model Rostlab/ProstT5_fp16
+   genome_entropy download --model Rostlab/ProstT5_fp16
 
 Estimate Optimal Token Size
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -157,7 +157,7 @@ Find the best encoding size for your GPU:
 
 .. code-block:: bash
 
-   dna23di estimate-tokens --device cuda
+   genome_entropy estimate-tokens --device cuda
 
 Input File Format
 -----------------
@@ -190,13 +190,13 @@ Complete workflow for analyzing bacterial genomes:
 .. code-block:: bash
 
    # 1. Pre-download the model
-   dna23di download --model Rostlab/ProstT5_fp16
+   genome_entropy download --model Rostlab/ProstT5_fp16
 
    # 2. Estimate optimal token size for your GPU
-   dna23di estimate-tokens --device cuda
+   genome_entropy estimate-tokens --device cuda
 
    # 3. Run the pipeline with bacterial genetic code
-   dna23di --log-file analysis.log run \
+   genome_entropy --log-file analysis.log run \
        --input bacterial_genome.fasta \
        --output results.json \
        --table 11 \

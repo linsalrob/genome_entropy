@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from orf_entropy.entropy.shannon import (
+from genome_entropy.entropy.shannon import (
     EntropyReport,
     calculate_entropies_for_sequences,
     calculate_sequence_entropy,

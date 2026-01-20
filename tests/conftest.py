@@ -1,4 +1,4 @@
-"""Pytest configuration and fixtures for orf_entropy tests."""
+"""Pytest configuration and fixtures for genome_entropy tests."""
 
 import os
 from typing import Dict
@@ -57,7 +57,7 @@ def mock_prostt5_encoder(monkeypatch):
     Returns 'a' repeated for the length of each input sequence.
     This avoids needing to download models during testing.
     """
-    from orf_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
+    from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
     
     def mock_encode(self, aa_sequences, encoding_size=10):
         # Return 'a' * length for each sequence (lowercase for 3Di)

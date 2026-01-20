@@ -1,8 +1,8 @@
-orf_entropy (dna23di) Documentation
-====================================
+genome_entropy Documentation
+============================
 
-.. image:: https://github.com/linsalrob/orf_entropy/workflows/Python%20CI/badge.svg
-   :target: https://github.com/linsalrob/orf_entropy/actions
+.. image:: https://github.com/linsalrob/genome_entropy/workflows/Python%20CI/badge.svg
+   :target: https://github.com/linsalrob/genome_entropy/actions
    :alt: Python CI
 
 .. image:: https://img.shields.io/badge/python-3.10+-blue.svg
@@ -13,12 +13,12 @@ orf_entropy (dna23di) Documentation
    :target: https://opensource.org/licenses/MIT
    :alt: MIT License
 
-Welcome to the documentation for **orf_entropy** (also known as **dna23di**), a complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.
+Welcome to the documentation for **genome_entropy**, a complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.
 
 Overview
 --------
 
-**dna23di** enables researchers to:
+**genome_entropy** enables researchers to:
 
 * Extract Open Reading Frames (ORFs) from DNA sequences
 * Translate ORFs to protein sequences using customizable genetic codes
@@ -91,7 +91,7 @@ If you use this software, please cite:
 License
 -------
 
-MIT License - see `LICENSE <https://github.com/linsalrob/orf_entropy/blob/main/LICENSE>`_ file for details.
+MIT License - see `LICENSE <https://github.com/linsalrob/genome_entropy/blob/main/LICENSE>`_ file for details.
 
 Indices and tables
 ==================

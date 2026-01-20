@@ -1,7 +1,7 @@
 Development Guide
 =================
 
-This guide is for developers who want to contribute to **orf_entropy** or understand its internals.
+This guide is for developers who want to contribute to **genome_entropy** or understand its internals.
 
 Setting Up Development Environment
 -----------------------------------
@@ -12,8 +12,8 @@ Clone and Install
 .. code-block:: bash
 
    # Clone repository
-   git clone https://github.com/linsalrob/orf_entropy.git
-   cd orf_entropy
+   git clone https://github.com/linsalrob/genome_entropy.git
+   cd genome_entropy
 
    # Create virtual environment
    python3 -m venv venv
@@ -40,8 +40,8 @@ Project Structure
 
 .. code-block:: text
 
-   orf_entropy/
-   ├── src/orf_entropy/         # Main package
+   genome_entropy/
+   ├── src/genome_entropy/         # Main package
    │   ├── __init__.py
    │   ├── config.py            # Configuration and constants
    │   ├── errors.py            # Custom exceptions
@@ -154,7 +154,7 @@ Use **mypy** for type checking:
 .. code-block:: bash
 
    # Type check
-   mypy src/orf_entropy/
+   mypy src/genome_entropy/
 
 Testing
 -------
@@ -186,7 +186,7 @@ Running Tests
    pytest -k "not integration"
 
    # Run with coverage
-   pytest -k "not integration" --cov=orf_entropy --cov-report=html
+   pytest -k "not integration" --cov=genome_entropy --cov-report=html
 
    # Run specific test file
    pytest tests/test_entropy.py -v
@@ -203,7 +203,7 @@ Use pytest fixtures from ``conftest.py``:
 
    def test_entropy_calculation(synthetic_dna):
        """Test entropy calculation on synthetic data."""
-       from orf_entropy.entropy.shannon import shannon_entropy
+       from genome_entropy.entropy.shannon import shannon_entropy
        
        # Use fixture
        entropy = shannon_entropy(synthetic_dna)
@@ -222,7 +222,7 @@ Mock external dependencies:
            return ["AAA" * 10]  # Fake 3Di output
        
        monkeypatch.setattr(
-           "orf_entropy.encode3di.encoder.ProstT5ThreeDiEncoder._encode_batch",
+           "genome_entropy.encode3di.encoder.ProstT5ThreeDiEncoder._encode_batch",
            mock_encode
        )
        
@@ -297,7 +297,7 @@ Before committing, run:
    ruff check src/ tests/
 
    # Type check
-   mypy src/orf_entropy/
+   mypy src/genome_entropy/
 
    # Test
    pytest -k "not integration"
@@ -407,7 +407,7 @@ Add logging to your code:
 
 .. code-block:: python
 
-   from orf_entropy.logging_config import get_logger
+   from genome_entropy.logging_config import get_logger
 
    logger = get_logger(__name__)
 
@@ -495,10 +495,10 @@ Run the same checks locally:
    ruff check src/ tests/
 
    # Type check
-   mypy src/orf_entropy/
+   mypy src/genome_entropy/
 
    # Test
-   pytest -k "not integration" -v --cov=orf_entropy
+   pytest -k "not integration" -v --cov=genome_entropy
 
 Release Process
 ---------------
@@ -506,7 +506,7 @@ Release Process
 1. Update Version
 ^^^^^^^^^^^^^^^^^
 
-Edit ``pyproject.toml`` and ``src/orf_entropy/__init__.py``:
+Edit ``pyproject.toml`` and ``src/genome_entropy/__init__.py``:
 
 .. code-block:: python
 
@@ -569,7 +569,7 @@ Resources
 Getting Help
 ------------
 
-* **Issues**: https://github.com/linsalrob/orf_entropy/issues
+* **Issues**: https://github.com/linsalrob/genome_entropy/issues
 * **Discussions**: GitHub Discussions
 * **Email**: raedwards@gmail.com
 

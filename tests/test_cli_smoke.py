@@ -7,7 +7,7 @@ pytest.importorskip("typer")
 
 from typer.testing import CliRunner
 
-from orf_entropy.cli.main import app
+from genome_entropy.cli.main import app
 
 runner = CliRunner()
 

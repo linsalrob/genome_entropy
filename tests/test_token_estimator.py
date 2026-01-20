@@ -2,7 +2,7 @@
 
 import pytest
 
-from orf_entropy.encode3di.token_estimator import (
+from genome_entropy.encode3di.token_estimator import (
     generate_random_protein,
     generate_combined_proteins,
 )
@@ -75,7 +75,7 @@ def test_estimate_token_size_basic() -> None:
     # Import here to avoid import errors when torch is not available
     try:
         import torch
-        from orf_entropy.encode3di import ProstT5ThreeDiEncoder
+        from genome_entropy.encode3di import ProstT5ThreeDiEncoder
     except ImportError:
         pytest.skip("PyTorch or encoder not available")
 
@@ -91,7 +91,7 @@ def test_estimate_token_size_basic() -> None:
 
 def test_estimate_token_size_validates_encoder() -> None:
     """Test that estimate_token_size validates the encoder parameter."""
-    from orf_entropy.encode3di.token_estimator import estimate_token_size
+    from genome_entropy.encode3di.token_estimator import estimate_token_size
 
     # Should raise ValueError for invalid encoder
     with pytest.raises(ValueError, match="encoder must be"):

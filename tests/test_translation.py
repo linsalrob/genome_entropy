@@ -2,8 +2,8 @@
 
 import pytest
 
-from orf_entropy.orf.types import OrfRecord
-from orf_entropy.translate.translator import ProteinRecord
+from genome_entropy.orf.types import OrfRecord
+from genome_entropy.translate.translator import ProteinRecord
 
 
 def test_protein_record_creation() -> None:

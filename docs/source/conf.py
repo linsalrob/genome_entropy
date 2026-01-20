@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../../src'))
 
 # Project information
-project = 'orf_entropy (dna23di)'
+project = 'genome_entropy'
 copyright = '2026, Rob Edwards'
 author = 'Rob Edwards'
 release = '0.1.0'
