@@ -1,5 +1,7 @@
 # genome_entropy
 
+[![Edwards Lab](https://img.shields.io/badge/Bioinformatics-EdwardsLab-03A9F4)](https://edwards.flinders.edu.au/)
+
 [![Python CI](https://github.com/linsalrob/genome_entropy/workflows/Python%20CI/badge.svg)](https://github.com/linsalrob/genome_entropy/actions)
 [![Documentation](https://github.com/linsalrob/genome_entropy/workflows/Documentation/badge.svg)](https://linsalrob.github.io/genome_entropy/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
