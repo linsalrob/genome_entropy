@@ -144,39 +144,89 @@ class MultiGPUEncoder:
             total_sequences, total_batches, len(self.encoders)
         )
         
-        # Distribute batches across GPUs in round-robin fashion
-        tasks = []
+        # Create a shared queue for all batches
+        batch_queue: asyncio.Queue[Tuple[int, List[IndexedSeq]]] = asyncio.Queue()
+        
+        # Enqueue all batches with their indices
         for batch_idx, batch in enumerate(batches):
-            encoder_idx = batch_idx % len(self.encoders)
-            task = self.encode_batch_async(encoder_idx, batch)
-            tasks.append((batch_idx, task))
+            await batch_queue.put((batch_idx, batch))
         
-        # Execute all tasks concurrently
+        # Track completed batches and errors
         completed = 0
-        try:
-            for batch_idx, task in tasks:
-                # Await each task and update progress
-                batch_idxs, batch_results = await task
-                
-                # Reorder results to match original input order
-                for bi, br in zip(batch_idxs, batch_results):
-                    three_di_sequences[bi] = br
-                
-                completed += 1
-                elapsed = time.perf_counter() - t0
-                avg_batch_time = elapsed / completed
-                eta_remaining = avg_batch_time * (total_batches - completed)
-                
-                logger.info(
-                    "Completed batch %d/%d (%.1f%%) - Elapsed: %.1fs, ETA: %.1fs",
-                    completed, total_batches,
-                    100.0 * completed / total_batches,
-                    elapsed, eta_remaining
-                )
+        completed_lock = asyncio.Lock()
+        first_error: Optional[Exception] = None
         
+        async def gpu_worker(gpu_idx: int) -> None:
+            """Worker coroutine that processes batches for a specific GPU."""
+            nonlocal completed, first_error
+            
+            while True:
+                try:
+                    # Get next batch from queue (non-blocking check)
+                    batch_idx, batch = await asyncio.wait_for(
+                        batch_queue.get(), timeout=0.1
+                    )
+                except asyncio.TimeoutError:
+                    # Queue is empty, exit worker
+                    break
+                
+                try:
+                    # Encode the batch on this GPU
+                    batch_idxs, batch_results = await self.encode_batch_async(
+                        gpu_idx, batch
+                    )
+                    
+                    # Store results in original order
+                    for bi, br in zip(batch_idxs, batch_results):
+                        three_di_sequences[bi] = br
+                    
+                    # Update progress
+                    async with completed_lock:
+                        completed += 1
+                        elapsed = time.perf_counter() - t0
+                        avg_batch_time = elapsed / completed
+                        eta_remaining = avg_batch_time * (total_batches - completed)
+                        
+                        logger.info(
+                            "Completed batch %d/%d (%.1f%%) - Elapsed: %.1fs, ETA: %.1fs",
+                            completed, total_batches,
+                            100.0 * completed / total_batches,
+                            elapsed, eta_remaining
+                        )
+                    
+                    # Mark task as done
+                    batch_queue.task_done()
+                    
+                except Exception as e:
+                    # Store first error and stop processing
+                    if first_error is None:
+                        first_error = e
+                        logger.error(
+                            "GPU %d failed encoding batch %d: %s",
+                            gpu_idx, batch_idx, e, exc_info=True
+                        )
+                    batch_queue.task_done()
+                    break
+        
+        # Create one worker per GPU
+        workers = [
+            asyncio.create_task(gpu_worker(gpu_idx))
+            for gpu_idx in range(len(self.encoders))
+        ]
+        
+        # Wait for all workers to complete
+        try:
+            await asyncio.gather(*workers, return_exceptions=True)
         except Exception as e:
-            logger.error("Multi-GPU encoding failed: %s", e, exc_info=True)
-            raise EncodingError(f"Multi-GPU encoding failed: {e}") from e
+            logger.error("Multi-GPU encoding failed during worker execution: %s", e, exc_info=True)
+            if first_error is None:
+                first_error = e
+        
+        # If any error occurred, raise it
+        if first_error is not None:
+            raise EncodingError(
+                f"Multi-GPU encoding failed: {first_error}"
+            ) from first_error
         
         # Check all sequences encoded
         missing = [i for i, v in enumerate(three_di_sequences) if v is None]
