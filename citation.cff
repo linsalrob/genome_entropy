@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Genome Entropy"
+authors:
+    - family-names: Edwards
+      given-names: Robert
+      orcid: "https://orcid.org/0000-0001-8383-8949"
+doi: 10.5281/zenodo.18312207
+version: v0.1.1
+date-released: 2026-01-20
+url: "https://github.com/linsalrob/genome_entropy"
