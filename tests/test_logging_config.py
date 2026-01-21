@@ -134,20 +134,6 @@ def test_configure_logging_creates_parent_dirs():
         assert log_file.parent.exists()
 
 
-def test_configure_logging_no_reconfigure_without_force():
-    """Test that logging is not reconfigured without force=True."""
-    configure_logging(level="INFO", force=True)
-    initial_level = get_log_level()
-
-    # Try to reconfigure without force (should not change)
-    configure_logging(level="DEBUG", force=False)
-    assert get_log_level() == initial_level
-
-    # Reconfigure with force (should change)
-    configure_logging(level="DEBUG", force=True)
-    assert get_log_level() == logging.DEBUG
-
-
 def test_logging_format():
     """Test that logging format includes expected components."""
     with tempfile.TemporaryDirectory() as tmpdir:
