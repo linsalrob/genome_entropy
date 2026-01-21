@@ -48,12 +48,14 @@ def configure_logging(
     global _configured, _log_file, _log_level
 
     # Convert string level to int if needed
+    ori_level = level
     if isinstance(level, str):
         level = getattr(logging, level.upper(), logging.INFO)
 
-    # Skip if already configured (unless force=True)
-    if _configured and not force:
-        return
+    # We always reconfigure, whether or not we are forced to.
+    # this is now here to prevent an error :)
+    if force:
+        logging.info("force is deprecated in logging - we always switch levels")
 
     # Clear any existing handlers
     root_logger = logging.getLogger()

@@ -1,5 +1,6 @@
 """Token size estimation command."""
 
+from pathlib import Path
 from typing import Optional
 import traceback
 
@@ -51,6 +52,17 @@ def estimate_token_size_command(
         "-b",
         help="Approximate length of individual proteins (amino acids)",
     ),
+    log_level: str = typer.Option(
+        "INFO",
+        "--log-level",
+        "-l",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    ),
+    log_file: Optional[Path] = typer.Option(
+        None,
+        "--log-file",
+        help="Path to log file (default: log to STDOUT)",
+    ),
 ) -> None:
     """Estimate optimal token size for GPU encoding.
 
@@ -61,7 +73,19 @@ def estimate_token_size_command(
     The recommended token size is returned as 90% of the maximum for safety.
     """
     try:
+        from ...config import VALID_LOG_LEVELS
+        from ...logging_config import configure_logging
         from ...encode3di import ProstT5ThreeDiEncoder, estimate_token_size
+
+        # Validate and configure logging
+        if log_level.upper() not in VALID_LOG_LEVELS:
+            typer.echo(
+                f"Error: Invalid log level '{log_level}'. Must be one of: {', '.join(VALID_LOG_LEVELS)}",
+                err=True,
+            )
+            raise typer.Exit(2)
+
+        configure_logging(level=log_level.upper(), log_file=log_file)
 
         typer.echo("=" * 60)
         typer.echo("Token Size Estimation")
