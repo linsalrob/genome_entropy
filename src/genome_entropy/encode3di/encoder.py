@@ -117,7 +117,7 @@ class ProstT5ThreeDiEncoder:
 
         # only GPUs support half-precision currently; if you want to run on
         # CPU use full-precision (not recommended, much slower)
-        _ = self.model.full() if self.device == "cpu" else self.model.half()
+        _ = self.model.float() if self.device == "cpu" else self.model.half()
 
     def token_budget_batches(
         self,
