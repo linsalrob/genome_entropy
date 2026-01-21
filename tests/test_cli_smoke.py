@@ -93,3 +93,24 @@ def test_estimate_tokens_command_help() -> None:
     assert "token size" in result.stdout.lower()
     assert "model" in result.stdout.lower()
     assert "device" in result.stdout.lower()
+    # Remove ANSI codes to check for options
+    import re
+    clean_output = re.sub(r'\x1b\[[0-9;]*m', '', result.stdout)
+    assert "--log-level" in clean_output
+    assert "--log-file" in clean_output
+
+
+def test_estimate_tokens_log_level_option() -> None:
+    """Test that estimate-tokens accepts --log-level option."""
+    # Just checking help to ensure the option is recognized
+    result = runner.invoke(app, [
+        "estimate-tokens",
+        "--help"
+    ])
+    assert result.exit_code == 0
+    # Remove ANSI codes and check
+    import re
+    clean_output = re.sub(r'\x1b\[[0-9;]*m', '', result.stdout)
+    assert "--log-level" in clean_output
+    # Make sure it describes logging level
+    assert "logging level" in result.stdout.lower() or "log level" in result.stdout.lower()
