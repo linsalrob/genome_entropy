@@ -3,9 +3,6 @@
 import os
 from pathlib import Path
 
-# Version
-__version__ = "0.1.0"
-
 # Default NCBI translation table (Bacterial/Archaeal)
 DEFAULT_GENETIC_CODE_TABLE = 11
 
