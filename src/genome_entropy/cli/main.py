@@ -8,7 +8,8 @@ try:
 except ImportError:
     typer = None
 
-from ..config import __version__, DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS
+from .. import __version__
+from ..config import DEFAULT_LOG_LEVEL, VALID_LOG_LEVELS
 from ..logging_config import configure_logging
 
 # Create main app

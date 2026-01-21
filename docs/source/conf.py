@@ -2,6 +2,7 @@
 
 import os
 import sys
+from importlib.metadata import version, PackageNotFoundError
 
 # Add source directory to path for autodoc
 sys.path.insert(0, os.path.abspath('../../src'))
@@ -10,8 +11,14 @@ sys.path.insert(0, os.path.abspath('../../src'))
 project = 'genome_entropy'
 copyright = '2026, Rob Edwards'
 author = 'Rob Edwards'
-release = '0.1.0'
-version = '0.1.0'
+
+# Get version from package metadata
+try:
+    release = version("genome_entropy")
+    version = release  # For short version, could use version.split('+')[0] to strip local part
+except PackageNotFoundError:
+    release = '0.0.0'
+    version = '0.0.0'
 
 # General configuration
 extensions = [

@@ -23,7 +23,7 @@ def test_cli_version() -> None:
     """Test version flag."""
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    assert "version" in result.stdout.lower() or "0.1.0" in result.stdout
+    assert "version" in result.stdout.lower() or "0.1.2" in result.stdout
 
 
 def test_download_command_help() -> None:
