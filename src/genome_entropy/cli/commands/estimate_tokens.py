@@ -76,7 +76,7 @@ def estimate_token_size_command(
         from ...config import VALID_LOG_LEVELS
         from ...logging_config import configure_logging
         from ...encode3di import ProstT5ThreeDiEncoder, estimate_token_size
-        
+
         # Validate and configure logging
         if log_level.upper() not in VALID_LOG_LEVELS:
             typer.echo(
@@ -84,7 +84,7 @@ def estimate_token_size_command(
                 err=True,
             )
             raise typer.Exit(2)
-        
+
         configure_logging(level=log_level.upper(), log_file=log_file)
 
         typer.echo("=" * 60)
