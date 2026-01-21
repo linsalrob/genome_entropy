@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from ..config import DEFAULT_GENETIC_CODE_TABLE, DEFAULT_MIN_AA_LENGTH, DEFAULT_PROSTT5_MODEL
+from ..config import DEFAULT_GENETIC_CODE_TABLE, DEFAULT_MIN_AA_LENGTH, DEFAULT_PROSTT5_MODEL, DEFAULT_ENCODING_SIZE
 from ..encode3di.prostt5 import ProstT5ThreeDiEncoder, ThreeDiRecord
 from ..entropy.shannon import EntropyReport, calculate_sequence_entropy, calculate_entropies_for_sequences
 from ..errors import PipelineError
@@ -51,6 +51,7 @@ def run_pipeline(
     use_multi_gpu: bool = False,
     gpu_ids: Optional[List[int]] = None,
     genbank_file: Optional[Union[str, Path]] = None,
+    encoding_size: Optional[int] = None,
 ) -> List[PipelineResult]:
     """Run the complete DNA to 3Di pipeline with entropy calculation.
     
@@ -78,6 +79,8 @@ def run_pipeline(
         genbank_file: Optional path to GenBank file. If provided alone, extracts
                 DNA sequences from it. Can be combined with input_fasta to use
                 FASTA sequences with GenBank CDS annotations.
+        encoding_size: Maximum size (approx. amino acids) to encode per batch.
+                If None, uses DEFAULT_ENCODING_SIZE from config.
         
     Returns:
         List of PipelineResult objects (one per input sequence)
@@ -187,8 +190,11 @@ def run_pipeline(
             # Step 4: Encode to 3Di
             logger.info("Step 4: Encoding proteins to 3Di tokens...")
             encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
+            # Use provided encoding_size or default
+            actual_encoding_size = encoding_size if encoding_size is not None else DEFAULT_ENCODING_SIZE
             three_dis = encoder.encode_proteins(
                 proteins,
+                encoding_size=actual_encoding_size,
                 use_multi_gpu=use_multi_gpu,
                 gpu_ids=gpu_ids,
             )
