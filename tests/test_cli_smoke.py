@@ -73,6 +73,49 @@ def test_run_command_help() -> None:
     assert "output" in result.stdout.lower()
 
 
+def test_run_command_has_new_options() -> None:
+    """Test that run command has encoding-size, log-level, and log-file options."""
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    # Remove ANSI codes to check for options
+    import re
+
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+    assert "--encoding-size" in clean_output
+    assert "--log-level" in clean_output
+    assert "--log-file" in clean_output
+
+
+def test_run_command_encoding_size_option() -> None:
+    """Test that run command accepts --encoding-size option."""
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    # Remove ANSI codes and check
+    import re
+
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+    assert "--encoding-size" in clean_output
+    # Make sure it describes encoding size
+    assert (
+        "encoding size" in result.stdout.lower() or "amino acids" in result.stdout.lower()
+    )
+
+
+def test_run_command_log_level_option() -> None:
+    """Test that run command accepts --log-level option."""
+    result = runner.invoke(app, ["run", "--help"])
+    assert result.exit_code == 0
+    # Remove ANSI codes and check
+    import re
+
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+    assert "--log-level" in clean_output
+    # Make sure it describes logging level
+    assert (
+        "logging level" in result.stdout.lower() or "log level" in result.stdout.lower()
+    )
+
+
 def test_cli_no_command() -> None:
     """Test CLI with no command shows help."""
     result = runner.invoke(app, [])
