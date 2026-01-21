@@ -73,6 +73,23 @@ def run_command(
         exists=True,
         dir_okay=False,
     ),
+    encoding_size: int = typer.Option(
+        10000,
+        "--encoding-size",
+        "-e",
+        help="Encoding size (approximates to amino acids)",
+    ),
+    log_level: str = typer.Option(
+        "INFO",
+        "--log-level",
+        "-l",
+        help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    ),
+    log_file: Optional[Path] = typer.Option(
+        None,
+        "--log-file",
+        help="Path to log file (default: log to STDOUT)",
+    ),
 ) -> None:
     """Run the complete DNA to 3Di pipeline.
     
@@ -94,7 +111,19 @@ def run_command(
     specify --gpu-ids to select specific GPUs.
     """
     try:
+        from ...config import VALID_LOG_LEVELS
+        from ...logging_config import configure_logging
         from ...pipeline.runner import run_pipeline
+        
+        # Validate and configure logging
+        if log_level.upper() not in VALID_LOG_LEVELS:
+            typer.echo(
+                f"Error: Invalid log level '{log_level}'. Must be one of: {', '.join(VALID_LOG_LEVELS)}",
+                err=True,
+            )
+            raise typer.Exit(2)
+        
+        configure_logging(level=log_level.upper(), log_file=log_file)
         
         # Validate that at least one input source is provided
         if not input and not genbank:
@@ -125,6 +154,7 @@ def run_command(
         typer.echo(f"  Genetic code table: {table}")
         typer.echo(f"  Minimum AA length: {min_aa}")
         typer.echo(f"  Model: {model}")
+        typer.echo(f"  Encoding size: {encoding_size}")
         
         if multi_gpu:
             typer.echo(f"  Multi-GPU encoding: enabled")
@@ -148,6 +178,7 @@ def run_command(
             use_multi_gpu=multi_gpu,
             gpu_ids=parsed_gpu_ids,
             genbank_file=genbank,
+            encoding_size=encoding_size,
         )
         
         typer.echo(f"\n✓ Pipeline complete!")
