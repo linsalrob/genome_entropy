@@ -3,6 +3,7 @@
 import pytest
 
 from genome_entropy.orf.types import OrfRecord
+from genome_entropy.orf.finder import _parse_orf_header_line
 
 
 def test_orf_record_creation() -> None:
@@ -20,7 +21,7 @@ def test_orf_record_creation() -> None:
         has_start_codon=True,
         has_stop_codon=True,
     )
-    
+
     assert orf.parent_id == "seq1"
     assert orf.orf_id == "seq1_orf_0_90_+_f0"
     assert orf.start == 0
@@ -88,7 +89,7 @@ def test_orf_record_invalid_coordinates() -> None:
             has_start_codon=True,
             has_stop_codon=True,
         )
-    
+
     # End <= start
     with pytest.raises(ValueError, match="Invalid end position"):
         OrfRecord(
@@ -108,7 +109,7 @@ def test_orf_record_invalid_coordinates() -> None:
 
 def test_orf_record_sequence_length_mismatch() -> None:
     """Test that sequence length can be different from coordinates.
-    
+
     Note: The OrfRecord allows sequences to be empty or shorter than coordinates
     because sequences may be filled in later (e.g., by the ORF finder).
     This test now verifies that mismatched lengths are allowed.
@@ -146,7 +147,7 @@ def test_orf_record_both_strands() -> None:
         has_start_codon=True,
         has_stop_codon=True,
     )
-    
+
     orf_minus = OrfRecord(
         parent_id="seq1",
         orf_id="orf_minus",
@@ -160,7 +161,7 @@ def test_orf_record_both_strands() -> None:
         has_start_codon=True,
         has_stop_codon=False,
     )
-    
+
     assert orf_plus.strand == "+"
     assert orf_minus.strand == "-"
     assert orf_minus.frame == 1
@@ -200,6 +201,69 @@ def test_orf_record_no_start_or_stop() -> None:
         has_start_codon=False,
         has_stop_codon=False,
     )
-    
+
     assert orf.has_start_codon is False
     assert orf.has_stop_codon is False
+
+
+def test_parse_orf_header_standard_format() -> None:
+    """Test parsing standard get_orfs header format with parent_id prefix."""
+    # Standard format: >parent_id-orf_id [parent_id frame frame_num start end]
+    header = ">JQ995537-orf14635 [JQ995537 frame -3 96951 97093]"
+    orf = _parse_orf_header_line(header, table_id=11)
+
+    assert orf.parent_id == "JQ995537"
+    assert orf.orf_id == "orf14635"
+    assert orf.start == 96951
+    assert orf.end == 97093
+    assert orf.strand == "-"
+    assert orf.frame == 3
+    assert orf.table_id == 11
+
+
+def test_parse_orf_header_simple_format() -> None:
+    """Test parsing simple header format without parent_id prefix."""
+    # Simple format: >orf_id [parent_id frame frame_num start end]
+    header = ">orf1 [JQ995537 frame +1 388 1230]"
+    orf = _parse_orf_header_line(header, table_id=11)
+
+    assert orf.parent_id == "JQ995537"
+    assert orf.orf_id == "orf1"
+    assert orf.start == 388
+    assert orf.end == 1230
+    assert orf.strand == "+"
+    assert orf.frame == 1
+    assert orf.table_id == 11
+
+
+def test_parse_orf_header_positive_frame() -> None:
+    """Test parsing header with positive frame."""
+    header = ">NC_000913-orf1 [NC_000913 frame +2 100 400]"
+    orf = _parse_orf_header_line(header, table_id=11)
+
+    assert orf.strand == "+"
+    assert orf.frame == 2
+
+
+def test_parse_orf_header_negative_frame() -> None:
+    """Test parsing header with negative frame."""
+    header = ">NC_000913-orf2 [NC_000913 frame -1 500 800]"
+    orf = _parse_orf_header_line(header, table_id=11)
+
+    assert orf.strand == "-"
+    assert orf.frame == 1
+
+
+def test_parse_orf_header_invalid_format() -> None:
+    """Test that invalid header format raises ValueError."""
+    # Missing required components
+    invalid_headers = [
+        ">orf1",  # No brackets
+        ">orf1 []",  # Empty brackets
+        ">orf1 [JQ995537]",  # Missing frame info
+        "orf1 [JQ995537 frame +1 388 1230]",  # Missing >
+    ]
+
+    for header in invalid_headers:
+        with pytest.raises(ValueError, match="Header did not match expected format"):
+            _parse_orf_header_line(header, table_id=11)
