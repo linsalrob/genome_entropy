@@ -12,6 +12,13 @@ Quantify information content across multiple biological representations derived 
 
 **genome_entropy** is a complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.
 
+## Comparing genome_entropy
+
+This plot shows a comparison between the protein-level (amino acid) entropy of a set of proteins in our [example GenBank file](example_data/JQ995537.gbk) (_yes, it's crAssphage_) compared to the 3Di entropy. All values were computed by genome_entropy. We have coloured the plot based on whether the ORF was annotated in the GenBank file (i.e. does the ORF encode a protein or not).
+
+![Protein vs 3Di entropy comparison](img/prot_vs_3di.png)
+
+
 ## Why genome_entropy?
 
 We refer to this framework as **genome-entropy** to emphasise its unifying focus on quantifying information content across multiple biological representations derived from the same genomic sequence. Rather than restricting analysis to a single abstraction, such as nucleotide composition or predicted coding regions, genome-entropy integrates DNA sequences, open reading frames, translated proteins, and structure-derived encodings (3Di) within a common information-theoretic framework. The name reflects both the biological scope of the approach—operating at the level of whole genomes and metagenomes—and the central analytical principle, entropy, which provides a consistent and comparable measure of complexity, organisation, and constraint across representations. This design allows direct comparison of informational signatures across molecular layers while remaining extensible to additional encodings as methods and data evolve.
