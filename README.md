@@ -45,7 +45,13 @@ The documentation includes:
 
 ### Installation
 
-#### Recommended
+#### Running on a cluster
+
+We have installation scripts to run this on either a cluster with [NVIDIA GPUs](slurm/nvidia) or [AMD GPUs](slurm/rocm).
+
+These installation scripts and associated SLURM job submission scripts should get you running!
+
+#### Stand alone 
 
 Install with pip:
 
