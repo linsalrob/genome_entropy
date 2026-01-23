@@ -16,8 +16,11 @@ Quantify information content across multiple biological representations derived 
 
 This plot shows a comparison between the protein-level (amino acid) entropy of a set of proteins in our [example GenBank file](example_data/JQ995537.gbk) (_yes, it's crAssphage_) compared to the 3Di entropy. All values were computed by genome_entropy. We have coloured the plot based on whether the ORF was annotated in the GenBank file (i.e. does the ORF encode a protein or not).
 
-![Protein vs 3Di entropy comparison](img/prot_vs_3di.png)
+![Protein vs 3Di entropy comparison](img/prot_vs_3di_crassphage.png)
 
+Here is a similar plot using all the Open Reading Frames in _Salmonella_ LT2
+
+![Protein vs 3Di entropy comparison](img/prot_vs_3di_lt2.png)
 
 ## Why genome_entropy?
 
