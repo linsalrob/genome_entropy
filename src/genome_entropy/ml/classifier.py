@@ -17,7 +17,7 @@ from ..logging_config import get_logger
 logger = get_logger(__name__)
 
 
-def load_json_data(json_dir: Path) -> List[Dict[str, Any]]:
+def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
     """Load all JSON files from a directory.
     
     Handles both old PipelineResult format and new unified format.
@@ -26,7 +26,7 @@ def load_json_data(json_dir: Path) -> List[Dict[str, Any]]:
         json_dir: Directory containing JSON output files
         
     Returns:
-        List of parsed JSON data (each is a dictionary)
+        List of lists of parsed JSON data (each file's content wrapped in a list)
         
     Raises:
         ValueError: If no JSON files found or if files are invalid
@@ -46,7 +46,7 @@ def load_json_data(json_dir: Path) -> List[Dict[str, Any]]:
         try:
             with open(json_file, "r") as f:
                 content = json.load(f)
-                data.append(content)
+                data.append([content])  # Wrap in list to make iterable for nested loop
                 logger.debug(f"Loaded {json_file.name}")
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse {json_file.name}: {e}")
@@ -63,7 +63,7 @@ def load_json_data(json_dir: Path) -> List[Dict[str, Any]]:
 
 
 def extract_features(
-    json_data: List[Dict[str, Any]],
+    json_data: List[List[Dict[str, Any]]],
     include_sequences: bool = False,
     return_metadata: bool = False
 ) -> Tuple[np.ndarray, np.ndarray, List[str], Optional[List[Dict[str, Any]]]]:
@@ -80,7 +80,7 @@ def extract_features(
     - Boolean (encoded): has_start_codon, has_stop_codon
     
     Args:
-        json_data: List of parsed JSON dictionaries from load_json_data()
+        json_data: List of lists of parsed JSON dictionaries from load_json_data()
         include_sequences: If True, include sequence-based features (default: False)
                           This can make feature vectors very large
         return_metadata: If True, return metadata for each ORF including orf_id and 
