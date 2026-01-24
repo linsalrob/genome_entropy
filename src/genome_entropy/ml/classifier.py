@@ -46,7 +46,7 @@ def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
         try:
             with open(json_file, "r") as f:
                 content = json.load(f)
-                data.append([content])  # Wrap in list to make iterable for nested loop
+                data.append(content) 
                 logger.debug(f"Loaded {json_file.name}")
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse {json_file.name}: {e}")
