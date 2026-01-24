@@ -8,7 +8,7 @@ import pytest
 
 @pytest.fixture
 def mock_orf_finder(monkeypatch):
-    """Mock ORF finder to return synthetic ORFs without needing get_orfs binary."""
+    """Mock ORF finder to return synthetic ORFs without needing genome_entropy binary."""
     from genome_entropy.orf.types import OrfRecord
     
     def mock_find_orfs(sequences, table_id=11, min_nt_length=90):

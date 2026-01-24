@@ -207,7 +207,7 @@ def test_orf_record_no_start_or_stop() -> None:
 
 
 def test_parse_orf_header_standard_format() -> None:
-    """Test parsing standard get_orfs header format with parent_id prefix."""
+    """Test parsing standard genome_entropy header format with parent_id prefix."""
     # Standard format: >parent_id-orf_id [parent_id frame frame_num start end]
     header = ">JQ995537-orf14635 [JQ995537 frame -3 96951 97093]"
     orf = _parse_orf_header_line(header, table_id=11)
