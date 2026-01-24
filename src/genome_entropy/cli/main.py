@@ -69,6 +69,7 @@ if typer:
             run,
             translate,
             estimate_tokens,
+            ml,
         )
 
         app.command(name="download")(download.download_command)
@@ -78,6 +79,7 @@ if typer:
         app.command(name="entropy")(entropy.entropy_command)
         app.command(name="run")(run.run_command)
         app.command(name="estimate-tokens")(estimate_tokens.estimate_token_size_command)
+        app.add_typer(ml.app, name="ml")
     except ImportError as e:
         # Commands not yet implemented
         pass
