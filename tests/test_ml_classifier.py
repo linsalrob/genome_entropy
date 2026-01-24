@@ -17,7 +17,7 @@ from genome_entropy.ml.classifier import (
 @pytest.fixture
 def sample_json_unified():
     """Create sample JSON data in unified format."""
-    return {
+    return [{
         "schema_version": "2.0.0",
         "input_id": "test_seq",
         "input_dna_length": 1000,
@@ -97,7 +97,7 @@ def sample_json_unified():
                 }
             }
         }
-    }
+    }]
 
 
 @pytest.fixture
@@ -109,7 +109,7 @@ def temp_json_dir(sample_json_unified):
         # Create multiple JSON files
         for i in range(3):
             data = sample_json_unified.copy()
-            data["input_id"] = f"test_seq_{i}"
+            data[0]["input_id"] = f"test_seq_{i}"
             
             json_file = tmpdir / f"test_{i}.json"
             with open(json_file, "w") as f:
@@ -138,7 +138,7 @@ def test_load_json_data_empty_dir():
 
 def test_extract_features_unified_format(sample_json_unified):
     """Test feature extraction from unified format."""
-    X, y, feature_names, _ = extract_features([[sample_json_unified]])
+    X, y, feature_names, _ = extract_features([sample_json_unified])
     
     # Should have 2 ORFs
     assert X.shape[0] == 2
@@ -337,7 +337,7 @@ def test_classifier_not_trained_errors():
         classifier.evaluate(X, y)
     
     with pytest.raises(RuntimeError, match="Model not trained"):
-        classifier.save(Path("/tmp/model.xgb"))
+        classifier.save(Path("/tmp/model.ubj"))
 
 
 def test_classifier_save_load():
@@ -357,7 +357,7 @@ def test_classifier_save_load():
     
     # Save model
     with tempfile.TemporaryDirectory() as tmpdir:
-        model_path = Path(tmpdir) / "test_model.xgb"
+        model_path = Path(tmpdir) / "test_model.ubj"
         classifier.save(model_path)
         
         assert model_path.exists()

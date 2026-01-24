@@ -133,10 +133,10 @@ Train a classifier to predict whether ORFs are annotated in GenBank:
 pip install "genome_entropy[ml]"
 
 # Train classifier on JSON output from GenBank files
-genome_entropy ml train --json-dir results/ --output model.xgb
+genome_entropy ml train --json-dir results/ --output model.ubj
 
 # Make predictions on new data
-genome_entropy ml predict --json-dir new_results/ --model model.xgb --output predictions.csv
+genome_entropy ml predict --json-dir new_results/ --model model.ubj --output predictions.csv
 ```
 
 The ML classifier uses **XGBoost (Gradient Boosted Trees)** by default, which is recommended for this task because:

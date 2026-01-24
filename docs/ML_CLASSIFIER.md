@@ -117,7 +117,7 @@ Train on a directory of JSON files:
 ```bash
 genome_entropy ml train \
     --json-dir results/ \
-    --output model.xgb \
+    --output model.ubj \
     --model-type xgboost \
     --validation-split 0.2 \
     --test-split 0.1
@@ -154,7 +154,7 @@ Use the trained model on new data:
 ```bash
 genome_entropy ml predict \
     --json-dir new_results/ \
-    --model model.xgb \
+    --model model.ubj \
     --output predictions.csv
 ```
 
@@ -183,7 +183,7 @@ for feature, score in sorted(importance.items(), key=lambda x: x[1], reverse=Tru
     print(f"{feature:20s}: {score:.4f}")
 
 # Save model
-classifier.save(Path("model.xgb"))
+classifier.save(Path("model.ubj"))
 
 # Make predictions on new data
 new_data = load_json_data(Path("new_results/"))

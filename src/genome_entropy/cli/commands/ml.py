@@ -99,14 +99,14 @@ def train_classifier(
     ---------------
     
     Basic usage with XGBoost (recommended):
-        genome_entropy ml train --json-dir results/ --output model.xgb
+        genome_entropy ml train --json-dir results/ --output model.ubj
     
     Use neural network with GPU:
         genome_entropy ml train --json-dir results/ --output model.pt \\
             --model-type neural_net --device cuda
     
     Custom validation split:
-        genome_entropy ml train --json-dir results/ --output model.xgb \\
+        genome_entropy ml train --json-dir results/ --output model.ubj \\
             --validation-split 0.3 --test-split 0.15
     """
     logger.info("="*60)

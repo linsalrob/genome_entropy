@@ -149,10 +149,10 @@ classifier = GenbankClassifier(model_type="xgboost", device=None)
 ### 4. Model Persistence
 ```python
 # Save trained model
-classifier.save(Path("model.xgb"))
+classifier.save(Path("model.ubj"))
 
 # Load for prediction
-classifier.load(Path("model.xgb"))
+classifier.load(Path("model.ubj"))
 ```
 
 ### 5. Robust Error Handling
@@ -172,7 +172,7 @@ pip install "genome_entropy[ml]"
 # Train on JSON output from GenBank files
 genome_entropy ml train \
     --json-dir results/ \
-    --output model.xgb \
+    --output model.ubj \
     --model-type xgboost \
     --validation-split 0.2 \
     --test-split 0.1
@@ -183,7 +183,7 @@ genome_entropy ml train \
 ```bash
 genome_entropy ml predict \
     --json-dir new_results/ \
-    --model model.xgb \
+    --model model.ubj \
     --output predictions.csv
 ```
 

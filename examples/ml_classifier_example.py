@@ -254,7 +254,7 @@ def main():
         print("Step 7: Saving Model")
         print(f"{'='*60}")
         
-        model_path = tmpdir / "genbank_classifier.xgb"
+        model_path = tmpdir / "genbank_classifier.ubj"
         classifier.save(model_path)
         print(f"✓ Model saved to {model_path}")
         
