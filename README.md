@@ -46,6 +46,7 @@ The documentation includes:
 - 🔄 **Translation**: Convert ORFs to protein sequences with support for all NCBI genetic code tables
 - 🏗️ **3Di Encoding**: Predict structural alphabet tokens directly from sequences using ProstT5
 - 📊 **Entropy Analysis**: Calculate Shannon entropy at DNA, ORF, protein, and 3Di levels
+- 🤖 **ML Classifier**: Train machine learning models to predict GenBank annotations from ORF features
 - ⚡ **GPU Acceleration**: Auto-detect and use CUDA, MPS (Apple Silicon), or CPU
 - 🚀 **Multi-GPU Support**: Parallelize 3Di encoding across multiple GPUs for faster processing
 - 🔧 **Modular CLI**: Run complete pipeline or individual steps
@@ -122,6 +123,40 @@ genome_entropy encode3di --input proteins.json --output 3di.json --multi-gpu
 4. `torch.cuda.device_count()` (all available GPUs)
 
 See `examples/multi_gpu_example.py` for more usage examples.
+
+### Machine Learning Classifier
+
+Train a classifier to predict whether ORFs are annotated in GenBank:
+
+```bash
+# Install ML dependencies
+pip install "genome_entropy[ml]"
+
+# Train classifier on JSON output from GenBank files
+genome_entropy ml train --json-dir results/ --output model.xgb
+
+# Make predictions on new data
+genome_entropy ml predict --json-dir new_results/ --model model.xgb --output predictions.csv
+```
+
+The ML classifier uses **XGBoost (Gradient Boosted Trees)** by default, which is recommended for this task because:
+
+1. **Excellent performance on structured data** - Consistently achieves state-of-the-art results on tabular datasets
+2. **Handles mixed feature types** - Naturally works with continuous (entropy), categorical (strand, frame), and boolean (has_start/stop_codon) features
+3. **Built-in GPU support** - Leverages GPU acceleration for faster training
+4. **Feature importance** - Shows which features are most predictive (interpretability)
+5. **Robust and fast** - Less prone to overfitting, trains quickly
+6. **Handles class imbalance** - Works well even when annotations are imbalanced
+
+A PyTorch neural network option is also available for comparison.
+
+**Features used for prediction:**
+- Entropy values (DNA, protein, 3Di)
+- Sequence lengths
+- Genomic position (start, end)
+- Structural features (strand, frame, has_start/stop_codon)
+
+See [docs/ML_CLASSIFIER.md](docs/ML_CLASSIFIER.md) for detailed documentation and `examples/ml_classifier_example.py` for a complete example.
 
 ## Requirements
 
