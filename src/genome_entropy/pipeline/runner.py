@@ -135,6 +135,12 @@ def run_pipeline(
         
         logger.info("Read %d sequence(s)", len(sequences))
         
+        # Initialize encoder once before processing all sequences
+        # This ensures the model is loaded only once and reused for all entries
+        logger.info("Initializing 3Di encoder (model will be loaded on first use)...")
+        encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
+        actual_encoding_size = encoding_size if encoding_size is not None else DEFAULT_ENCODING_SIZE
+        
         results = []
         
         for seq_idx, (seq_id, dna_sequence) in enumerate(sequences.items(), 1):
@@ -187,11 +193,8 @@ def run_pipeline(
             proteins = translate_orfs(orfs, table_id=table_id)
             logger.info("Translated %d protein(s)", len(proteins))
             
-            # Step 4: Encode to 3Di
+            # Step 4: Encode to 3Di (reusing the same encoder instance)
             logger.info("Step 4: Encoding proteins to 3Di tokens...")
-            encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
-            # Use provided encoding_size or default
-            actual_encoding_size = encoding_size if encoding_size is not None else DEFAULT_ENCODING_SIZE
             three_dis = encoder.encode_proteins(
                 proteins,
                 encoding_size=actual_encoding_size,

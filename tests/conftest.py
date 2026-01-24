@@ -59,7 +59,7 @@ def mock_prostt5_encoder(monkeypatch):
     """
     from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
     
-    def mock_encode(self, aa_sequences, encoding_size=10):
+    def mock_encode(self, aa_sequences, encoding_size=10, use_multi_gpu=False, gpu_ids=None):
         # Return 'a' * length for each sequence (lowercase for 3Di)
         return ['a' * len(seq.replace(' ', '').replace('<AA2fold>', '').strip()) for seq in aa_sequences]
     
