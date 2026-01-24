@@ -273,7 +273,7 @@ def write_json(data: Any, output_path: Union[str, Path], indent: int = 2) -> Non
     json_data = to_json_dict(data)
     
     # Write to file with pretty printing
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding='utf-8') as f:
         json.dump(json_data, f, indent=indent)
     
     logger.info("Successfully wrote JSON file: %s", output_path)
@@ -299,7 +299,7 @@ def read_json(input_path: Union[str, Path]) -> Any:
         logger.error("JSON file not found: %s", input_path)
         raise FileNotFoundError(f"JSON file not found: {input_path}")
     
-    with open(input_path, "r") as f:
+    with open(input_path, "r", encoding='utf-8') as f:
         data = json.load(f)
     
     logger.info("Successfully read JSON file: %s", input_path)
