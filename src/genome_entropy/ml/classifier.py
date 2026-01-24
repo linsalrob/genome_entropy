@@ -115,7 +115,8 @@ def extract_features(
     ]
     
     orf_count = 0
-    for data in json_data:
+    for jd in json_data:
+        for data in jd:
             # Handle unified format (schema_version 2.0.0)
             if "schema_version" in data and "features" in data:
                 # New unified format
