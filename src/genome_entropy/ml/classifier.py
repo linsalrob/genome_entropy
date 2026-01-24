@@ -110,96 +110,97 @@ def extract_features(
     ]
     
     orf_count = 0
-    for data in json_data:
-        # Handle unified format (schema_version 2.0.0)
-        if "schema_version" in data and "features" in data:
-            # New unified format
-            features_dict = data["features"]
-            
-            for orf_id, feature in features_dict.items():
-                try:
-                    # Extract feature values
-                    feature_vector = [
-                        feature["entropy"]["dna_entropy"],
-                        feature["entropy"]["protein_entropy"],
-                        feature["entropy"]["three_di_entropy"],
-                        feature["dna"]["length"],
-                        feature["protein"]["length"],
-                        feature["three_di"]["length"],
-                        feature["location"]["start"],
-                        feature["location"]["end"],
-                        1.0 if feature["location"]["strand"] == "+" else 0.0,
-                        float(feature["location"]["frame"]),
-                        1.0 if feature["metadata"]["has_start_codon"] else 0.0,
-                        1.0 if feature["metadata"]["has_stop_codon"] else 0.0,
-                    ]
-                    
-                    # Extract label
-                    label = 1 if feature["metadata"]["in_genbank"] else 0
-                    
-                    features_list.append(feature_vector)
-                    labels_list.append(label)
-                    orf_count += 1
-                    
-                except (KeyError, TypeError) as e:
-                    logger.warning(f"Failed to extract features for {orf_id}: {e}")
-                    continue
-        
-        # Handle old format (for backward compatibility)
-        elif "orfs" in data and "entropy" in data:
-            logger.warning("Old format detected - consider regenerating with new pipeline")
-            # Old format: extract from orfs, proteins, three_dis lists
-            orfs = data.get("orfs", [])
-            entropy = data.get("entropy", {})
-            
-            # Build lookup dicts
-            orf_nt_entropy = entropy.get("orf_nt_entropy", {})
-            protein_aa_entropy = entropy.get("protein_aa_entropy", {})
-            three_di_entropy = entropy.get("three_di_entropy", {})
-            
-            # Get proteins and three_dis by orf_id
-            proteins = {p["orf"]["orf_id"]: p for p in data.get("proteins", [])}
-            three_dis = {
-                td["protein"]["orf"]["orf_id"]: td 
-                for td in data.get("three_dis", [])
-            }
-            
-            for orf in orfs:
-                try:
-                    orf_id = orf["orf_id"]
-                    protein = proteins.get(orf_id)
-                    three_di = three_dis.get(orf_id)
-                    
-                    if not protein or not three_di:
+    for jd in json_data:
+        for data in jd:
+            # Handle unified format (schema_version 2.0.0)
+            if "schema_version" in data and "features" in data:
+                # New unified format
+                features_dict = data["features"]
+                
+                for orf_id, feature in features_dict.items():
+                    try:
+                        # Extract feature values
+                        feature_vector = [
+                            feature["entropy"]["dna_entropy"],
+                            feature["entropy"]["protein_entropy"],
+                            feature["entropy"]["three_di_entropy"],
+                            feature["dna"]["length"],
+                            feature["protein"]["length"],
+                            feature["three_di"]["length"],
+                            feature["location"]["start"],
+                            feature["location"]["end"],
+                            1.0 if feature["location"]["strand"] == "+" else 0.0,
+                            float(feature["location"]["frame"]),
+                            1.0 if feature["metadata"]["has_start_codon"] else 0.0,
+                            1.0 if feature["metadata"]["has_stop_codon"] else 0.0,
+                        ]
+                        
+                        # Extract label
+                        label = 1 if feature["metadata"]["in_genbank"] else 0
+                        
+                        features_list.append(feature_vector)
+                        labels_list.append(label)
+                        orf_count += 1
+                        
+                    except (KeyError, TypeError) as e:
+                        logger.warning(f"Failed to extract features for {orf_id}: {e}")
                         continue
-                    
-                    feature_vector = [
-                        orf_nt_entropy.get(orf_id, 0.0),
-                        protein_aa_entropy.get(orf_id, 0.0),
-                        three_di_entropy.get(orf_id, 0.0),
-                        len(orf["nt_sequence"]),
-                        protein["aa_length"],
-                        len(three_di["three_di"]),
-                        orf["start"],
-                        orf["end"],
-                        1.0 if orf["strand"] == "+" else 0.0,
-                        float(orf["frame"]),
-                        1.0 if orf["has_start_codon"] else 0.0,
-                        1.0 if orf["has_stop_codon"] else 0.0,
-                    ]
-                    
-                    label = 1 if orf.get("in_genbank", False) else 0
-                    
-                    features_list.append(feature_vector)
-                    labels_list.append(label)
-                    orf_count += 1
-                    
-                except (KeyError, TypeError) as e:
-                    logger.warning(f"Failed to extract features from old format: {e}")
-                    continue
-        else:
-            logger.warning(f"Unknown JSON format in data")
-            continue
+            
+            # Handle old format (for backward compatibility)
+            elif "orfs" in data and "entropy" in data:
+                logger.warning("Old format detected - consider regenerating with new pipeline")
+                # Old format: extract from orfs, proteins, three_dis lists
+                orfs = data.get("orfs", [])
+                entropy = data.get("entropy", {})
+                
+                # Build lookup dicts
+                orf_nt_entropy = entropy.get("orf_nt_entropy", {})
+                protein_aa_entropy = entropy.get("protein_aa_entropy", {})
+                three_di_entropy = entropy.get("three_di_entropy", {})
+                
+                # Get proteins and three_dis by orf_id
+                proteins = {p["orf"]["orf_id"]: p for p in data.get("proteins", [])}
+                three_dis = {
+                    td["protein"]["orf"]["orf_id"]: td 
+                    for td in data.get("three_dis", [])
+                }
+                
+                for orf in orfs:
+                    try:
+                        orf_id = orf["orf_id"]
+                        protein = proteins.get(orf_id)
+                        three_di = three_dis.get(orf_id)
+                        
+                        if not protein or not three_di:
+                            continue
+                        
+                        feature_vector = [
+                            orf_nt_entropy.get(orf_id, 0.0),
+                            protein_aa_entropy.get(orf_id, 0.0),
+                            three_di_entropy.get(orf_id, 0.0),
+                            len(orf["nt_sequence"]),
+                            protein["aa_length"],
+                            len(three_di["three_di"]),
+                            orf["start"],
+                            orf["end"],
+                            1.0 if orf["strand"] == "+" else 0.0,
+                            float(orf["frame"]),
+                            1.0 if orf["has_start_codon"] else 0.0,
+                            1.0 if orf["has_stop_codon"] else 0.0,
+                        ]
+                        
+                        label = 1 if orf.get("in_genbank", False) else 0
+                        
+                        features_list.append(feature_vector)
+                        labels_list.append(label)
+                        orf_count += 1
+                        
+                    except (KeyError, TypeError) as e:
+                        logger.warning(f"Failed to extract features from old format: {e}")
+                        continue
+            else:
+                logger.warning(f"Unknown JSON format in data:\n{data}")
+                raise ValueError("json data is in the wrong format")
     
     if not features_list:
         raise ValueError("No features could be extracted from the JSON data")
