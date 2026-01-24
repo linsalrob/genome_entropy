@@ -64,8 +64,9 @@ def load_json_data(json_dir: Path) -> List[Dict[str, Any]]:
 
 def extract_features(
     json_data: List[Dict[str, Any]],
-    include_sequences: bool = False
-) -> Tuple[np.ndarray, np.ndarray, List[str]]:
+    include_sequences: bool = False,
+    return_metadata: bool = False
+) -> Tuple[np.ndarray, np.ndarray, List[str], Optional[List[Dict[str, Any]]]]:
     """Extract features and labels from JSON data.
     
     Extracts numerical and categorical features from the unified JSON format
@@ -82,18 +83,22 @@ def extract_features(
         json_data: List of parsed JSON dictionaries from load_json_data()
         include_sequences: If True, include sequence-based features (default: False)
                           This can make feature vectors very large
+        return_metadata: If True, return metadata for each ORF including orf_id and 
+                        actual in_genbank value (default: False)
         
     Returns:
-        Tuple of (features, labels, feature_names):
+        Tuple of (features, labels, feature_names, metadata):
         - features: numpy array of shape (n_samples, n_features)
         - labels: numpy array of shape (n_samples,) with 0/1 labels
         - feature_names: list of feature names in order
+        - metadata: list of dicts with orf_id and in_genbank (if return_metadata=True), else None
         
     Raises:
         ValueError: If data format is invalid or no features found
     """
     features_list = []
     labels_list = []
+    metadata_list = [] if return_metadata else None
     feature_names = [
         "dna_entropy",
         "protein_entropy",
@@ -110,8 +115,7 @@ def extract_features(
     ]
     
     orf_count = 0
-    for jd in json_data:
-        for data in jd:
+    for data in json_data:
             # Handle unified format (schema_version 2.0.0)
             if "schema_version" in data and "features" in data:
                 # New unified format
@@ -140,6 +144,14 @@ def extract_features(
                         
                         features_list.append(feature_vector)
                         labels_list.append(label)
+                        
+                        # Store metadata if requested
+                        if return_metadata:
+                            metadata_list.append({
+                                "orf_id": orf_id,
+                                "in_genbank": feature["metadata"]["in_genbank"]
+                            })
+                        
                         orf_count += 1
                         
                     except (KeyError, TypeError) as e:
@@ -193,14 +205,22 @@ def extract_features(
                         
                         features_list.append(feature_vector)
                         labels_list.append(label)
+                        
+                        # Store metadata if requested
+                        if return_metadata:
+                            metadata_list.append({
+                                "orf_id": orf_id,
+                                "in_genbank": orf.get("in_genbank", False)
+                            })
+                        
                         orf_count += 1
                         
                     except (KeyError, TypeError) as e:
                         logger.warning(f"Failed to extract features from old format: {e}")
                         continue
             else:
-                logger.warning(f"Unknown JSON format in data:\n{data}")
-                raise ValueError("json data is in the wrong format")
+                logger.warning(f"Unknown JSON format in data")
+                continue
     
     if not features_list:
         raise ValueError("No features could be extracted from the JSON data")
@@ -212,7 +232,10 @@ def extract_features(
     logger.info(f"Extracted {len(X)} ORF samples with {X.shape[1]} features")
     logger.info(f"Label distribution: {np.sum(y == 1)} in GenBank, {np.sum(y == 0)} not in GenBank")
     
-    return X, y, feature_names
+    if return_metadata:
+        return X, y, feature_names, metadata_list
+    else:
+        return X, y, feature_names, None
 
 
 class GenbankClassifier:

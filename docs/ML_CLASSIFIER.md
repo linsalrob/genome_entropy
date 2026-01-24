@@ -166,7 +166,7 @@ from genome_entropy.ml import GenbankClassifier, load_json_data, extract_feature
 
 # Load training data
 json_data = load_json_data(Path("results/"))
-X, y, feature_names = extract_features(json_data)
+X, y, feature_names, _ = extract_features(json_data)
 
 # Train classifier
 classifier = GenbankClassifier(model_type="xgboost")
@@ -187,7 +187,7 @@ classifier.save(Path("model.xgb"))
 
 # Make predictions on new data
 new_data = load_json_data(Path("new_results/"))
-X_new, _, _ = extract_features(new_data)
+X_new, _, _, _ = extract_features(new_data)
 predictions = classifier.predict(X_new)
 probabilities = classifier.predict_proba(X_new)
 ```

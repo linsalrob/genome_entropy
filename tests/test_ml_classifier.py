@@ -136,7 +136,7 @@ def test_load_json_data_empty_dir():
 
 def test_extract_features_unified_format(sample_json_unified):
     """Test feature extraction from unified format."""
-    X, y, feature_names = extract_features([sample_json_unified])
+    X, y, feature_names, _ = extract_features([sample_json_unified])
     
     # Should have 2 ORFs
     assert X.shape[0] == 2
@@ -241,7 +241,7 @@ def test_extract_features_old_format():
         }
     }
     
-    X, y, feature_names = extract_features([old_format_data])
+    X, y, feature_names, _ = extract_features([old_format_data])
     
     assert X.shape[0] == 1
     assert X.shape[1] == 12
@@ -374,7 +374,7 @@ def test_classifier_save_load():
 def test_extract_features_multiple_files(temp_json_dir):
     """Test feature extraction from multiple JSON files."""
     data = load_json_data(temp_json_dir)
-    X, y, feature_names = extract_features(data)
+    X, y, feature_names, _ = extract_features(data)
     
     # Should have 3 files * 2 ORFs each = 6 samples
     assert X.shape[0] == 6
@@ -429,6 +429,6 @@ def test_feature_extraction_robustness():
     }
     
     # Should extract only the valid ORF
-    X, y, _ = extract_features([incomplete_data])
+    X, y, _, _ = extract_features([incomplete_data])
     assert X.shape[0] == 1  # Only orf_1 extracted
     assert y[0] == 1

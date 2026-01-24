@@ -135,7 +135,7 @@ def main():
         print(f"{'='*60}")
         
         json_data = load_json_data(json_dir)
-        X, y, feature_names = extract_features(json_data)
+        X, y, feature_names, _ = extract_features(json_data)
         
         print(f"✓ Loaded {len(json_data)} JSON files")
         print(f"✓ Extracted {len(X)} ORF samples")

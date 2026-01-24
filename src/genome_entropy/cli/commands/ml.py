@@ -149,7 +149,7 @@ def train_classifier(
     # Extract features
     logger.info("\nExtracting features from JSON data...")
     try:
-        X, y, feature_names = extract_features(json_data)
+        X, y, feature_names, _ = extract_features(json_data)
     except Exception as e:
         logger.error(f"Failed to extract features: {e}")
         raise typer.Exit(1)
@@ -270,7 +270,7 @@ def predict_with_classifier(
         ...,
         "--output",
         "-o",
-        help="Path to save predictions (CSV format)"
+        help="Path to save predictions (TSV format)"
     ),
     model_type: str = typer.Option(
         "xgboost",
@@ -282,7 +282,8 @@ def predict_with_classifier(
     """Make predictions using a trained classifier.
     
     Loads a previously trained model and makes predictions on new JSON files.
-    Outputs predictions in CSV format with ORF IDs and predicted probabilities.
+    Outputs predictions in TSV format with ORF IDs, predicted labels, probabilities,
+    and actual in_genbank values (if available).
     """
     logger.info("Loading JSON files...")
     try:
@@ -293,7 +294,7 @@ def predict_with_classifier(
     
     logger.info("Extracting features...")
     try:
-        X, _, feature_names = extract_features(json_data)
+        X, y, feature_names, metadata = extract_features(json_data, return_metadata=True)
     except Exception as e:
         logger.error(f"Failed to extract features: {e}")
         raise typer.Exit(1)
@@ -314,16 +315,17 @@ def predict_with_classifier(
         logger.error(f"Prediction failed: {e}")
         raise typer.Exit(1)
     
-    # TODO: Extract ORF IDs to match with predictions
-    # For now, just save predictions and probabilities
-    
     logger.info(f"Saving predictions to: {output}")
-    import csv
-    with open(output, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["sample_index", "predicted_label", "prob_not_in_genbank", "prob_in_genbank"])
+    with open(output, "w") as f:
+        # Write header
+        f.write("orf_id\tpredicted_label\tprob_not_in_genbank\tprob_in_genbank\tin_genbank\n")
+        
+        # Write predictions
         for i, (pred, prob) in enumerate(zip(predictions, probabilities)):
-            writer.writerow([i, pred, prob[0], prob[1]])
+            orf_id = metadata[i]["orf_id"] if metadata else f"orf_{i}"
+            actual_label = metadata[i]["in_genbank"] if metadata else "NA"
+            
+            f.write(f"{orf_id}\t{pred}\t{prob[0]:.6f}\t{prob[1]:.6f}\t{actual_label}\n")
     
     logger.info(f"Predictions saved. {len(predictions)} samples processed.")
     logger.info(f"Predicted in GenBank: {(predictions == 1).sum()}")
