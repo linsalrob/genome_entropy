@@ -5,8 +5,8 @@ from typing import Optional
 
 import typer
 
-from ..logging_config import get_logger
-from ..ml.classifier import GenbankClassifier, load_json_data, extract_features
+from ...logging_config import get_logger
+from ...ml.classifier import GenbankClassifier, load_json_data, extract_features
 
 logger = get_logger(__name__)
 
