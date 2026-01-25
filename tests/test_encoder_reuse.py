@@ -8,7 +8,7 @@ import pytest
 
 @pytest.fixture
 def mock_orf_finder(monkeypatch):
-    """Mock ORF finder to return synthetic ORFs without needing get_orfs binary."""
+    """Mock ORF finder to return synthetic ORFs without needing genome_entropy binary."""
     from genome_entropy.orf.types import OrfRecord
     
     def mock_find_orfs(sequences, table_id=11, min_nt_length=90):
@@ -37,8 +37,9 @@ def mock_orf_finder(monkeypatch):
             orfs.append(orf)
         return orfs
     
-    from genome_entropy.orf import finder
-    monkeypatch.setattr(finder, "find_orfs", mock_find_orfs)
+    # Patch where find_orfs is used, not where it's defined
+    from genome_entropy.pipeline import runner
+    monkeypatch.setattr(runner, "find_orfs", mock_find_orfs)
 
 
 @pytest.fixture
@@ -58,8 +59,9 @@ def mock_translator(monkeypatch):
             proteins.append(protein)
         return proteins
     
-    from genome_entropy.translate import translator
-    monkeypatch.setattr(translator, "translate_orfs", mock_translate_orfs)
+    # Patch where translate_orfs is used, not where it's defined
+    from genome_entropy.pipeline import runner
+    monkeypatch.setattr(runner, "translate_orfs", mock_translate_orfs)
 
 
 def test_encoder_instantiated_once_for_multiple_sequences(mock_prostt5_encoder, mock_orf_finder, mock_translator):
