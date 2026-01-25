@@ -132,12 +132,21 @@ Train a classifier to predict whether ORFs are annotated in GenBank:
 # Install ML dependencies
 pip install "genome_entropy[ml]"
 
-# Train classifier on JSON output from GenBank files
+# Standard mode: Train classifier on JSON output from GenBank files
 genome_entropy ml train --json-dir results/ --output model.ubj
+
+# File-based split mode: Randomly split files 80/20 for train/test
+genome_entropy ml train --split-dir results/ --output model.ubj \
+    --json-output detailed_results.json
 
 # Make predictions on new data
 genome_entropy ml predict --json-dir new_results/ --model model.ubj --output predictions.csv
 ```
+
+**Two modes of operation:**
+
+1. **Standard mode** (`--json-dir`): Uses all files in directory with random sample-level train/test split (default 90/10)
+2. **File-based split mode** (`--split-dir`): Randomly splits files 80/20 into training and test sets, trains on training files, evaluates on test files. Outputs detailed JSON report with file lists, training parameters, and per-prediction results.
 
 The ML classifier uses **XGBoost (Gradient Boosted Trees)** by default, which is recommended for this task because:
 
