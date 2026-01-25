@@ -15,11 +15,16 @@ app = typer.Typer(help="Train ML classifier to predict GenBank annotations")
 
 @app.command("train")
 def train_classifier(
-    json_dir: Path = typer.Option(
-        ...,
+    json_dir: Optional[Path] = typer.Option(
+        None,
         "--json-dir",
         "-i",
         help="Directory containing JSON output files from genome_entropy pipeline"
+    ),
+    split_dir: Optional[Path] = typer.Option(
+        None,
+        "--split-dir",
+        help="Directory to split 80/20 into train/test sets for file-based cross-validation"
     ),
     output: Path = typer.Option(
         ...,
@@ -49,7 +54,17 @@ def train_classifier(
         0.1,
         "--test-split",
         "-t",
-        help="Fraction of data to hold out for final testing"
+        help="Fraction of data to hold out for final testing (ignored if --split-dir is used)"
+    ),
+    json_output: Optional[Path] = typer.Option(
+        None,
+        "--json-output",
+        help="Path to save detailed JSON report (only used with --split-dir)"
+    ),
+    random_seed: int = typer.Option(
+        42,
+        "--random-seed",
+        help="Random seed for reproducible train/test split"
     ),
 ) -> None:
     """Train a machine learning classifier to predict GenBank annotations.
@@ -57,6 +72,16 @@ def train_classifier(
     This command trains a model to predict whether an ORF was annotated in the
     original GenBank file (in_genbank: True/False) based on sequence features
     including entropy values, length, position, and other characteristics.
+    
+    TWO MODES OF OPERATION:
+    -----------------------
+    
+    1. **Standard mode** (--json-dir): Uses all files in directory with random
+       sample-level train/test split.
+       
+    2. **File-based split mode** (--split-dir): Randomly splits files 80/20 into
+       training and test sets, trains on training files, evaluates on test files.
+       Outputs detailed JSON report with file lists and results.
     
     MODEL JUSTIFICATION:
     --------------------
@@ -113,9 +138,19 @@ def train_classifier(
     logger.info("GenBank ORF Classification - Model Training")
     logger.info("="*60)
     
-    # Validate inputs
-    if not json_dir.is_dir():
-        logger.error(f"JSON directory not found: {json_dir}")
+    # Validate inputs - exactly one of json_dir or split_dir must be provided
+    if json_dir is None and split_dir is None:
+        logger.error("Either --json-dir or --split-dir must be provided")
+        raise typer.Exit(1)
+    
+    if json_dir is not None and split_dir is not None:
+        logger.error("Cannot use both --json-dir and --split-dir. Choose one mode.")
+        raise typer.Exit(1)
+    
+    # Validate directories exist
+    input_dir = json_dir if json_dir is not None else split_dir
+    if not input_dir.is_dir():
+        logger.error(f"Directory not found: {input_dir}")
         raise typer.Exit(1)
     
     if model_type not in ["xgboost", "neural_net"]:
@@ -137,6 +172,42 @@ def train_classifier(
         logger.info("  ✓ GPU acceleration via PyTorch CUDA")
         logger.info("  ✓ Complex non-linear relationships (if large dataset)")
         logger.info("  ! May require more data and tuning than XGBoost")
+    
+    # Handle file-based split mode
+    if split_dir is not None:
+        logger.info("\n" + "="*60)
+        logger.info("FILE-BASED TRAIN/TEST SPLIT MODE")
+        logger.info("="*60)
+        
+        from ...ml.file_split import train_with_file_split
+        
+        result = train_with_file_split(
+            split_dir=split_dir,
+            output=output,
+            model_type=model_type,
+            device=device,
+            validation_split=validation_split,
+            random_seed=random_seed,
+            json_output=json_output,
+        )
+        
+        # Log summary results
+        logger.info("\n" + "="*60)
+        logger.info("Training Complete!")
+        logger.info("="*60)
+        logger.info(f"Model saved to: {output}")
+        logger.info(f"Training files: {len(result['training_files'])}")
+        logger.info(f"Test files: {len(result['test_files'])}")
+        logger.info(f"Test accuracy: {result['test_metrics']['accuracy']:.4f}")
+        logger.info(f"Test F1 score: {result['test_metrics']['f1']:.4f}")
+        
+        if json_output:
+            logger.info(f"Detailed report saved to: {json_output}")
+        
+        return
+    
+    # Original logic for standard mode (--json-dir)
+    logger.info(f"\nSTANDARD MODE: Using all files with sample-level split")
     
     # Load data
     logger.info(f"\nLoading JSON files from: {json_dir}")
