@@ -37,8 +37,9 @@ def mock_orf_finder(monkeypatch):
             orfs.append(orf)
         return orfs
     
-    from genome_entropy.orf import finder
-    monkeypatch.setattr(finder, "find_orfs", mock_find_orfs)
+    # Patch where find_orfs is used, not where it's defined
+    from genome_entropy.pipeline import runner
+    monkeypatch.setattr(runner, "find_orfs", mock_find_orfs)
 
 
 @pytest.fixture
@@ -58,8 +59,9 @@ def mock_translator(monkeypatch):
             proteins.append(protein)
         return proteins
     
-    from genome_entropy.translate import translator
-    monkeypatch.setattr(translator, "translate_orfs", mock_translate_orfs)
+    # Patch where translate_orfs is used, not where it's defined
+    from genome_entropy.pipeline import runner
+    monkeypatch.setattr(runner, "translate_orfs", mock_translate_orfs)
 
 
 def test_encoder_instantiated_once_for_multiple_sequences(mock_prostt5_encoder, mock_orf_finder, mock_translator):
