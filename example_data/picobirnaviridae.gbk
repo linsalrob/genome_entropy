@@ -1,0 +1,213 @@
+LOCUS       NC_007026               2525 bp ds-RNA     linear   VRL 13-AUG-2018
+DEFINITION  Human picobirnavirus RNA segment 1, complete sequence.
+ACCESSION   NC_007026
+VERSION     NC_007026.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Human picobirnavirus
+  ORGANISM  Human picobirnavirus
+            Viruses; Riboviria; Orthornavirae; Pisuviricota; Duplopiviricetes;
+            Durnavirales; Picobirnaviridae; Orthopicobirnavirus;
+            Orthopicobirnavirus hominis.
+REFERENCE   1
+  AUTHORS   Wakuda,M., Pongsuwanna,Y. and Taniguchi,K.
+  TITLE     Complete nucleotide sequences of two RNA segments of human
+            picobirnavirus
+  JOURNAL   J. Virol. Methods 126 (1-2), 165-169 (2005)
+   PUBMED   15847933
+REFERENCE   2  (bases 1 to 2525)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (21-MAY-2005) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 2525)
+  AUTHORS   Taniguchi,K. and Wakuda,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (06-AUG-2004) Koki Taniguchi, Fujita Health University
+            School of Medicine, Department of Virology and Parasitology;
+            Kutsukake, Dengakugakubo 1-98, Toyoake, Aichi 470-1192, Japan
+            (E-mail:kokitani@fujita-hu.ac.jp, Tel:81-562-93-2467,
+            Fax:81-562-93-4008)
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence was derived from AB186897.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..2525
+                     /organism="Human picobirnavirus"
+                     /mol_type="genomic RNA"
+                     /strain="Hy005102"
+                     /db_xref="taxon:145856"
+                     /segment="1"
+                     /geo_loc_name="Thailand"
+     gene            157..831
+                     /locus_tag="HPV_s1gp1"
+                     /db_xref="GeneID:5075906"
+     CDS             157..831
+                     /locus_tag="HPV_s1gp1"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="YP_239359.1"
+                     /db_xref="GeneID:5075906"
+                     /translation="MTANQIAYQKHLETARVNAVGEMQRGLELDESRRHNISQEQLKT
+                     RELTELERSNRAVEKETSRHNVVTETETRRSNLAREWETYRSNSAREMETQRSNISYE
+                     AIKRGQLALDRAELNESIRATNENLALQYSKLQTESLLTQRGQDLQHKNAIIGASANA
+                     FGSLLGYSTASADRASREEIASANRKSQEHIASMQVLGSMANTMFSSVSNLVGKTAGA
+                     FAGGLS"
+     gene            828..2486
+                     /locus_tag="HPV_s1gp2"
+                     /db_xref="GeneID:5075907"
+     CDS             828..2486
+                     /locus_tag="HPV_s1gp2"
+                     /codon_start=1
+                     /product="hypothetical protein"
+                     /protein_id="YP_239360.1"
+                     /db_xref="GeneID:5075907"
+                     /translation="MKQNDTKKTTQRRNSKKYSSKTNRGTKRAPRDQEVGTGAQESTR
+                     NDVAWYARYPHILEEATRLPFAYPIGQYYDTGYSVASATEWSKYVDTSLTIPGVMCVN
+                     FTPTPGESYNKNSPINIAAQNVYTYVRHMNSGHANYEQADLMMYLLAMDSLYIFHSYV
+                     RKILAISKLYTPVNKYFPRALLVALGVDPEDVFANQAQWEYFVNMVAYRAGAFAAPAS
+                     MTYYERHAWMSNGLYVDQDVTRAQIYMFKPTMLWKYENLGTTGTKLVPLMMPKAGDNR
+                     KLVDFQVLFNNLVSTMLGDEDFGIMSGDVFKAFGADGLVKLLAVDSTTMTLPTYDPLI
+                     LAQIHSARAVGAPILETSTLTGFPGRQWQITQNPDVNNGAIIFHPSFGYDGQDHEELS
+                     FRAMCSNMILNLPGEAHSAEMIIEATRLATMFQVKAVPAGDTSKPVLYLPNGFGTEVV
+                     NDYTMISVDKATPHDLTIHTFFNNILVPNAKENYVANLELLNNIIQFDWAPQLYLTYG
+                     IAQESFGPFAQLNDWTILTGETLARMHEVCVTSMFDVPQMGFNK"
+ORIGIN      
+        1 gtaaattaaa tgctatttac aaaatttaaa cagaaaggag agatgttatg aaccggtttt
+       61 acaaggtttc atacatcgaa aatagcacta cctggggcag ccgacacact aacatcgtct
+      121 gtttaaccag aagtgttact gaaaggaggt tatttaatga cagctaatca aattgcctat
+      181 caaaagcatc ttgaaacggc cagagtcaat gccgtgggtg agatgcaacg tggacttgaa
+      241 cttgatgagt ccaggaggca caacatttct caggaacaac tgaaaacacg tgagttaact
+      301 gaattggaac gcagcaaccg cgcagttgaa aaggaaacgt ctcgtcacaa tgtcgttacc
+      361 gaaactgaga cacgcagatc taatttagct cgtgagtggg aaacttatcg tagcaattct
+      421 gcgcgcgaaa tggagactca gaggagtaac atttcctatg aggctattaa gagaggacag
+      481 ctagctctgg accgagctga gctgaacgaa tcgatacgtg ccaccaacga aaatcttgct
+      541 ttacagtatt ctaaattaca aacggagagt ttactaactc aacgtggtca agatctacaa
+      601 cataagaatg ctattatagg tgcaagcgcc aatgcattcg gttctttgtt gggatactca
+      661 acagcaagtg cggatcgagc cagtcgtgag gaaatcgcat ccgctaatcg taaatcacaa
+      721 gaacatattg ccagcatgca agtcttgggt agcatggcca ataccatgtt ctcatccgta
+      781 tccaatctag ttggaaagac agctggcgca tttgcaggag gtttatcatg aaacagaatg
+      841 atactaagaa aaccacacaa cgtcgcaact ccaagaagta cagttctaag acgaaccgcg
+      901 gcacgaaacg tgcgccgcgc gatcaggagg ttgggacggg tgcgcaagaa agtactcgta
+      961 atgacgttgc ttggtatgct cgttatcctc atattttgga ggaagctacg cgcctgcctt
+     1021 ttgcttatcc tattgggcag tattatgata ctggatactc tgttgcaagc gctactgagt
+     1081 ggtctaagta cgtagatact agcctgacca ttcctggtgt gatgtgtgtt aactttacac
+     1141 ccaccccggg tgaatcttat aataagaatt cacctatcaa tatagctgca cagaatgtct
+     1201 acacgtatgt gcggcacatg aattccggac acgccaacta tgagcaggct gatcttatga
+     1261 tgtacttgct ggctatggac agtttgtaca ttttccacag ctatgttcgg aaaatccttg
+     1321 ccatttccaa gttatatacg cctgtgaaca agtatttccc gagagctttg ttagtagctt
+     1381 tgggtgttga tcctgaagat gttttcgcta accaggcgca atgggaatac ttcgtcaaca
+     1441 tggtggcata cagggctgga gcgttcgctg ctcctgcaag tatgacttat tatgagcgtc
+     1501 acgcgtggat gtccaatggt ctgtacgtgg atcaagatgt cacacgagct caaatctaca
+     1561 tgttcaagcc caccatgtta tggaagtatg aaaatctggg aaccaccggt actaaattag
+     1621 taccactcat gatgcccaaa gctggagata acaggaaatt ggttgatttc caggtactgt
+     1681 tcaataatct cgtctccact atgttaggtg atgaagattt cggcatcatg agcggtgacg
+     1741 tctttaaggc gttcggtgct gatggtctgg ttaaactgct ggctgttgac agcactacca
+     1801 tgacattgcc cacatacgat cccctcatcc tggctcaaat tcatagtgct agggctgtgg
+     1861 gcgcacctat cctggaaact tccactctta ctggtttccc aggccgtcag tggcaaatta
+     1921 cacaaaaccc tgacgttaat aatggcgcca tcatattcca tccctctttt ggatatgatg
+     1981 gacaggatca cgaggaatta tccttccggg ccatgtgttc taacatgatt ctcaatcttc
+     2041 ctggtgaggc acactcggcg gagatgatca ttgaggctac tcgcctggct actatgttcc
+     2101 aggtgaaggc agttccggcc ggtgatacat ctaagcccgt gctgtatttg ccaaatggtt
+     2161 tcgggactga ggtcgttaat gactacacta tgatcagtgt agataaagca actccacacg
+     2221 acctcaccat ccataccttc ttcaacaaca ttttggttcc taatgccaaa gagaattatg
+     2281 ttgcgaatct ggaactgctg aataacatca ttcagttcga ttgggctcct cagctctacc
+     2341 tgacgtatgg tattgctcag gagtcgtttg gtccctttgc tcagctgaat gattggacca
+     2401 tccttacggg tgaaactctg gctcggatgc atgaagtatg tgtcaccagc atgttcgatg
+     2461 ttcctcagat gggcttcaac aaataaatgt tggcctgggg tgtgtgtgcg ttaagcacac
+     2521 acctc
+//
+
+LOCUS       NC_007027               1745 bp ds-RNA     linear   VRL 13-AUG-2018
+DEFINITION  Human picobirnavirus RNA segment 2, complete sequence.
+ACCESSION   NC_007027
+VERSION     NC_007027.1
+DBLINK      BioProject: PRJNA485481
+KEYWORDS    RefSeq.
+SOURCE      Human picobirnavirus
+  ORGANISM  Human picobirnavirus
+            Viruses; Riboviria; Orthornavirae; Pisuviricota; Duplopiviricetes;
+            Durnavirales; Picobirnaviridae; Orthopicobirnavirus;
+            Orthopicobirnavirus hominis.
+REFERENCE   1
+  AUTHORS   Wakuda,M., Pongsuwanna,Y. and Taniguchi,K.
+  TITLE     Complete nucleotide sequences of two RNA segments of human
+            picobirnavirus
+  JOURNAL   J. Virol. Methods 126 (1-2), 165-169 (2005)
+   PUBMED   15847933
+REFERENCE   2  (bases 1 to 1745)
+  CONSRTM   NCBI Genome Project
+  TITLE     Direct Submission
+  JOURNAL   Submitted (21-MAY-2005) National Center for Biotechnology
+            Information, NIH, Bethesda, MD 20894, USA
+REFERENCE   3  (bases 1 to 1745)
+  AUTHORS   Taniguchi,K. and Wakuda,M.
+  TITLE     Direct Submission
+  JOURNAL   Submitted (06-AUG-2004) Koki Taniguchi, Fujita Health University
+            School of Medicine, Department of Virology and Parasitology;
+            Kutsukake, Dengakugakubo 1-98, Toyoake, Aichi 470-1192, Japan
+            (E-mail:kokitani@fujita-hu.ac.jp, Tel:81-562-93-2467,
+            Fax:81-562-93-4008)
+COMMENT     PROVISIONAL REFSEQ: This record has not yet been subject to final
+            NCBI review. The reference sequence was derived from AB186898.
+            COMPLETENESS: full length.
+FEATURES             Location/Qualifiers
+     source          1..1745
+                     /organism="Human picobirnavirus"
+                     /mol_type="genomic RNA"
+                     /strain="Hy005102"
+                     /db_xref="taxon:145856"
+                     /segment="2"
+                     /geo_loc_name="Thailand"
+     gene            94..1698
+                     /locus_tag="HPV_s2gp1"
+                     /db_xref="GeneID:5075908"
+     CDS             94..1698
+                     /locus_tag="HPV_s2gp1"
+                     /codon_start=1
+                     /product="RNA-dependent RNA polymerase"
+                     /protein_id="YP_239361.1"
+                     /db_xref="GeneID:5075908"
+                     /translation="MQVAPNVWSKYFNIPNPGLRAYFSNVVSGQPEVYRTPFYKGMSL
+                     ESICDEWYKKLVSIDTQWPTLMEFEDDLRKKVGPMSVMLPLKERMSDIDSYYDSISKD
+                     QVPFDTKAISAAKSEWKGVSRLRLRSEVNTVAVMKKSTNSGSPYFSKRKAVVSKTIPC
+                     DVYMDGRYCVMRQNGREWSGAAVLGWRGQEGGPKPTDVKQRVVWMFPFAVNIRELQVY
+                     QPLILTFQRLGLVPAWVSMEAVDRRITKMFDTKGPRDVVVCTDFSKFDQHFNPTCQSV
+                     AKELLADLLTGQEAVDWLERVFPIKYAIPLAYNWGEIRYGIHGMGSGSGGTNADETLV
+                     HRVLQHEAAISHHTTLNPNSQCLGDDGVLTYPGISAEDVMQSYSRHGLDMNLEKQYVS
+                     KQDCTYLRRWHHTDYRVDGMCVGVYSTMRALGRLAMQERYYDPDVWGEKMVTLRYLSI
+                     IENVKYHPLKEEFLDFCIKGDKTRLGLGIPGFLDNIAGEAQKAIDMMPDFLGYTKSLQ
+                     YDGDLRRNAAAGIENWWVVQALKSRR"
+ORIGIN      
+        1 gtaaaatttt cgaattttat aataattaag aaaggagttt aatagtttat cacaacttaa
+       61 aagtgaaatt tatttaagaa aggaggacta cttatgcaag tagcccctaa tgtatggagt
+      121 aaatatttta atattccaaa tccaggatta cgtgcttact ttagcaatgt agtgtctgga
+      181 cagccggagg tatatcggac gccattttat aaaggtatgt ctttggaatc catctgtgac
+      241 gagtggtaca agaaacttgt gtctatagac acacagtggc ccaccttgat ggaattcgaa
+      301 gatgacctgc ggaagaaggt cggtccgatg tcagtcatgt tgcctttaaa ggaaagaatg
+      361 agtgacattg actcttacta tgattctatc tccaaggatc aggttccctt cgatacaaag
+      421 gctattagcg cggccaaatc ggagtggaaa ggcgtatccc gactacgcct gcgcagcgag
+      481 gttaacactg ttgccgtcat gaagaagtca accaacagtg gatcgccata cttctccaag
+      541 cggaaagcag ttgtatctaa gactatacca tgtgatgtgt acatggatgg tcgatattgt
+      601 gtcatgcgcc agaatggtcg tgaatggtct ggtgcagctg tgctcgggtg gcgaggccag
+      661 gagggtggcc ctaaaccaac agacgtgaaa cagcgggtag tgtggatgtt tcctttcgct
+      721 gttaatattc gtgagctgca ggtctatcaa ccactaatcc ttacgttcca aagattggga
+      781 ttggtgccag cgtgggttag catggaagct gttgataggc gtatcactaa gatgtttgat
+      841 acaaaaggac cacgtgatgt ggtggtctgt acagacttct ccaagttcga ccagcatttt
+      901 aatccaacgt gccagagtgt agccaaagag ctgttggctg atctgcttac aggtcaggaa
+      961 gccgtcgact ggttagaacg tgtgttccca attaaatatg ctataccctt agcttataat
+     1021 tggggtgaaa tcaggtatgg tatccatgga atgggatcgg gttctggcgg cactaacgcc
+     1081 gatgagacgt tggtgcatag ggtgctgcaa cacgaagcag cgattagcca ccataccact
+     1141 cttaacccaa attcgcagtg tctgggtgac gatggcgttt taacttaccc aggtatatct
+     1201 gcggaggatg taatgcaatc atactcgcgc cacggtctcg atatgaacct agagaaacag
+     1261 tatgtgagca aacaagactg cacatattta cgcaggtggc atcatacaga ttatcgcgta
+     1321 gacggcatgt gtgtgggagt gtactcaacc atgcgggcgt taggcaggtt ggctatgcaa
+     1381 gagcgctact atgacccaga cgtatggggt gagaagatgg tcaccctacg ttatctatcc
+     1441 atcattgaga atgtgaagta tcatcctcta aaggaagagt tcctggactt ttgcatcaaa
+     1501 ggggataaaa ctagacttgg actaggaatc ccaggctttc tggacaacat cgctggtgag
+     1561 gcccagaagg ctatcgacat gatgccagat ttccttggct acaccaagtc gttgcagtat
+     1621 gatggtgatc tgcgacgtaa tgctgctgcc ggtattgaaa actggtgggt tgttcaagca
+     1681 ttgaaatcga gacgctgacg atcgagatgg tgcagcaaac cattgggact aacagtccca
+     1741 actgc
+//
+
