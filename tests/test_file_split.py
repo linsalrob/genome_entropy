@@ -149,6 +149,41 @@ def test_split_json_files_empty_dir():
             split_json_files(Path(tmpdir))
 
 
+def test_split_json_files_single_file(sample_json_unified):
+    """Test error handling for directory with only one JSON file."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        
+        # Create a single JSON file
+        json_file = tmpdir / "test_single.json"
+        with open(json_file, "w") as f:
+            json.dump([sample_json_unified], f)
+        
+        # Should raise an error because we need at least 2 files for splitting
+        with pytest.raises(ValueError, match="at least 2 JSON files"):
+            split_json_files(tmpdir, train_ratio=0.8)
+
+
+def test_split_json_files_two_files(sample_json_unified):
+    """Test splitting with exactly 2 files (minimum required)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        
+        # Create 2 JSON files
+        for i in range(2):
+            json_file = tmpdir / f"test_{i}.json"
+            with open(json_file, "w") as f:
+                json.dump([sample_json_unified], f)
+        
+        # Should work with 2 files
+        train_files, test_files = split_json_files(tmpdir, train_ratio=0.8)
+        
+        # Both should have at least 1 file
+        assert len(train_files) >= 1
+        assert len(test_files) >= 1
+        assert len(train_files) + len(test_files) == 2
+
+
 def test_load_json_files(temp_json_dir_for_split):
     """Test loading JSON files from a file list."""
     json_files = list(temp_json_dir_for_split.glob("*.json"))[:3]

@@ -32,7 +32,8 @@ def split_json_files(
         Tuple of (train_files, test_files) as lists of Path objects
 
     Raises:
-        ValueError: If no JSON files found or invalid train_ratio
+        ValueError: If no JSON files found, invalid train_ratio, or insufficient
+                   files for splitting (need at least 2)
     """
     if not 0 < train_ratio < 1:
         raise ValueError(f"train_ratio must be between 0 and 1, got {train_ratio}")
@@ -42,6 +43,14 @@ def split_json_files(
 
     if not json_files:
         raise ValueError(f"No JSON files found in {directory}")
+
+    # Validate we have enough files for splitting
+    if len(json_files) < 2:
+        raise ValueError(
+            f"File-based splitting requires at least 2 JSON files, "
+            f"but only found {len(json_files)} in {directory}. "
+            f"Each split (train and test) must contain at least one file."
+        )
 
     logger.info(f"Found {len(json_files)} JSON files in {directory}")
 
@@ -53,7 +62,10 @@ def split_json_files(
     random.shuffle(shuffled_files)
 
     # Split into train and test
+    # Clamp n_train to [1, len-1] to ensure both sets have at least 1 file
     n_train = int(len(shuffled_files) * train_ratio)
+    n_train = max(1, min(n_train, len(shuffled_files) - 1))
+    
     train_files = shuffled_files[:n_train]
     test_files = shuffled_files[n_train:]
 
