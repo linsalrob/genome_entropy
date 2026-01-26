@@ -112,7 +112,9 @@ This will automatically set `in_genbank: true` for ORFs that match annotated CDS
 
 ### 2. Train the Classifier
 
-Train on a directory of JSON files:
+#### Standard Mode (Sample-Level Split)
+
+Train on all files with random sample-level train/test split:
 
 ```bash
 genome_entropy ml train \
@@ -146,6 +148,101 @@ has_start_codon     : 0.1567
 three_di_entropy    : 0.1234
 has_stop_codon      : 0.0987
 ```
+
+#### File-Based Split Mode (Cross-Validation Across Files)
+
+**New in version 0.1.6**: Randomly split files 80/20 for file-based cross-validation:
+
+```bash
+genome_entropy ml train \
+    --split-dir results/ \
+    --output model.ubj \
+    --json-output detailed_results.json \
+    --random-seed 42
+```
+
+**Why Use File-Based Splitting?**
+
+File-based splitting ensures that all ORFs from the same genome/sequence stay together in either the training or test set. This provides a more realistic evaluation of how well the model generalizes to completely new sequences, rather than just new ORFs from the same sequences it was trained on.
+
+Use this mode when:
+- You want to evaluate generalization to new genomes/sequences
+- You have data from multiple independent sequences
+- You need reproducible train/test splits for publication
+- You want detailed per-prediction results for analysis
+
+**Arguments:**
+- `--split-dir`: Directory to split 80/20 into train/test sets
+- `--output`: Path to save the trained model
+- `--json-output`: (Optional) Path to save detailed JSON report
+- `--random-seed`: Random seed for reproducible splits (default: 42)
+- `--model-type`: "xgboost" (default) or "neural_net"
+- `--validation-split`: Fraction of training data for validation (default: 0.2)
+- `--device`: "cuda", "cpu", or None for auto-detect
+
+**JSON Output Format:**
+
+The detailed JSON report includes:
+
+```json
+{
+  "training_files": ["file1.json", "file2.json", ...],
+  "test_files": ["file8.json", "file9.json"],
+  "training_parameters": {
+    "model_type": "xgboost",
+    "device": "cpu",
+    "validation_split": 0.2,
+    "random_seed": 42,
+    "n_features": 12,
+    "feature_names": ["dna_entropy", "protein_entropy", ...]
+  },
+  "training_samples": {
+    "n_samples": 160,
+    "n_in_genbank": 80,
+    "n_not_in_genbank": 80
+  },
+  "training_metrics": {
+    "val_accuracy": 0.875,
+    "val_auc": 0.923,
+    ...
+  },
+  "test_samples": {
+    "n_samples": 40,
+    "n_in_genbank": 20,
+    "n_not_in_genbank": 20
+  },
+  "test_metrics": {
+    "accuracy": 0.860,
+    "precision": 0.850,
+    "recall": 0.870,
+    "f1": 0.842,
+    "auc": 0.915,
+    ...
+  },
+  "test_predictions": [
+    {
+      "orf_id": "orf_1",
+      "predicted_label": 1,
+      "probability_in_genbank": 0.85,
+      "probability_not_in_genbank": 0.15,
+      "actual_label": 1,
+      "correct": true
+    },
+    ...
+  ],
+  "feature_importance": {
+    "protein_entropy": 0.234,
+    "dna_length": 0.182,
+    ...
+  }
+}
+```
+
+This detailed output allows you to:
+- Track exactly which files were used for training vs testing
+- Reproduce the exact split using the same random seed
+- Analyze per-prediction results to identify systematic errors
+- Export results for publication or further analysis
 
 ### 3. Make Predictions
 
