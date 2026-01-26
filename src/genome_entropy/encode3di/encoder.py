@@ -299,7 +299,7 @@ class ProstT5ThreeDiEncoder:
         if use_multi_gpu:
             # Use multi-GPU encoding
             from .multi_gpu import MultiGPUEncoder
-            
+
             # Use pre-initialized encoder if provided, otherwise create new one
             if multi_gpu_encoder is None:
                 logger.info("Initializing multi-GPU encoding")
@@ -312,11 +312,12 @@ class ProstT5ThreeDiEncoder:
                 logger.info("Loading models on all GPUs...")
                 for gpu_encoder in multi_gpu_encoder.encoders:
                     gpu_encoder._load_model()
-            
+
             # Preprocess sequences
             from .encoding import preprocess_sequences
+
             processed_seqs = preprocess_sequences(aa_sequences)
-            
+
             # Encode using multi-GPU (models already loaded)
             return multi_gpu_encoder.encode_multi_gpu(
                 processed_seqs,
@@ -363,7 +364,7 @@ class ProstT5ThreeDiEncoder:
 
         # Encode
         three_di_sequences = self.encode(
-            aa_sequences, 
+            aa_sequences,
             encoding_size,
             use_multi_gpu=use_multi_gpu,
             gpu_ids=gpu_ids,
