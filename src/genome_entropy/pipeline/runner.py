@@ -141,6 +141,22 @@ def run_pipeline(
         encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
         actual_encoding_size = encoding_size if encoding_size is not None else DEFAULT_ENCODING_SIZE
         
+        # Initialize multi-GPU encoder once if multi-GPU mode is enabled
+        # This prevents re-creating encoders and reloading models for each sequence
+        multi_gpu_encoder = None
+        if use_multi_gpu:
+            from ..encode3di.multi_gpu import MultiGPUEncoder
+            logger.info("Initializing multi-GPU encoder (will be reused for all sequences)...")
+            multi_gpu_encoder = MultiGPUEncoder(
+                model_name=model_name,
+                encoder_class=ProstT5ThreeDiEncoder,
+                gpu_ids=gpu_ids,
+            )
+            # Load models on all GPUs once at initialization
+            logger.info("Loading models on all GPUs...")
+            for gpu_encoder in multi_gpu_encoder.encoders:
+                gpu_encoder._load_model()
+        
         results = []
         
         for seq_idx, (seq_id, dna_sequence) in enumerate(sequences.items(), 1):
@@ -200,6 +216,7 @@ def run_pipeline(
                 encoding_size=actual_encoding_size,
                 use_multi_gpu=use_multi_gpu,
                 gpu_ids=gpu_ids,
+                multi_gpu_encoder=multi_gpu_encoder,
             )
             logger.info("Encoded %d 3Di sequence(s)", len(three_dis))
             

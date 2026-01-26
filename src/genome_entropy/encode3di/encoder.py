@@ -274,6 +274,7 @@ class ProstT5ThreeDiEncoder:
         encoding_size: int = DEFAULT_ENCODING_SIZE,
         use_multi_gpu: bool = False,
         gpu_ids: Optional[List[int]] = None,
+        multi_gpu_encoder: Optional[Any] = None,
     ) -> List[str]:
         """Encode amino acid sequences to 3Di tokens.
 
@@ -285,6 +286,10 @@ class ProstT5ThreeDiEncoder:
             use_multi_gpu: If True, use multi-GPU parallel encoding when available
             gpu_ids: Optional list of GPU IDs to use for multi-GPU encoding.
                     If None and use_multi_gpu=True, auto-discover available GPUs.
+            multi_gpu_encoder: Optional pre-initialized MultiGPUEncoder instance.
+                    If provided, this encoder will be reused instead of creating
+                    a new one. This is important for efficiency when processing
+                    multiple sequences.
         Returns:
             List of 3Di token sequences (one per input sequence)
 
@@ -295,22 +300,29 @@ class ProstT5ThreeDiEncoder:
             # Use multi-GPU encoding
             from .multi_gpu import MultiGPUEncoder
             
-            logger.info("Initializing multi-GPU encoding")
-            multi_encoder = MultiGPUEncoder(
-                model_name=self.model_name,
-                encoder_class=ProstT5ThreeDiEncoder,
-                gpu_ids=gpu_ids,
-            )
+            # Use pre-initialized encoder if provided, otherwise create new one
+            if multi_gpu_encoder is None:
+                logger.info("Initializing multi-GPU encoding")
+                multi_gpu_encoder = MultiGPUEncoder(
+                    model_name=self.model_name,
+                    encoder_class=ProstT5ThreeDiEncoder,
+                    gpu_ids=gpu_ids,
+                )
+                # Load models if not already loaded
+                logger.info("Loading models on all GPUs...")
+                for gpu_encoder in multi_gpu_encoder.encoders:
+                    gpu_encoder._load_model()
             
             # Preprocess sequences
             from .encoding import preprocess_sequences
             processed_seqs = preprocess_sequences(aa_sequences)
             
-            # Encode using multi-GPU
-            return multi_encoder.encode_multi_gpu(
+            # Encode using multi-GPU (models already loaded)
+            return multi_gpu_encoder.encode_multi_gpu(
                 processed_seqs,
                 self.token_budget_batches,
                 encoding_size,
+                skip_model_loading=True,  # Models already loaded
             )
         else:
             # Use single-GPU encoding (original behavior)
@@ -329,6 +341,7 @@ class ProstT5ThreeDiEncoder:
         encoding_size: int = DEFAULT_ENCODING_SIZE,
         use_multi_gpu: bool = False,
         gpu_ids: Optional[List[int]] = None,
+        multi_gpu_encoder: Optional[Any] = None,
     ) -> List[ThreeDiRecord]:
         """Encode protein records to 3Di records.
 
@@ -337,6 +350,10 @@ class ProstT5ThreeDiEncoder:
             encoding_size: Maximum size (approx. amino acids) to encode per batch
             use_multi_gpu: If True, use multi-GPU parallel encoding when available
             gpu_ids: Optional list of GPU IDs to use for multi-GPU encoding
+            multi_gpu_encoder: Optional pre-initialized MultiGPUEncoder instance.
+                    If provided, this encoder will be reused instead of creating
+                    a new one. This is important for efficiency when processing
+                    multiple sequences.
 
         Returns:
             List of ThreeDiRecord objects
@@ -350,6 +367,7 @@ class ProstT5ThreeDiEncoder:
             encoding_size,
             use_multi_gpu=use_multi_gpu,
             gpu_ids=gpu_ids,
+            multi_gpu_encoder=multi_gpu_encoder,
         )
 
         # Create records

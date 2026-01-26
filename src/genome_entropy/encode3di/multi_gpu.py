@@ -249,6 +249,7 @@ class MultiGPUEncoder:
         aa_sequences: List[str],
         token_budget_batches_fn: Callable[[List[str], int], Iterator[Any]],
         encoding_size: int,
+        skip_model_loading: bool = False,
     ) -> List[str]:
         """Encode sequences using multiple GPUs.
         
@@ -258,6 +259,8 @@ class MultiGPUEncoder:
             aa_sequences: List of preprocessed amino acid sequences
             token_budget_batches_fn: Function to create batches under token budget
             encoding_size: Maximum size (approx. amino acids) per batch
+            skip_model_loading: If True, skip model loading (assumes models already loaded).
+                    This is useful when the encoder is being reused across multiple calls.
             
         Returns:
             List of 3Di token sequences (one per input sequence)
@@ -268,10 +271,11 @@ class MultiGPUEncoder:
         
         total_sequences = len(aa_sequences)
         
-        # Load models for all encoders
-        logger.info("Loading models on all GPUs...")
-        for encoder in self.encoders:
-            encoder._load_model()
+        # Load models for all encoders (unless already loaded)
+        if not skip_model_loading:
+            logger.info("Loading models on all GPUs...")
+            for encoder in self.encoders:
+                encoder._load_model()
         
         # Run async encoding
         if self.is_multi_gpu():
