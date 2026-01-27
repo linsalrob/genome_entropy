@@ -9,7 +9,7 @@ import pytest
 @pytest.fixture
 def synthetic_dna() -> Dict[str, str]:
     """Provide synthetic DNA sequences with known ORFs for testing.
-    
+
     Returns:
         Dictionary mapping sequence IDs to DNA sequences
     """
@@ -38,7 +38,7 @@ def synthetic_dna() -> Dict[str, str]:
 @pytest.fixture
 def sample_fasta_content() -> str:
     """Provide sample FASTA file content for testing.
-    
+
     Returns:
         FASTA formatted string
     """
@@ -53,16 +53,26 @@ ATGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAA
 @pytest.fixture
 def mock_prostt5_encoder(monkeypatch):
     """Mock ProstT5 encoder to return deterministic 3Di sequences.
-    
+
     Returns 'a' repeated for the length of each input sequence.
     This avoids needing to download models during testing.
     """
     from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
-    
-    def mock_encode(self, aa_sequences, encoding_size=10, use_multi_gpu=False, gpu_ids=None):
+
+    def mock_encode(
+        self,
+        aa_sequences,
+        encoding_size=10,
+        use_multi_gpu=False,
+        gpu_ids=None,
+        multi_gpu_encoder=None,
+    ):
         # Return 'a' * length for each sequence (lowercase for 3Di)
-        return ['a' * len(seq.replace(' ', '').replace('<AA2fold>', '').strip()) for seq in aa_sequences]
-    
+        return [
+            "a" * len(seq.replace(" ", "").replace("<AA2fold>", "").strip())
+            for seq in aa_sequences
+        ]
+
     monkeypatch.setattr(ProstT5ThreeDiEncoder, "encode", mock_encode)
     monkeypatch.setattr(ProstT5ThreeDiEncoder, "_load_model", lambda self: None)
 
