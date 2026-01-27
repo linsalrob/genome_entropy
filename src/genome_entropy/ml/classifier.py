@@ -21,6 +21,7 @@ def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
     """Load all JSON files from a directory.
     
     Handles both old PipelineResult format and new unified format.
+    Automatically handles gzipped JSON files (ending in .gz).
     
     Args:
         json_dir: Directory containing JSON output files
@@ -31,11 +32,14 @@ def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
     Raises:
         ValueError: If no JSON files found or if files are invalid
     """
+    from ..io.jsonio import read_json
+    
     json_dir = Path(json_dir)
     if not json_dir.is_dir():
         raise ValueError(f"Not a directory: {json_dir}")
     
-    json_files = list(json_dir.glob("*.json"))
+    # Find both .json and .json.gz files
+    json_files = list(json_dir.glob("*.json")) + list(json_dir.glob("*.json.gz"))
     if not json_files:
         raise ValueError(f"No JSON files found in {json_dir}")
     
@@ -44,10 +48,9 @@ def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
     data = []
     for json_file in json_files:
         try:
-            with open(json_file, "r") as f:
-                content = json.load(f)
-                data.append(content) 
-                logger.debug(f"Loaded {json_file.name}")
+            content = read_json(json_file)
+            data.append(content) 
+            logger.debug(f"Loaded {json_file.name}")
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse {json_file.name}: {e}")
             continue

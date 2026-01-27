@@ -1,5 +1,6 @@
 """FASTA file reading and writing utilities."""
 
+import gzip
 from pathlib import Path
 from typing import Dict, Iterator, List, Tuple, Union
 
@@ -11,8 +12,10 @@ logger = get_logger(__name__)
 def read_fasta(fasta_path: Union[str, Path]) -> Dict[str, str]:
     """Read a FASTA file and return a dictionary of sequence_id -> sequence.
     
+    Automatically detects and handles gzipped files (ending in .gz).
+    
     Args:
-        fasta_path: Path to FASTA file
+        fasta_path: Path to FASTA file (plain text or gzipped)
         
     Returns:
         Dictionary mapping sequence IDs to sequences
@@ -32,7 +35,12 @@ def read_fasta(fasta_path: Union[str, Path]) -> Dict[str, str]:
     current_id = None
     current_seq_parts = []
     
-    with open(fasta_path, "r") as f:
+    # Auto-detect gzipped files by extension
+    is_gzipped = str(fasta_path).endswith('.gz')
+    open_func = gzip.open if is_gzipped else open
+    mode = 'rt' if is_gzipped else 'r'
+    
+    with open_func(fasta_path, mode) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -70,9 +78,10 @@ def read_fasta_iter(fasta_path: Union[str, Path]) -> Iterator[Tuple[str, str]]:
     """Read a FASTA file and yield (sequence_id, sequence) tuples.
     
     Memory-efficient iterator for large FASTA files.
+    Automatically detects and handles gzipped files (ending in .gz).
     
     Args:
-        fasta_path: Path to FASTA file
+        fasta_path: Path to FASTA file (plain text or gzipped)
         
     Yields:
         Tuples of (sequence_id, sequence)
@@ -88,7 +97,12 @@ def read_fasta_iter(fasta_path: Union[str, Path]) -> Iterator[Tuple[str, str]]:
     current_id = None
     current_seq_parts = []
     
-    with open(fasta_path, "r") as f:
+    # Auto-detect gzipped files by extension
+    is_gzipped = str(fasta_path).endswith('.gz')
+    open_func = gzip.open if is_gzipped else open
+    mode = 'rt' if is_gzipped else 'r'
+    
+    with open_func(fasta_path, mode) as f:
         for line in f:
             line = line.strip()
             if not line:
@@ -115,9 +129,11 @@ def read_fasta_iter(fasta_path: Union[str, Path]) -> Iterator[Tuple[str, str]]:
 def write_fasta(sequences: Dict[str, str], output_path: Union[str, Path], line_width: int = 80) -> None:
     """Write sequences to a FASTA file.
     
+    Automatically compresses output if filename ends with .gz.
+    
     Args:
         sequences: Dictionary mapping sequence IDs to sequences
-        output_path: Path to output FASTA file
+        output_path: Path to output FASTA file (plain text or .gz for compressed)
         line_width: Maximum line width for sequence lines (default: 80)
     """
     output_path = Path(output_path)
@@ -125,7 +141,12 @@ def write_fasta(sequences: Dict[str, str], output_path: Union[str, Path], line_w
     
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
-    with open(output_path, "w") as f:
+    # Auto-detect gzipped output by extension
+    is_gzipped = str(output_path).endswith('.gz')
+    open_func = gzip.open if is_gzipped else open
+    mode = 'wt' if is_gzipped else 'w'
+    
+    with open_func(output_path, mode) as f:
         for seq_id, sequence in sequences.items():
             f.write(f">{seq_id}\n")
             # Write sequence in chunks of line_width

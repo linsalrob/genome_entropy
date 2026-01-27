@@ -23,6 +23,8 @@ def split_json_files(
 ) -> Tuple[List[Path], List[Path]]:
     """Split JSON files in directory into train and test sets.
 
+    Handles both .json and .json.gz files.
+
     Args:
         directory: Path to directory containing JSON files
         train_ratio: Fraction of files to use for training (default: 0.8)
@@ -38,8 +40,8 @@ def split_json_files(
     if not 0 < train_ratio < 1:
         raise ValueError(f"train_ratio must be between 0 and 1, got {train_ratio}")
 
-    # Find all JSON files
-    json_files = sorted(directory.glob("*.json"))
+    # Find all JSON files (both .json and .json.gz)
+    json_files = sorted(list(directory.glob("*.json")) + list(directory.glob("*.json.gz")))
 
     if not json_files:
         raise ValueError(f"No JSON files found in {directory}")
@@ -79,6 +81,8 @@ def split_json_files(
 def load_json_files(file_list: List[Path]) -> List[List[Dict[str, Any]]]:
     """Load JSON data from a list of files.
 
+    Automatically handles gzipped JSON files (ending in .gz).
+
     Args:
         file_list: List of paths to JSON files
 
@@ -88,14 +92,15 @@ def load_json_files(file_list: List[Path]) -> List[List[Dict[str, Any]]]:
     Raises:
         ValueError: If no valid JSON files could be loaded
     """
+    from ..io.jsonio import read_json
+    
     data = []
 
     for json_file in file_list:
         try:
-            with open(json_file, "r") as f:
-                content = json.load(f)
-                data.append(content)
-                logger.debug(f"Loaded {json_file.name}")
+            content = read_json(json_file)
+            data.append(content)
+            logger.debug(f"Loaded {json_file.name}")
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse {json_file.name}: {e}")
             continue
@@ -288,8 +293,8 @@ def train_with_file_split(
 
     # Save JSON output if requested
     if json_output:
+        from ..io.jsonio import write_json
         logger.info(f"Saving detailed report to: {json_output}")
-        with open(json_output, "w") as f:
-            json.dump(result, f, indent=2)
+        write_json(result, json_output)
 
     return result

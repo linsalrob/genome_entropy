@@ -1,5 +1,6 @@
 """JSON serialization for data models."""
 
+import gzip
 import json
 from dataclasses import asdict, is_dataclass
 from pathlib import Path
@@ -213,6 +214,7 @@ def write_json(data: Any, output_path: Union[str, Path], indent: int = 2) -> Non
     Automatically handles dataclass objects by converting them to dictionaries.
     If data contains PipelineResult objects, they are automatically converted
     to the new unified format to eliminate redundancy.
+    Automatically compresses output if filename ends with .gz.
     
     AUTOMATIC CONVERSION:
     ---------------------
@@ -241,7 +243,7 @@ def write_json(data: Any, output_path: Union[str, Path], indent: int = 2) -> Non
     
     Args:
         data: Data to write (dataclass, dict, list, etc.)
-        output_path: Path to output JSON file
+        output_path: Path to output JSON file (plain text or .gz for compressed)
         indent: Indentation level for pretty printing (default: 2)
     """
     output_path = Path(output_path)
@@ -272,8 +274,13 @@ def write_json(data: Any, output_path: Union[str, Path], indent: int = 2) -> Non
     # Convert dataclasses to dictionaries recursively
     json_data = to_json_dict(data)
     
+    # Auto-detect gzipped output by extension
+    is_gzipped = str(output_path).endswith('.gz')
+    open_func = gzip.open if is_gzipped else open
+    mode = 'wt' if is_gzipped else 'w'
+    
     # Write to file with pretty printing
-    with open(output_path, "w", encoding='utf-8') as f:
+    with open_func(output_path, mode, encoding='utf-8') as f:
         json.dump(json_data, f, indent=indent)
     
     logger.info("Successfully wrote JSON file: %s", output_path)
@@ -282,8 +289,10 @@ def write_json(data: Any, output_path: Union[str, Path], indent: int = 2) -> Non
 def read_json(input_path: Union[str, Path]) -> Any:
     """Read JSON data from a file.
     
+    Automatically detects and handles gzipped files (ending in .gz).
+    
     Args:
-        input_path: Path to input JSON file
+        input_path: Path to input JSON file (plain text or gzipped)
         
     Returns:
         Parsed JSON data (dict, list, etc.)
@@ -299,7 +308,12 @@ def read_json(input_path: Union[str, Path]) -> Any:
         logger.error("JSON file not found: %s", input_path)
         raise FileNotFoundError(f"JSON file not found: {input_path}")
     
-    with open(input_path, "r", encoding='utf-8') as f:
+    # Auto-detect gzipped files by extension
+    is_gzipped = str(input_path).endswith('.gz')
+    open_func = gzip.open if is_gzipped else open
+    mode = 'rt' if is_gzipped else 'r'
+    
+    with open_func(input_path, mode, encoding='utf-8') as f:
         data = json.load(f)
     
     logger.info("Successfully read JSON file: %s", input_path)

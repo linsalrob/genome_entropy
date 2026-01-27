@@ -1,5 +1,6 @@
 """GenBank file reading and parsing utilities."""
 
+import gzip
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Union
@@ -35,8 +36,10 @@ class GenBankCDS:
 def read_genbank(genbank_path: Union[str, Path]) -> Dict[str, str]:
     """Read a GenBank file and return a dictionary of sequence_id -> DNA sequence.
     
+    Automatically detects and handles gzipped files (ending in .gz).
+    
     Args:
-        genbank_path: Path to GenBank file
+        genbank_path: Path to GenBank file (plain text or gzipped)
         
     Returns:
         Dictionary mapping sequence IDs to DNA sequences
@@ -55,11 +58,17 @@ def read_genbank(genbank_path: Union[str, Path]) -> Dict[str, str]:
     sequences = {}
     
     try:
-        for record in SeqIO.parse(genbank_path, "genbank"):
-            seq_id = record.id
-            dna_sequence = str(record.seq).upper()
-            sequences[seq_id] = dna_sequence
-            logger.debug("Read sequence '%s' (length=%d)", seq_id, len(dna_sequence))
+        # Auto-detect gzipped files by extension
+        is_gzipped = str(genbank_path).endswith('.gz')
+        open_func = gzip.open if is_gzipped else open
+        mode = 'rt' if is_gzipped else 'r'
+        
+        with open_func(genbank_path, mode) as handle:
+            for record in SeqIO.parse(handle, "genbank"):
+                seq_id = record.id
+                dna_sequence = str(record.seq).upper()
+                sequences[seq_id] = dna_sequence
+                logger.debug("Read sequence '%s' (length=%d)", seq_id, len(dna_sequence))
     except Exception as e:
         logger.error("Failed to parse GenBank file: %s", e)
         raise ValueError(f"Failed to parse GenBank file: {e}")
@@ -75,8 +84,10 @@ def read_genbank(genbank_path: Union[str, Path]) -> Dict[str, str]:
 def extract_cds_features(genbank_path: Union[str, Path]) -> List[GenBankCDS]:
     """Extract CDS features from a GenBank file.
     
+    Automatically detects and handles gzipped files (ending in .gz).
+    
     Args:
-        genbank_path: Path to GenBank file
+        genbank_path: Path to GenBank file (plain text or gzipped)
         
     Returns:
         List of GenBankCDS objects
@@ -95,41 +106,47 @@ def extract_cds_features(genbank_path: Union[str, Path]) -> List[GenBankCDS]:
     cds_features = []
     
     try:
-        for record in SeqIO.parse(genbank_path, "genbank"):
-            seq_id = record.id
-            
-            for feature in record.features:
-                if feature.type != "CDS":
-                    continue
+        # Auto-detect gzipped files by extension
+        is_gzipped = str(genbank_path).endswith('.gz')
+        open_func = gzip.open if is_gzipped else open
+        mode = 'rt' if is_gzipped else 'r'
+        
+        with open_func(genbank_path, mode) as handle:
+            for record in SeqIO.parse(handle, "genbank"):
+                seq_id = record.id
                 
-                # Get protein translation if available
-                protein_seq = ""
-                if "translation" in feature.qualifiers:
-                    protein_seq = feature.qualifiers["translation"][0]
-                
-                # Convert strand
-                strand = "+" if feature.location.strand == 1 else "-"
-                
-                # BioPython uses 0-based coordinates (inclusive start, exclusive end)
-                start = int(feature.location.start)
-                end = int(feature.location.end)
-                
-                cds = GenBankCDS(
-                    parent_id=seq_id,
-                    start=start,
-                    end=end,
-                    strand=strand,
-                    protein_sequence=protein_seq,
-                )
-                cds_features.append(cds)
-                logger.debug(
-                    "Extracted CDS: %s %s:%d-%d (protein_len=%d)",
-                    seq_id,
-                    strand,
-                    start,
-                    end,
-                    len(protein_seq),
-                )
+                for feature in record.features:
+                    if feature.type != "CDS":
+                        continue
+                    
+                    # Get protein translation if available
+                    protein_seq = ""
+                    if "translation" in feature.qualifiers:
+                        protein_seq = feature.qualifiers["translation"][0]
+                    
+                    # Convert strand
+                    strand = "+" if feature.location.strand == 1 else "-"
+                    
+                    # BioPython uses 0-based coordinates (inclusive start, exclusive end)
+                    start = int(feature.location.start)
+                    end = int(feature.location.end)
+                    
+                    cds = GenBankCDS(
+                        parent_id=seq_id,
+                        start=start,
+                        end=end,
+                        strand=strand,
+                        protein_sequence=protein_seq,
+                    )
+                    cds_features.append(cds)
+                    logger.debug(
+                        "Extracted CDS: %s %s:%d-%d (protein_len=%d)",
+                        seq_id,
+                        strand,
+                        start,
+                        end,
+                        len(protein_seq),
+                    )
     except Exception as e:
         logger.error("Failed to extract CDS features: %s", e)
         raise ValueError(f"Failed to extract CDS features: {e}")
