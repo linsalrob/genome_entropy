@@ -41,7 +41,9 @@ def split_json_files(
         raise ValueError(f"train_ratio must be between 0 and 1, got {train_ratio}")
 
     # Find all JSON files (both .json and .json.gz)
-    json_files = sorted(list(directory.glob("*.json")) + list(directory.glob("*.json.gz")))
+    json_files = sorted(
+        list(directory.glob("*.json")) + list(directory.glob("*.json.gz"))
+    )
 
     if not json_files:
         raise ValueError(f"No JSON files found in {directory}")
@@ -67,7 +69,7 @@ def split_json_files(
     # Clamp n_train to [1, len-1] to ensure both sets have at least 1 file
     n_train = int(len(shuffled_files) * train_ratio)
     n_train = max(1, min(n_train, len(shuffled_files) - 1))
-    
+
     train_files = shuffled_files[:n_train]
     test_files = shuffled_files[n_train:]
 
@@ -93,7 +95,7 @@ def load_json_files(file_list: List[Path]) -> List[List[Dict[str, Any]]]:
         ValueError: If no valid JSON files could be loaded
     """
     from ..io.jsonio import read_json
-    
+
     data = []
 
     for json_file in file_list:
@@ -294,6 +296,7 @@ def train_with_file_split(
     # Save JSON output if requested
     if json_output:
         from ..io.jsonio import write_json
+
         logger.info(f"Saving detailed report to: {json_output}")
         write_json(result, json_output)
 
