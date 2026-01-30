@@ -28,15 +28,13 @@ def download_command(
     """
     try:
         from transformers import AutoModel, AutoTokenizer
+        from ...config import MODERNPROST_MODELS
         
         typer.echo(f"Downloading model: {model}")
         typer.echo("This may take a few minutes on first run...")
         
         # Check if this is a ModernProst model
-        is_modernprost = model in {
-            "gbouras13/modernprost-base",
-            "gbouras13/modernprost-profiles",
-        }
+        is_modernprost = model in MODERNPROST_MODELS
         
         # Download tokenizer
         typer.echo("  - Downloading tokenizer...")

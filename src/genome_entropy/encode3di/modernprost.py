@@ -4,7 +4,7 @@ This module implements an encoder for gbouras13/modernprost models,
 adapted from the phold implementation.
 """
 
-from typing import Any, List, Optional, Sequence
+from typing import Any, Iterator, List, Optional, Sequence
 
 try:
     import torch
@@ -124,8 +124,11 @@ class ModernProstThreeDiEncoder:
                 trust_remote_code=True,
             ).to(self.device)
             
-            # ModernProst models are loaded in half precision
-            self.model = self.model.half()
+            # ModernProst models use half precision only on CUDA
+            # CPU and MPS may not support half precision properly
+            if self.device == CUDA_DEVICE:
+                self.model = self.model.half()
+            
             self.model = self.model.eval()
 
             logger.info("Loaded model %s on device %s", self.model_name, self.device)
@@ -140,7 +143,7 @@ class ModernProstThreeDiEncoder:
         self,
         aa_sequences: Sequence[str],
         token_budget: int,
-    ) -> List[List[IndexedSeq]]:
+    ) -> Iterator[List[IndexedSeq]]:
         """
         Yield batches of sequences (with original indices) under an approximate token budget.
 
@@ -159,9 +162,9 @@ class ModernProstThreeDiEncoder:
             aa_sequences : Sequence[str] Unordered amino acid sequences.
             token_budget : int Maximum approximate "tokens" per batch
 
-        Returns
-        -------
-            List[List[IndexedSeq]] A list of batches.
+        Yields
+        ------
+            List[IndexedSeq] A batch of (original_index, sequence) records.
         """
 
         if token_budget <= 0:
@@ -175,7 +178,6 @@ class ModernProstThreeDiEncoder:
         start_idx = 0  # Points to shortest remaining sequence
         end_idx = len(indexed) - 1  # Points to longest remaining sequence
 
-        batches = []
         while start_idx <= end_idx:
             batch: List[IndexedSeq] = []
             batch_max_len = 0
@@ -188,10 +190,10 @@ class ModernProstThreeDiEncoder:
                 # If a single sequence exceeds the budget, yield it alone
                 if L > token_budget:
                     if batch:
-                        batches.append(batch)
+                        yield batch
                         batch = []
                         batch_max_len = 0
-                    batches.append([item])
+                    yield [item]
                     end_idx -= 1
                     continue
 
@@ -227,9 +229,7 @@ class ModernProstThreeDiEncoder:
                     break
 
             if batch:
-                batches.append(batch)
-
-        return batches
+                yield batch
 
     def _encode_batch(self, aa_sequences: List[str]) -> List[str]:
         """
@@ -332,10 +332,12 @@ class ModernProstThreeDiEncoder:
                 for gpu_encoder in multi_gpu_encoder.encoders:
                     gpu_encoder._load_model()
 
-            # Preprocess sequences
-            from .encoding import preprocess_sequences
-
-            processed_seqs = preprocess_sequences(aa_sequences)
+            # Preprocess sequences (ModernProst-specific, no ProstT5 prefix)
+            processed_seqs = []
+            for seq in aa_sequences:
+                # Replace rare/ambiguous amino acids
+                seq = seq.replace("U", "X").replace("Z", "X").replace("O", "X").replace("B", "X")
+                processed_seqs.append(seq)
 
             # Encode using multi-GPU (models already loaded)
             return multi_gpu_encoder.encode_multi_gpu(
@@ -348,11 +350,29 @@ class ModernProstThreeDiEncoder:
             # Use single-GPU encoding
             self._load_model()
 
-            return encode(
-                aa_sequences,
+            # ModernProst does not use ProstT5 preprocessing
+            # Just replace non-standard amino acids
+            processed_seqs = []
+            for seq in aa_sequences:
+                # Replace rare/ambiguous amino acids
+                seq = seq.replace("U", "X").replace("Z", "X").replace("O", "X").replace("B", "X")
+                processed_seqs.append(seq)
+
+            # Calculate batch info
+            import math
+            total_sequences = len(processed_seqs)
+            total_batches = math.ceil(sum(map(len, processed_seqs)) / encoding_size)
+
+            # Create batches iterator
+            batches = self.token_budget_batches(processed_seqs, encoding_size)
+
+            # Process all batches
+            from .encoding import process_batches
+            return process_batches(
+                batches,
                 self._encode_batch,
-                self.token_budget_batches,
-                encoding_size,
+                total_sequences,
+                total_batches,
             )
 
     def encode_proteins(
