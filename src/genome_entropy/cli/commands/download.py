@@ -13,7 +13,7 @@ def download_command(
         "Rostlab/ProstT5_fp16",
         "--model",
         "-m",
-        help="ProstT5 model to download",
+        help="Model to download (Rostlab/ProstT5_fp16, gbouras13/modernprost-base, or gbouras13/modernprost-profiles)",
     ),
     test_data: bool = typer.Option(
         False,
@@ -23,26 +23,42 @@ def download_command(
 ) -> None:
     """Pre-download models and optional test datasets.
     
-    Downloads ProstT5 model from HuggingFace to local cache.
+    Downloads ProstT5 or ModernProst models from HuggingFace to local cache.
     Optionally downloads small reference datasets for testing.
     """
     try:
         from transformers import AutoModel, AutoTokenizer
+        from ...config import MODERNPROST_MODELS
         
-        typer.echo(f"Downloading ProstT5 model: {model}")
+        typer.echo(f"Downloading model: {model}")
         typer.echo("This may take a few minutes on first run...")
+        
+        # Check if this is a ModernProst model
+        is_modernprost = model in MODERNPROST_MODELS
         
         # Download tokenizer
         typer.echo("  - Downloading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(
-            model,
-            use_fast=False,
-            legacy=True
-        )
+        if is_modernprost:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model,
+                trust_remote_code=True,
+            )
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model,
+                use_fast=False,
+                legacy=True
+            )
         
         # Download model
         typer.echo("  - Downloading model...")
-        model_obj = AutoModel.from_pretrained(model)
+        if is_modernprost:
+            model_obj = AutoModel.from_pretrained(
+                model,
+                trust_remote_code=True,
+            )
+        else:
+            model_obj = AutoModel.from_pretrained(model)
         
         # Get cache location
         cache_dir = Path.home() / ".cache" / "huggingface"
@@ -55,9 +71,19 @@ def download_command(
         typer.echo("\n✓ Download complete!")
         
     except ImportError as e:
-        typer.echo(f"Error: Import Error loading AutoTokenizer: {e}", err=True)
-        typer.echo("Error: transformers package required", err=True)
-        typer.echo("Install with: pip install transformers torch", err=True)
+        error_msg = str(e)
+        typer.echo(f"Error: Import Error loading AutoTokenizer: {error_msg}", err=True)
+        
+        # Check if it's a ModernBert-related error
+        if "ModernBertModel" in error_msg or "ModernBert" in error_msg:
+            typer.echo("\n" + "="*60, err=True)
+            typer.echo("ModernProst models require transformers >= 4.47.0", err=True)
+            typer.echo("Please upgrade transformers:", err=True)
+            typer.echo("  pip install --upgrade 'transformers>=4.47.0'", err=True)
+            typer.echo("="*60, err=True)
+        else:
+            typer.echo("Error: transformers package required", err=True)
+            typer.echo("Install with: pip install transformers torch", err=True)
         raise typer.Exit(2)
     except Exception as e:
         typer.echo(f"Error downloading model: {e}", err=True)

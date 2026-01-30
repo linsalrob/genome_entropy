@@ -9,8 +9,10 @@ from ..config import (
     DEFAULT_MIN_AA_LENGTH,
     DEFAULT_PROSTT5_MODEL,
     DEFAULT_ENCODING_SIZE,
+    MODERNPROST_MODELS,
 )
 from ..encode3di.prostt5 import ProstT5ThreeDiEncoder, ThreeDiRecord
+from ..encode3di.modernprost import ModernProstThreeDiEncoder
 from ..entropy.shannon import (
     EntropyReport,
     calculate_sequence_entropy,
@@ -147,7 +149,15 @@ def run_pipeline(
         # Initialize encoder once before processing all sequences
         # This ensures the model is loaded only once and reused for all entries
         logger.info("Initializing 3Di encoder (model will be loaded on first use)...")
-        encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
+        
+        # Select encoder based on model name
+        if model_name in MODERNPROST_MODELS:
+            encoder = ModernProstThreeDiEncoder(model_name=model_name, device=device)
+            encoder_class = ModernProstThreeDiEncoder
+        else:
+            encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
+            encoder_class = ProstT5ThreeDiEncoder
+        
         actual_encoding_size = (
             encoding_size if encoding_size is not None else DEFAULT_ENCODING_SIZE
         )
@@ -163,7 +173,7 @@ def run_pipeline(
             )
             multi_gpu_encoder = MultiGPUEncoder(
                 model_name=model_name,
-                encoder_class=ProstT5ThreeDiEncoder,
+                encoder_class=encoder_class,
                 gpu_ids=gpu_ids,
             )
             # Load models on all GPUs once at initialization

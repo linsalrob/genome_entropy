@@ -39,7 +39,7 @@ def run_command(
         "Rostlab/ProstT5_fp16",
         "--model",
         "-m",
-        help="ProstT5 model name",
+        help="Model name (Rostlab/ProstT5_fp16, gbouras13/modernprost-base, or gbouras13/modernprost-profiles)",
     ),
     device: Optional[str] = typer.Option(
         None,
