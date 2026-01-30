@@ -120,13 +120,15 @@ genome_entropy run --input input.fasta --output results.json \
 
 **Model Comparison:**
 
-| Model | Description | Use Case |
-|-------|-------------|----------|
-| `Rostlab/ProstT5_fp16` | Original ProstT5 model | Default, well-tested |
-| `gbouras13/modernprost-base` | Newer ModernProst base | Faster inference, modern architecture |
-| `gbouras13/modernprost-profiles` | ModernProst with profiles | For generating 3Di PSSM profiles for Foldseek |
+| Model | Description | Use Case | Requirements |
+|-------|-------------|----------|--------------|
+| `Rostlab/ProstT5_fp16` | Original ProstT5 model | Default, well-tested | transformers >= 4.30.0 |
+| `gbouras13/modernprost-base` | Newer ModernProst base | Faster inference, modern architecture | transformers >= 4.47.0 |
+| `gbouras13/modernprost-profiles` | ModernProst with profiles | For generating 3Di PSSM profiles for Foldseek | transformers >= 4.47.0 |
 
-**Note:** ModernProst models are based on the implementation from [phold](https://github.com/gbouras13/phold) by George Bouras.
+**Notes:** 
+- ModernProst models are based on the implementation from [phold](https://github.com/gbouras13/phold) by George Bouras.
+- ModernProst models require transformers >= 4.47.0 for ModernBert support. Upgrade if needed: `pip install --upgrade 'transformers>=4.47.0'`
 
 ### Multi-GPU Usage
 
@@ -201,11 +203,16 @@ See [docs/ML_CLASSIFIER.md](docs/ML_CLASSIFIER.md) for detailed documentation an
 
 ### Python Dependencies
 
-- Python 3.8 or higher
+- Python 3.10 or higher
 - PyTorch >= 2.0.0 (GPU support optional)
-- Transformers >= 4.30.0 (HuggingFace)
-- pygenetic-code >= 0.1.0
+- Transformers >= 4.47.0 (HuggingFace) - **Required for ModernProst models**
+- pygenetic-code >= 0.20.0
 - typer >= 0.9.0
+
+**Note:** ModernProst models (`gbouras13/modernprost-base` and `gbouras13/modernprost-profiles`) require transformers >= 4.47.0 for ModernBert support. If you're using an older version of transformers, please upgrade:
+```bash
+pip install --upgrade 'transformers>=4.47.0'
+```
 
 ### External Binary: get_orfs
 

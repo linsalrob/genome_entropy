@@ -2,6 +2,8 @@
 
 This module implements an encoder for gbouras13/modernprost models,
 adapted from the phold implementation.
+
+Note: ModernProst models require transformers >= 4.47.0 for ModernBert support.
 """
 
 from typing import Any, Iterator, List, Optional, Sequence
@@ -10,6 +12,17 @@ try:
     import torch
     import torch.nn.functional as F
     from transformers import AutoModel, AutoTokenizer
+    
+    # Check transformers version for ModernBert support
+    import transformers
+    transformers_version = tuple(map(int, transformers.__version__.split('.')[:2]))
+    if transformers_version < (4, 47):
+        import warnings
+        warnings.warn(
+            f"ModernProst models require transformers >= 4.47.0 (current: {transformers.__version__}). "
+            "Please upgrade: pip install --upgrade 'transformers>=4.47.0'",
+            UserWarning
+        )
 except ImportError:
     torch = None  # type: ignore[assignment]
     AutoModel = None  # type: ignore[assignment,misc]

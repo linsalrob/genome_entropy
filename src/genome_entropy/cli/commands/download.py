@@ -71,9 +71,19 @@ def download_command(
         typer.echo("\n✓ Download complete!")
         
     except ImportError as e:
-        typer.echo(f"Error: Import Error loading AutoTokenizer: {e}", err=True)
-        typer.echo("Error: transformers package required", err=True)
-        typer.echo("Install with: pip install transformers torch", err=True)
+        error_msg = str(e)
+        typer.echo(f"Error: Import Error loading AutoTokenizer: {error_msg}", err=True)
+        
+        # Check if it's a ModernBert-related error
+        if "ModernBertModel" in error_msg or "ModernBert" in error_msg:
+            typer.echo("\n" + "="*60, err=True)
+            typer.echo("ModernProst models require transformers >= 4.47.0", err=True)
+            typer.echo("Please upgrade transformers:", err=True)
+            typer.echo("  pip install --upgrade 'transformers>=4.47.0'", err=True)
+            typer.echo("="*60, err=True)
+        else:
+            typer.echo("Error: transformers package required", err=True)
+            typer.echo("Install with: pip install transformers torch", err=True)
         raise typer.Exit(2)
     except Exception as e:
         typer.echo(f"Error downloading model: {e}", err=True)
