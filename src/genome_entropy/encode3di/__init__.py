@@ -2,6 +2,7 @@
 
 # Export main classes and functions
 from .encoder import ProstT5ThreeDiEncoder
+from .modernprost import ModernProstThreeDiEncoder
 from .types import IndexedSeq, ThreeDiRecord
 from .token_estimator import (
     estimate_token_size,
@@ -11,6 +12,7 @@ from .token_estimator import (
 
 __all__ = [
     "ProstT5ThreeDiEncoder",
+    "ModernProstThreeDiEncoder",
     "ThreeDiRecord",
     "IndexedSeq",
     "estimate_token_size",

@@ -13,7 +13,7 @@ def download_command(
         "Rostlab/ProstT5_fp16",
         "--model",
         "-m",
-        help="ProstT5 model to download",
+        help="Model to download (Rostlab/ProstT5_fp16, gbouras13/modernprost-base, or gbouras13/modernprost-profiles)",
     ),
     test_data: bool = typer.Option(
         False,
@@ -23,26 +23,44 @@ def download_command(
 ) -> None:
     """Pre-download models and optional test datasets.
     
-    Downloads ProstT5 model from HuggingFace to local cache.
+    Downloads ProstT5 or ModernProst models from HuggingFace to local cache.
     Optionally downloads small reference datasets for testing.
     """
     try:
         from transformers import AutoModel, AutoTokenizer
         
-        typer.echo(f"Downloading ProstT5 model: {model}")
+        typer.echo(f"Downloading model: {model}")
         typer.echo("This may take a few minutes on first run...")
+        
+        # Check if this is a ModernProst model
+        is_modernprost = model in {
+            "gbouras13/modernprost-base",
+            "gbouras13/modernprost-profiles",
+        }
         
         # Download tokenizer
         typer.echo("  - Downloading tokenizer...")
-        tokenizer = AutoTokenizer.from_pretrained(
-            model,
-            use_fast=False,
-            legacy=True
-        )
+        if is_modernprost:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model,
+                trust_remote_code=True,
+            )
+        else:
+            tokenizer = AutoTokenizer.from_pretrained(
+                model,
+                use_fast=False,
+                legacy=True
+            )
         
         # Download model
         typer.echo("  - Downloading model...")
-        model_obj = AutoModel.from_pretrained(model)
+        if is_modernprost:
+            model_obj = AutoModel.from_pretrained(
+                model,
+                trust_remote_code=True,
+            )
+        else:
+            model_obj = AutoModel.from_pretrained(model)
         
         # Get cache location
         cache_dir = Path.home() / ".cache" / "huggingface"

@@ -29,7 +29,7 @@ def encode3di_command(
         "Rostlab/ProstT5_fp16",
         "--model",
         "-m",
-        help="ProstT5 model name",
+        help="Model name (Rostlab/ProstT5_fp16, gbouras13/modernprost-base, or gbouras13/modernprost-profiles)",
     ),
     device: Optional[str] = typer.Option(
         None,
@@ -57,15 +57,22 @@ def encode3di_command(
 ) -> None:
     """Encode proteins to 3Di structural tokens.
 
-    Uses ProstT5 model to predict 3Di structural alphabet tokens
+    Uses ProstT5 or ModernProst models to predict 3Di structural alphabet tokens
     directly from amino acid sequences.
+    
+    Available models:
+    - Rostlab/ProstT5_fp16 (default, original ProstT5 model)
+    - gbouras13/modernprost-base (newer base model)
+    - gbouras13/modernprost-profiles (newer model with profile support)
     
     Multi-GPU encoding can significantly speed up encoding by distributing
     batches across multiple GPUs. Use --multi-gpu to enable, and optionally
     specify --gpu-ids to select specific GPUs.
     """
     try:
+        from ...config import MODERNPROST_MODELS
         from ...encode3di.prostt5 import ProstT5ThreeDiEncoder
+        from ...encode3di.modernprost import ModernProstThreeDiEncoder
         from ...io.jsonio import read_json, write_json
         from ...orf.types import OrfRecord
         from ...translate.translator import ProteinRecord
@@ -99,8 +106,12 @@ def encode3di_command(
 
         typer.echo(f"  Loaded {len(proteins)} protein(s)")
 
-        typer.echo(f"\nInitializing ProstT5 encoder (model: {model})...")
-        encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
+        # Select encoder based on model name
+        typer.echo(f"\nInitializing encoder (model: {model})...")
+        if model in MODERNPROST_MODELS:
+            encoder = ModernProstThreeDiEncoder(model_name=model, device=device)
+        else:
+            encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
         
         if multi_gpu:
             typer.echo(f"  Multi-GPU encoding: enabled")

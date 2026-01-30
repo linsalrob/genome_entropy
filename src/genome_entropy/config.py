@@ -12,7 +12,13 @@ DEFAULT_MIN_AA_LENGTH = 30  # amino acids
 
 # ProstT5 model configuration
 DEFAULT_PROSTT5_MODEL = "Rostlab/ProstT5_fp16"
+MODERNPROST_BASE_MODEL = "gbouras13/modernprost-base"
+MODERNPROST_PROFILES_MODEL = "gbouras13/modernprost-profiles"
 DEFAULT_ENCODING_SIZE = 10000
+
+# Model types
+PROSTT5_MODELS = {"Rostlab/ProstT5_fp16"}
+MODERNPROST_MODELS = {MODERNPROST_BASE_MODEL, MODERNPROST_PROFILES_MODEL}
 
 # 3Di alphabet (20 structural states)
 THREEDDI_ALPHABET = set("ACDEFGHIKLMNPQRSTVWY")
