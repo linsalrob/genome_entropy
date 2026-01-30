@@ -131,11 +131,30 @@ class ModernProstThreeDiEncoder:
                 trust_remote_code=True,
             )
             
-            # Load model with trust_remote_code
-            self.model = AutoModel.from_pretrained(
+            # Load model config first to disable torch.compile
+            # ModernBert uses compiled_mlp which conflicts with multi-GPU threading
+            import transformers
+            
+            config = transformers.AutoConfig.from_pretrained(
                 self.model_name,
                 trust_remote_code=True,
+            )
+            
+            # Disable torch.compile if supported (ModernBert has this option)
+            if hasattr(config, "reference_compile"):
+                config.reference_compile = False
+                logger.info("Disabled torch.compile in model config for multi-GPU compatibility")
+            
+            # Load model with modified config
+            self.model = AutoModel.from_pretrained(
+                self.model_name,
+                config=config,
+                trust_remote_code=True,
             ).to(self.device)
+            
+            # Additional safety: Remove torch.compile from model if it was applied
+            # This is needed for multi-GPU compatibility
+            self._disable_torch_compile_in_model()
             
             # ModernProst models use half precision only on CUDA
             # CPU and MPS may not support half precision properly
@@ -151,6 +170,36 @@ class ModernProstThreeDiEncoder:
             raise ModelError(
                 f"Failed to load ModernProst model {self.model_name}: {e}"
             ) from e
+
+    def _disable_torch_compile_in_model(self) -> None:
+        """Disable torch.compile in the model for multi-GPU compatibility.
+        
+        ModernBert models use compiled_mlp which causes issues with multi-threading.
+        This method walks through the model and replaces any compiled components
+        with their original uncompiled versions.
+        """
+        try:
+            # Walk through all modules in the model
+            for name, module in self.model.named_modules():
+                # Check if this is a compiled module
+                if hasattr(module, "_orig_mod"):
+                    # This is a compiled module, replace it with the original
+                    logger.debug(f"Removing torch.compile from module: {name}")
+                    # Get the parent module and attribute name
+                    parent_name = ".".join(name.split(".")[:-1])
+                    attr_name = name.split(".")[-1]
+                    
+                    if parent_name:
+                        parent = dict(self.model.named_modules())[parent_name]
+                        setattr(parent, attr_name, module._orig_mod)
+                    else:
+                        # This is a top-level module
+                        self.model = module._orig_mod
+                        
+            logger.info("Removed torch.compile optimizations for multi-GPU compatibility")
+        except Exception as e:
+            # If removal fails, just log a warning - the config approach might have worked
+            logger.debug(f"Could not remove torch.compile (this may be okay): {e}")
 
     def token_budget_batches(
         self,

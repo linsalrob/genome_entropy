@@ -129,6 +129,7 @@ genome_entropy run --input input.fasta --output results.json \
 **Notes:** 
 - ModernProst models are based on the implementation from [phold](https://github.com/gbouras13/phold) by George Bouras.
 - ModernProst models require transformers >= 4.47.0 for ModernBert support. Upgrade if needed: `pip install --upgrade 'transformers>=4.47.0'`
+- ModernProst models automatically disable torch.compile optimizations when used with multi-GPU mode for compatibility.
 
 ### Multi-GPU Usage
 
