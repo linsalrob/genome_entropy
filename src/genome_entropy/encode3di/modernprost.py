@@ -125,14 +125,26 @@ class ModernProstThreeDiEncoder:
         try:
             logger.info("Loading ModernProst model: %s", self.model_name)
             
+            # Disable torch.compile/dynamo globally for multi-GPU compatibility
+            # ModernBert uses compiled_mlp which conflicts with multi-threading
+            import torch._dynamo
+            torch._dynamo.config.suppress_errors = True
+            torch._dynamo.reset()
+            
+            # Disable compilation by setting environment
+            import os
+            os.environ["PYTORCH_JIT"] = "0"
+            os.environ["TORCH_COMPILE_DISABLE"] = "1"
+            
+            logger.info("Disabled torch.compile/dynamo for multi-GPU compatibility")
+            
             # Load tokenizer with trust_remote_code for custom models
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
                 trust_remote_code=True,
             )
             
-            # Load model config first to disable torch.compile
-            # ModernBert uses compiled_mlp which conflicts with multi-GPU threading
+            # Load model config first
             import transformers
             
             config = transformers.AutoConfig.from_pretrained(
@@ -143,7 +155,7 @@ class ModernProstThreeDiEncoder:
             # Disable torch.compile if supported (ModernBert has this option)
             if hasattr(config, "reference_compile"):
                 config.reference_compile = False
-                logger.info("Disabled torch.compile in model config for multi-GPU compatibility")
+                logger.debug("Set reference_compile=False in model config")
             
             # Load model with modified config
             self.model = AutoModel.from_pretrained(
