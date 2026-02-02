@@ -157,9 +157,9 @@ def test_prostt5_attention_mask_extra_tokens() -> None:
         "_encode_batch should set attention_mask to 0 for extra token positions"
     )
     
-    # Should have bounds checking before masking
-    assert "< ids.attention_mask.shape" in source or "<ids.attention_mask.shape" in source, (
-        "_encode_batch should check bounds before masking attention_mask"
+    # Should have bounds checking before masking - check for dimension [1]
+    assert re.search(r"<\s*ids\.attention_mask\.shape\[1\]", source), (
+        "_encode_batch should check bounds using ids.attention_mask.shape[1] before masking"
     )
     
     # Verify the masking happens after tokenization but before model.generate
@@ -176,9 +176,13 @@ def test_prostt5_attention_mask_extra_tokens() -> None:
         if 'self.model.generate(' in line:
             generate_line = i
     
+    # Verify all three operations are found
+    assert tokenizer_line is not None, "Could not find tokenizer call in _encode_batch"
+    assert mask_line is not None, "Could not find attention_mask modification in _encode_batch"
+    assert generate_line is not None, "Could not find model.generate call in _encode_batch"
+    
     # Verify the order: tokenizer -> mask -> generate
-    if tokenizer_line is not None and mask_line is not None and generate_line is not None:
-        assert tokenizer_line < mask_line < generate_line, (
-            "Masking should happen after tokenization but before model.generate()"
-        )
+    assert tokenizer_line < mask_line < generate_line, (
+        "Masking should happen after tokenization but before model.generate()"
+    )
 
