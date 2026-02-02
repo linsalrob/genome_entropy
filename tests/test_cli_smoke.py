@@ -150,3 +150,12 @@ def test_estimate_tokens_log_level_option() -> None:
     assert (
         "logging level" in clean_output.lower() or "log level" in clean_output.lower()
     )
+
+
+def test_fasta_to_protein_command_help() -> None:
+    """Test fasta-to-protein command help."""
+    result = runner.invoke(app, ["fasta-to-protein", "--help"])
+    assert result.exit_code == 0
+    assert "input" in result.stdout.lower()
+    assert "output" in result.stdout.lower()
+    assert "fasta" in result.stdout.lower() or "protein" in result.stdout.lower()

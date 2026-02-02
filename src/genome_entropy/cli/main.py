@@ -70,11 +70,13 @@ if typer:
             translate,
             estimate_tokens,
             ml,
+            fasta_to_protein,
         )
 
         app.command(name="download")(download.download_command)
         app.command(name="orf")(orf.orf_command)
         app.command(name="translate")(translate.translate_command)
+        app.command(name="fasta-to-protein")(fasta_to_protein.fasta_to_protein_command)
         app.command(name="encode3di")(encode3di.encode3di_command)
         app.command(name="entropy")(entropy.entropy_command)
         app.command(name="run")(run.run_command)
