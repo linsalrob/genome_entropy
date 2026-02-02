@@ -8,6 +8,34 @@ except ImportError:
     typer = None
 
 
+def _is_model_cached(model_name: str) -> bool:
+    """Check if a model is already cached locally.
+    
+    Args:
+        model_name: HuggingFace model identifier
+        
+    Returns:
+        True if model is cached, False otherwise
+    """
+    try:
+        from huggingface_hub import try_to_load_from_cache
+        
+        # Try to find the model in the cache
+        cache_path = try_to_load_from_cache(
+            repo_id=model_name,
+            filename="config.json",
+        )
+        
+        # If we get a path (not None or _CACHED_NO_EXIST), model is cached
+        if cache_path is not None and isinstance(cache_path, (str, Path)):
+            return True
+            
+        return False
+    except Exception:
+        # If we can't check the cache, assume it's not cached
+        return False
+
+
 def download_command(
     model: str = typer.Option(
         "Rostlab/ProstT5_fp16",
@@ -31,7 +59,13 @@ def download_command(
         from ...config import MODERNPROST_MODELS
         
         typer.echo(f"Downloading model: {model}")
-        typer.echo("This may take a few minutes on first run...")
+        
+        # Check if model is already cached
+        is_cached = _is_model_cached(model)
+        if is_cached:
+            typer.echo("Model found in cache, verifying...")
+        else:
+            typer.echo("This may take a few minutes on first run...")
         
         # Check if this is a ModernProst model
         is_modernprost = model in MODERNPROST_MODELS
@@ -42,12 +76,16 @@ def download_command(
             tokenizer = AutoTokenizer.from_pretrained(
                 model,
                 trust_remote_code=True,
+                local_files_only=is_cached,
+                force_download=not is_cached,
             )
         else:
             tokenizer = AutoTokenizer.from_pretrained(
                 model,
                 use_fast=False,
-                legacy=True
+                legacy=True,
+                local_files_only=is_cached,
+                force_download=not is_cached,
             )
         
         # Download model
@@ -56,9 +94,15 @@ def download_command(
             model_obj = AutoModel.from_pretrained(
                 model,
                 trust_remote_code=True,
+                local_files_only=is_cached,
+                force_download=not is_cached,
             )
         else:
-            model_obj = AutoModel.from_pretrained(model)
+            model_obj = AutoModel.from_pretrained(
+                model,
+                local_files_only=is_cached,
+                force_download=not is_cached,
+            )
         
         # Get cache location
         cache_dir = Path.home() / ".cache" / "huggingface"

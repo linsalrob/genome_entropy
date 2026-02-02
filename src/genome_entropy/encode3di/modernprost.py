@@ -34,6 +34,7 @@ except ImportError as e:
     Accelerator = None  # type: ignore[assignment,misc]
 
 import numpy as np
+from pathlib import Path
 
 from ..config import (
     AUTO_DEVICE,
@@ -50,6 +51,38 @@ from .encoding import encode
 from .types import IndexedSeq, ThreeDiRecord
 
 logger = get_logger(__name__)
+
+
+def _is_model_cached(model_name: str) -> bool:
+    """Check if a model is already cached locally.
+    
+    Args:
+        model_name: HuggingFace model identifier
+        
+    Returns:
+        True if model is cached, False otherwise
+    """
+    try:
+        from transformers.utils import TRANSFORMERS_CACHE
+        from huggingface_hub import try_to_load_from_cache
+        
+        # Try to find the model in the cache
+        cache_path = try_to_load_from_cache(
+            repo_id=model_name,
+            filename="config.json",
+        )
+        
+        # If we get a path (not None or _CACHED_NO_EXIST), model is cached
+        if cache_path is not None and isinstance(cache_path, (str, Path)):
+            logger.debug(f"Model {model_name} found in cache at {cache_path}")
+            return True
+            
+        logger.debug(f"Model {model_name} not found in cache")
+        return False
+    except Exception as e:
+        # If we can't check the cache, assume it's not cached
+        logger.debug(f"Could not check cache for {model_name}: {e}")
+        return False
 
 
 class ModernProstThreeDiEncoder:
@@ -146,6 +179,13 @@ class ModernProstThreeDiEncoder:
         try:
             logger.info("Loading ModernProst model: %s", self.model_name)
             
+            # Check if model is already cached
+            is_cached = _is_model_cached(self.model_name)
+            if is_cached:
+                logger.info("Model found in cache, using local files only")
+            else:
+                logger.info("Model not in cache, will download from HuggingFace")
+            
             if not self.use_accelerate:
                 # Disable torch.compile/dynamo globally for multi-GPU compatibility
                 # ModernBert uses compiled_mlp which conflicts with multi-threading
@@ -164,6 +204,8 @@ class ModernProstThreeDiEncoder:
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
                 trust_remote_code=True,
+                local_files_only=is_cached,
+                force_download=not is_cached,
             )
             
             # Load model config first
@@ -172,6 +214,8 @@ class ModernProstThreeDiEncoder:
             config = transformers.AutoConfig.from_pretrained(
                 self.model_name,
                 trust_remote_code=True,
+                local_files_only=is_cached,
+                force_download=not is_cached,
             )
             
             # Disable torch.compile if supported (ModernBert has this option)
@@ -186,6 +230,8 @@ class ModernProstThreeDiEncoder:
                     self.model_name,
                     config=config,
                     trust_remote_code=True,
+                    local_files_only=is_cached,
+                    force_download=not is_cached,
                 )
                 
                 # Prepare model with accelerate for distributed inference
@@ -197,10 +243,19 @@ class ModernProstThreeDiEncoder:
                     self.model_name,
                     config=config,
                     trust_remote_code=True,
+                    local_files_only=is_cached,
+                    force_download=not is_cached,
                 ).to(self.device)
                 
                 # Additional safety: Remove torch.compile from model if it was applied
                 self._disable_torch_compile_in_model()
+            
+            # ModernProst models use half precision only on CUDA
+            # CPU and MPS may not support half precision properly
+            if self.device.startswith("cuda") or self.device == CUDA_DEVICE:
+                self.model = self.model.half()
+            
+            self.model = self.model.eval()
             
             # ModernProst models use half precision only on CUDA
             # CPU and MPS may not support half precision properly
