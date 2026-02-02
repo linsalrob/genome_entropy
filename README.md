@@ -129,7 +129,8 @@ genome_entropy run --input input.fasta --output results.json \
 **Notes:** 
 - ModernProst models are based on the implementation from [phold](https://github.com/gbouras13/phold) by George Bouras.
 - ModernProst models require transformers >= 4.47.0 for ModernBert support. Upgrade if needed: `pip install --upgrade 'transformers>=4.47.0'`
-- ModernProst models automatically disable torch.compile optimizations when used with multi-GPU mode for compatibility.
+- ModernProst models use HuggingFace's `accelerate` library for multi-GPU support, which handles model distribution automatically.
+- Install accelerate for multi-GPU: `pip install accelerate`
 
 ### Multi-GPU Usage
 
@@ -207,12 +208,17 @@ See [docs/ML_CLASSIFIER.md](docs/ML_CLASSIFIER.md) for detailed documentation an
 - Python 3.10 or higher
 - PyTorch >= 2.0.0 (GPU support optional)
 - Transformers >= 4.47.0 (HuggingFace) - **Required for ModernProst models**
+- Accelerate >= 0.20.0 (HuggingFace) - **Required for ModernProst multi-GPU support**
 - pygenetic-code >= 0.20.0
 - typer >= 0.9.0
 
-**Note:** ModernProst models (`gbouras13/modernprost-base` and `gbouras13/modernprost-profiles`) require transformers >= 4.47.0 for ModernBert support. If you're using an older version of transformers, please upgrade:
+**Note:** ModernProst models (`gbouras13/modernprost-base` and `gbouras13/modernprost-profiles`) require:
+- transformers >= 4.47.0 for ModernBert support
+- accelerate >= 0.20.0 for multi-GPU support
+
+If you're using an older version, please upgrade:
 ```bash
-pip install --upgrade 'transformers>=4.47.0'
+pip install --upgrade 'transformers>=4.47.0' 'accelerate>=0.20.0'
 ```
 
 ### External Binary: get_orfs

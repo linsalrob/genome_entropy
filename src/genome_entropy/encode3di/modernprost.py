@@ -4,14 +4,17 @@ This module implements an encoder for gbouras13/modernprost models,
 adapted from the phold implementation.
 
 Note: ModernProst models require transformers >= 4.47.0 for ModernBert support.
+Multi-GPU support uses HuggingFace accelerate library.
 """
 
+import time
 from typing import Any, Iterator, List, Optional, Sequence
 
 try:
     import torch
     import torch.nn.functional as F
     from transformers import AutoModel, AutoTokenizer
+    from accelerate import Accelerator
     
     # Check transformers version for ModernBert support
     import transformers
@@ -23,11 +26,12 @@ try:
             "Please upgrade: pip install --upgrade 'transformers>=4.47.0'",
             UserWarning
         )
-except ImportError:
+except ImportError as e:
     torch = None  # type: ignore[assignment]
     AutoModel = None  # type: ignore[assignment,misc]
     AutoTokenizer = None  # type: ignore[assignment,misc]
     F = None  # type: ignore[assignment,misc]
+    Accelerator = None  # type: ignore[assignment,misc]
 
 import numpy as np
 
@@ -62,12 +66,14 @@ class ModernProstThreeDiEncoder:
         self,
         model_name: str,
         device: Optional[str] = None,
+        use_accelerate: bool = False,
     ):
         """Initialize the ModernProst encoder.
 
         Args:
             model_name: HuggingFace model identifier (gbouras13/modernprost-base or modernprost-profiles)
             device: Device to use ("cuda", "mps", "cpu", or None for auto-detect)
+            use_accelerate: If True, use HuggingFace accelerate for multi-GPU support
 
         Raises:
             ModelError: If PyTorch or Transformers are not installed
@@ -80,7 +86,22 @@ class ModernProstThreeDiEncoder:
             )
 
         self.model_name = model_name
-        self.device = self._select_device(device)
+        self.use_accelerate = use_accelerate
+        self.accelerator: Any = None
+        
+        if use_accelerate:
+            if Accelerator is None:
+                raise ModelError(
+                    "accelerate library is required for multi-GPU support. "
+                    "Install with: pip install accelerate"
+                )
+            # Initialize accelerator for multi-GPU support
+            self.accelerator = Accelerator()
+            self.device = str(self.accelerator.device)
+            logger.info(f"Using accelerate with device: {self.device}")
+        else:
+            self.device = self._select_device(device)
+            
         self.model: Any = None
         self.tokenizer: Any = None
 
@@ -125,18 +146,19 @@ class ModernProstThreeDiEncoder:
         try:
             logger.info("Loading ModernProst model: %s", self.model_name)
             
-            # Disable torch.compile/dynamo globally for multi-GPU compatibility
-            # ModernBert uses compiled_mlp which conflicts with multi-threading
-            import torch._dynamo
-            torch._dynamo.config.suppress_errors = True
-            torch._dynamo.reset()
-            
-            # Disable compilation by setting environment
-            import os
-            os.environ["PYTORCH_JIT"] = "0"
-            os.environ["TORCH_COMPILE_DISABLE"] = "1"
-            
-            logger.info("Disabled torch.compile/dynamo for multi-GPU compatibility")
+            if not self.use_accelerate:
+                # Disable torch.compile/dynamo globally for multi-GPU compatibility
+                # ModernBert uses compiled_mlp which conflicts with multi-threading
+                import torch._dynamo
+                torch._dynamo.config.suppress_errors = True
+                torch._dynamo.reset()
+                
+                # Disable compilation by setting environment
+                import os
+                os.environ["PYTORCH_JIT"] = "0"
+                os.environ["TORCH_COMPILE_DISABLE"] = "1"
+                
+                logger.info("Disabled torch.compile/dynamo for multi-GPU compatibility")
             
             # Load tokenizer with trust_remote_code for custom models
             self.tokenizer = AutoTokenizer.from_pretrained(
@@ -158,19 +180,31 @@ class ModernProstThreeDiEncoder:
                 logger.debug("Set reference_compile=False in model config")
             
             # Load model with modified config
-            self.model = AutoModel.from_pretrained(
-                self.model_name,
-                config=config,
-                trust_remote_code=True,
-            ).to(self.device)
-            
-            # Additional safety: Remove torch.compile from model if it was applied
-            # This is needed for multi-GPU compatibility
-            self._disable_torch_compile_in_model()
+            if self.use_accelerate:
+                # Use accelerate for multi-GPU - don't move to device yet
+                self.model = AutoModel.from_pretrained(
+                    self.model_name,
+                    config=config,
+                    trust_remote_code=True,
+                )
+                
+                # Prepare model with accelerate for distributed inference
+                self.model = self.accelerator.prepare(self.model)
+                logger.info("Prepared model with accelerate for multi-GPU")
+            else:
+                # Standard single-GPU/CPU loading
+                self.model = AutoModel.from_pretrained(
+                    self.model_name,
+                    config=config,
+                    trust_remote_code=True,
+                ).to(self.device)
+                
+                # Additional safety: Remove torch.compile from model if it was applied
+                self._disable_torch_compile_in_model()
             
             # ModernProst models use half precision only on CUDA
             # CPU and MPS may not support half precision properly
-            if self.device == CUDA_DEVICE:
+            if self.device.startswith("cuda") or self.device == CUDA_DEVICE:
                 self.model = self.model.half()
             
             self.model = self.model.eval()
@@ -379,9 +413,9 @@ class ModernProstThreeDiEncoder:
         Args:
             aa_sequences: List of amino acid sequences (upper-case).
             encoding_size: Maximum size (approx. amino acids) to encode per batch
-            use_multi_gpu: If True, use multi-GPU parallel encoding when available
-            gpu_ids: Optional list of GPU IDs to use for multi-GPU encoding.
-            multi_gpu_encoder: Optional pre-initialized MultiGPUEncoder instance.
+            use_multi_gpu: If True, use accelerate for multi-GPU parallel encoding
+            gpu_ids: Optional list of GPU IDs (currently unused with accelerate)
+            multi_gpu_encoder: Optional pre-initialized encoder (for backward compatibility)
 
         Returns:
             List of 3Di token sequences (one per input sequence)
@@ -390,22 +424,18 @@ class ModernProstThreeDiEncoder:
             EncodingError: If encoding fails
         """
         if use_multi_gpu:
-            # Use multi-GPU encoding
-            from .multi_gpu import MultiGPUEncoder
-
-            # Use pre-initialized encoder if provided, otherwise create new one
-            if multi_gpu_encoder is None:
-                logger.info("Initializing multi-GPU encoding")
-                multi_gpu_encoder = MultiGPUEncoder(
+            # Use accelerate for multi-GPU encoding
+            if not self.use_accelerate:
+                # Need to re-initialize with accelerate support
+                logger.info("Re-initializing encoder with accelerate for multi-GPU support")
+                self.__init__(
                     model_name=self.model_name,
-                    encoder_class=ModernProstThreeDiEncoder,
-                    gpu_ids=gpu_ids,
+                    device=None,
+                    use_accelerate=True,
                 )
-                # Load models if not already loaded
-                logger.info("Loading models on all GPUs...")
-                for gpu_encoder in multi_gpu_encoder.encoders:
-                    gpu_encoder._load_model()
-
+            
+            self._load_model()
+            
             # Preprocess sequences (ModernProst-specific, no ProstT5 prefix)
             processed_seqs = []
             for seq in aa_sequences:
@@ -413,13 +443,62 @@ class ModernProstThreeDiEncoder:
                 seq = seq.replace("U", "X").replace("Z", "X").replace("O", "X").replace("B", "X")
                 processed_seqs.append(seq)
 
-            # Encode using multi-GPU (models already loaded)
-            return multi_gpu_encoder.encode_multi_gpu(
-                processed_seqs,
-                self.token_budget_batches,
-                encoding_size,
-                skip_model_loading=True,  # Models already loaded
-            )
+            # Process in batches using accelerate
+            import math
+            total_sequences = len(processed_seqs)
+            total_batches = math.ceil(sum(map(len, processed_seqs)) / encoding_size)
+            
+            # Create batches
+            batches = list(self.token_budget_batches(processed_seqs, encoding_size))
+            
+            # Process all batches with accelerate
+            three_di_sequences: List[str] = [None] * total_sequences  # type: ignore[list-item]
+            
+            from .encoding import format_seconds, get_memory_info
+            t0 = time.perf_counter()
+            avg_batch_sec: float | None = None
+            
+            for idx, batch in enumerate(batches, start=1):
+                batch_seqs = [x.seq for x in batch]
+                batch_idxs = [x.idx for x in batch]
+                
+                # Calculate ETA
+                remaining = total_batches - (idx - 1)
+                eta_str = (
+                    "--"
+                    if avg_batch_sec is None
+                    else format_seconds(avg_batch_sec * remaining)
+                )
+                
+                # Get memory info
+                allocated, reserved = get_memory_info()
+                
+                logger.info(
+                    "3Di encoding batch %d of %d batches. "
+                    "Estimated %s remaining. Cuda memory allocated: %.1f GB reserved: %.1f GB",
+                    idx,
+                    total_batches,
+                    eta_str,
+                    allocated,
+                    reserved,
+                )
+                
+                batch_start = time.perf_counter()
+                batch_results = self._encode_batch(batch_seqs)
+                
+                # Store results in original order
+                for bi, br in zip(batch_idxs, batch_results):
+                    three_di_sequences[bi] = br
+                
+                # Update timing
+                batch_elapsed = time.perf_counter() - batch_start
+                if idx == 1:
+                    avg_batch_sec = batch_elapsed
+                else:
+                    elapsed_total = time.perf_counter() - t0
+                    avg_batch_sec = elapsed_total / idx
+            
+            return three_di_sequences
         else:
             # Use single-GPU encoding
             self._load_model()
