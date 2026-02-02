@@ -286,6 +286,28 @@ Translate ORFs to protein sequences:
 genome_entropy translate --input orfs.json --output proteins.json --table 11
 ```
 
+### `genome_entropy fasta-to-protein` - Convert Protein FASTA to JSON
+
+Convert a protein FASTA file to the protein JSON format required for encode3di:
+
+```bash
+genome_entropy fasta-to-protein --input proteins.fasta --output proteins.json
+```
+
+This command is useful when you already have protein sequences (not from ORF finding) and want to encode them to 3Di. It creates minimal OrfRecord metadata for compatibility with the encode3di command.
+
+**Example workflow with direct protein sequences:**
+```bash
+# Step 1: Convert protein FASTA to JSON
+genome_entropy fasta-to-protein --input my_proteins.fasta --output proteins.json
+
+# Step 2: Encode to 3Di
+genome_entropy encode3di --input proteins.json --output 3di.json
+
+# Step 3: Calculate entropy
+genome_entropy entropy --input 3di.json --output entropy.json
+```
+
 ### `genome_entropy encode3di` - Encode to 3Di
 
 Convert proteins to 3Di structural tokens using ProstT5 or ModernProst:
