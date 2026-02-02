@@ -148,8 +148,8 @@ def test_modernprost_no_attention_mask_modification() -> None:
     )
     
     # Verify there's NO attention mask modification (setting to 0)
-    # Pattern: attention_mask[...] = 0
-    assert not re.search(r"attention_mask\s*\[.*\]\s*=\s*0", source), (
+    # Pattern: attention_mask[...] = 0 (exactly 0, not 0.5 or 01)
+    assert not re.search(r"attention_mask\s*\[.*\]\s*=\s*0\b", source), (
         "ModernProst should NOT modify attention_mask (no extra tokens to mask)"
     )
 

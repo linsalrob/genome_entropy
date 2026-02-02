@@ -238,10 +238,14 @@ class ProstT5ThreeDiEncoder:
             return_tensors="pt",
         ).to(self.device)
 
-        # ProstT5 appends special tokens at the end of each sequence
-        # Mask these out during inference while taking into account the ProstT5 prefix
+        # ProstT5 appends special tokens at the end of each sequence after tokenization.
+        # These extra tokens should be masked out during inference to avoid including
+        # them in the residue embeddings. The position len(seq) + 1 accounts for the
+        # sequence length plus the prefix token added by preprocessing (<AA2fold>).
         for idx, seq in enumerate(aa_sequences):
-            ids.attention_mask[idx, len(seq) + 1] = 0
+            mask_position = len(seq) + 1
+            if mask_position < ids.attention_mask.shape[1]:
+                ids.attention_mask[idx, mask_position] = 0
 
         # Generation configuration for "folding" (AA-->3Di)
         gen_kwargs_aa2fold = {

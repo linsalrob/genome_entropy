@@ -136,9 +136,9 @@ def test_prostt5_attention_mask_extra_tokens() -> None:
     source = inspect.getsource(ProstT5ThreeDiEncoder._encode_batch)
     
     # Verify the masking logic is present
-    # Should have a comment about ProstT5 appending special tokens
-    assert "ProstT5 appends" in source or "special token" in source, (
-        "_encode_batch should have a comment explaining that ProstT5 appends special tokens"
+    # Should have a comment about ProstT5 appending special tokens at the end
+    assert "ProstT5 appends special tokens at the end" in source, (
+        "_encode_batch should have a comment explaining that ProstT5 appends special tokens at the end"
     )
     
     # Should have logic that modifies attention_mask
@@ -152,9 +152,14 @@ def test_prostt5_attention_mask_extra_tokens() -> None:
     )
     
     # Should set attention_mask to 0 for extra tokens
-    # Pattern: ids.attention_mask[idx, len(seq) + 1] = 0
-    assert re.search(r"attention_mask\s*\[\s*\w+\s*,\s*len\s*\(", source), (
+    # Pattern: ids.attention_mask[idx, mask_position] = 0
+    assert re.search(r"attention_mask\s*\[\s*\w+\s*,\s*\w+\s*\]\s*=\s*0\b", source), (
         "_encode_batch should set attention_mask to 0 for extra token positions"
+    )
+    
+    # Should have bounds checking before masking
+    assert "< ids.attention_mask.shape" in source or "<ids.attention_mask.shape" in source, (
+        "_encode_batch should check bounds before masking attention_mask"
     )
     
     # Verify the masking happens after tokenization but before model.generate
