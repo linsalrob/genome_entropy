@@ -2,6 +2,7 @@
 
 import inspect
 import pytest
+import re
 
 
 def test_encoder_uses_correct_tokenizer_api() -> None:
@@ -120,3 +121,59 @@ def test_tokenizer_call_method_compatibility() -> None:
             pytest.skip(f"Could not download model for test: {e}")
         else:
             raise
+
+
+def test_prostt5_attention_mask_extra_tokens() -> None:
+    """Test that ProstT5 encoder masks extra special tokens in attention mask.
+    
+    This test verifies that the _encode_batch method includes logic to mask
+    out the extra special tokens that ProstT5 appends at the end of each sequence.
+    The masking should happen after tokenization but before inference.
+    """
+    from genome_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
+    
+    # Get the source code of _encode_batch
+    source = inspect.getsource(ProstT5ThreeDiEncoder._encode_batch)
+    
+    # Verify the masking logic is present
+    # Should have a comment about ProstT5 appending special tokens
+    assert "ProstT5 appends" in source or "special token" in source, (
+        "_encode_batch should have a comment explaining that ProstT5 appends special tokens"
+    )
+    
+    # Should have logic that modifies attention_mask
+    assert "attention_mask" in source, (
+        "_encode_batch should reference attention_mask for masking"
+    )
+    
+    # Should have a loop that iterates over sequences
+    assert re.search(r"for\s+\w+\s*,\s*\w+\s+in\s+enumerate\s*\(", source), (
+        "_encode_batch should have a loop that enumerates over sequences"
+    )
+    
+    # Should set attention_mask to 0 for extra tokens
+    # Pattern: ids.attention_mask[idx, len(seq) + 1] = 0
+    assert re.search(r"attention_mask\s*\[\s*\w+\s*,\s*len\s*\(", source), (
+        "_encode_batch should set attention_mask to 0 for extra token positions"
+    )
+    
+    # Verify the masking happens after tokenization but before model.generate
+    lines = source.split('\n')
+    tokenizer_line = None
+    mask_line = None
+    generate_line = None
+    
+    for i, line in enumerate(lines):
+        if 'self.tokenizer(' in line:
+            tokenizer_line = i
+        if 'attention_mask[' in line and '= 0' in line:
+            mask_line = i
+        if 'self.model.generate(' in line:
+            generate_line = i
+    
+    # Verify the order: tokenizer -> mask -> generate
+    if tokenizer_line is not None and mask_line is not None and generate_line is not None:
+        assert tokenizer_line < mask_line < generate_line, (
+            "Masking should happen after tokenization but before model.generate()"
+        )
+

@@ -2,6 +2,7 @@
 
 import inspect
 import pytest
+import re
 
 
 def test_modernprost_encoder_uses_correct_tokenizer_api() -> None:
@@ -127,3 +128,28 @@ def test_modernprost_encoder_instantiation() -> None:
         assert encoder.model_name == "gbouras13/modernprost-base"
     except Exception:
         pytest.skip("Cannot instantiate encoder without dependencies")
+
+
+def test_modernprost_no_attention_mask_modification() -> None:
+    """Test that ModernProst encoder does NOT modify attention mask.
+    
+    Unlike ProstT5, ModernProst uses add_special_tokens=False, so it doesn't
+    need to mask out extra tokens. This test verifies that there's no
+    attention mask modification logic in _encode_batch.
+    """
+    from genome_entropy.encode3di.modernprost import ModernProstThreeDiEncoder
+    
+    # Get the source code of _encode_batch
+    source = inspect.getsource(ModernProstThreeDiEncoder._encode_batch)
+    
+    # Verify add_special_tokens=False is used
+    assert "add_special_tokens=False" in source, (
+        "ModernProst should use add_special_tokens=False"
+    )
+    
+    # Verify there's NO attention mask modification (setting to 0)
+    # Pattern: attention_mask[...] = 0
+    assert not re.search(r"attention_mask\s*\[.*\]\s*=\s*0", source), (
+        "ModernProst should NOT modify attention_mask (no extra tokens to mask)"
+    )
+
