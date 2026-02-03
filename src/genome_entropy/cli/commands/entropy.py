@@ -31,7 +31,7 @@ def entropy_command(
     ),
 ) -> None:
     """Calculate Shannon entropy at all representation levels.
-    
+
     Computes entropy for DNA, ORF nucleotides, proteins, and 3Di tokens.
     """
     try:
@@ -40,10 +40,10 @@ def entropy_command(
         from ...orf.types import OrfRecord
         from ...translate.translator import ProteinRecord
         from ...encode3di.prostt5 import ThreeDiRecord
-        
+
         typer.echo(f"Reading 3Di records from: {input}")
         three_di_data = read_json(input)
-        
+
         # Reconstruct ThreeDiRecord objects
         if isinstance(three_di_data, list):
             three_dis = []
@@ -64,20 +64,30 @@ def entropy_command(
                 three_dis.append(three_di)
         else:
             raise ValueError("Invalid 3Di JSON format")
-        
+
         typer.echo(f"  Loaded {len(three_dis)} 3Di record(s)")
-        
+
         typer.echo(f"\nCalculating entropy...")
-        
+
         # Calculate entropies at different levels
-        orf_nt_seqs = {td.protein.orf.orf_id: td.protein.orf.nt_sequence for td in three_dis}
-        protein_aa_seqs = {td.protein.orf.orf_id: td.protein.aa_sequence for td in three_dis}
+        orf_nt_seqs = {
+            td.protein.orf.orf_id: td.protein.orf.nt_sequence for td in three_dis
+        }
+        protein_aa_seqs = {
+            td.protein.orf.orf_id: td.protein.aa_sequence for td in three_dis
+        }
         three_di_seqs = {td.protein.orf.orf_id: td.three_di for td in three_dis}
-        
-        orf_nt_entropy = calculate_entropies_for_sequences(orf_nt_seqs, normalize=normalize)
-        protein_aa_entropy = calculate_entropies_for_sequences(protein_aa_seqs, normalize=normalize)
-        three_di_entropy = calculate_entropies_for_sequences(three_di_seqs, normalize=normalize)
-        
+
+        orf_nt_entropy = calculate_entropies_for_sequences(
+            orf_nt_seqs, normalize=normalize
+        )
+        protein_aa_entropy = calculate_entropies_for_sequences(
+            protein_aa_seqs, normalize=normalize
+        )
+        three_di_entropy = calculate_entropies_for_sequences(
+            three_di_seqs, normalize=normalize
+        )
+
         # Create report
         report = EntropyReport(
             dna_entropy_global=0.0,  # Not available from 3Di records alone
@@ -86,14 +96,14 @@ def entropy_command(
             three_di_entropy=three_di_entropy,
             alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
         )
-        
+
         typer.echo(f"  Calculated entropy for {len(orf_nt_entropy)} sequence(s)")
-        
+
         typer.echo(f"\nWriting results to: {output}")
         write_json(report, output)
-        
+
         typer.echo("✓ Entropy calculation complete!")
-        
+
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(3)

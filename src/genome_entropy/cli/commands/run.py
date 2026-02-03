@@ -61,15 +61,15 @@ def run_command(
         None,
         "--gpu-ids",
         help="Comma-separated list of GPU IDs to use (e.g., '0,1,2'). "
-             "If not specified, auto-discovers available GPUs.",
+        "If not specified, auto-discovers available GPUs.",
     ),
     genbank: Optional[Path] = typer.Option(
         None,
         "--genbank",
         "-g",
         help="GenBank file with DNA sequences and CDS annotations. "
-             "Can be used instead of --input to provide both sequences and annotations. "
-             "ORFs will be matched to GenBank CDS features by C-terminal sequence.",
+        "Can be used instead of --input to provide both sequences and annotations. "
+        "ORFs will be matched to GenBank CDS features by C-terminal sequence.",
         exists=True,
         dir_okay=False,
     ),
@@ -92,20 +92,20 @@ def run_command(
     ),
 ) -> None:
     """Run the complete DNA to 3Di pipeline.
-    
+
     Executes all pipeline steps:
     1. Find ORFs in DNA sequences
     2. Translate ORFs to proteins
     3. Encode proteins to 3Di tokens
     4. Calculate entropy at all levels
     5. Optionally match ORFs to GenBank CDS annotations
-    
+
     Input options:
     - Provide --input for FASTA file (standard usage)
     - Provide --genbank for GenBank file (extracts sequences and CDS annotations)
     - Provide both --input and --genbank to use FASTA sequences with GenBank annotations
     - At least one of --input or --genbank must be provided
-    
+
     Multi-GPU encoding can significantly speed up 3Di encoding by distributing
     batches across multiple GPUs. Use --multi-gpu to enable, and optionally
     specify --gpu-ids to select specific GPUs.
@@ -114,7 +114,7 @@ def run_command(
         from ...config import VALID_LOG_LEVELS
         from ...logging_config import configure_logging
         from ...pipeline.runner import run_pipeline
-        
+
         # Validate and configure logging
         if log_level.upper() not in VALID_LOG_LEVELS:
             typer.echo(
@@ -122,15 +122,15 @@ def run_command(
                 err=True,
             )
             raise typer.Exit(2)
-        
+
         configure_logging(level=log_level.upper(), log_file=log_file)
-        
+
         # Validate that at least one input source is provided
         if not input and not genbank:
             typer.echo("Error: Must provide either --input or --genbank", err=True)
             typer.echo("Use --help for more information", err=True)
             raise typer.Exit(2)
-        
+
         # Parse GPU IDs if provided
         parsed_gpu_ids = None
         if gpu_ids:
@@ -140,22 +140,22 @@ def run_command(
                 typer.echo(f"Error: Invalid GPU IDs format: {gpu_ids}", err=True)
                 typer.echo("Expected comma-separated integers, e.g., '0,1,2'", err=True)
                 raise typer.Exit(2)
-        
+
         typer.echo(f"Starting DNA to 3Di pipeline...")
-        
+
         if input:
             typer.echo(f"  Input FASTA: {input}")
         if genbank:
             typer.echo(f"  GenBank file: {genbank}")
             if not input:
                 typer.echo(f"  (Using GenBank for DNA sequences)")
-        
+
         typer.echo(f"  Output: {output}")
         typer.echo(f"  Genetic code table: {table}")
         typer.echo(f"  Minimum AA length: {min_aa}")
         typer.echo(f"  Model: {model}")
         typer.echo(f"  Encoding size: {encoding_size}")
-        
+
         if multi_gpu:
             typer.echo(f"  Multi-GPU encoding: enabled")
             if parsed_gpu_ids:
@@ -164,9 +164,9 @@ def run_command(
                 typer.echo(f"  GPU IDs: auto-discover")
         else:
             typer.echo(f"  Device: {device if device else 'auto'}")
-        
+
         typer.echo(f"\nRunning pipeline...")
-        
+
         results = run_pipeline(
             input_fasta=input,
             table_id=table,
@@ -180,16 +180,16 @@ def run_command(
             genbank_file=genbank,
             encoding_size=encoding_size,
         )
-        
+
         typer.echo(f"\n✓ Pipeline complete!")
         typer.echo(f"  Processed {len(results)} sequence(s)")
-        
+
         total_orfs = sum(len(r.orfs) for r in results)
         total_proteins = sum(len(r.proteins) for r in results)
         typer.echo(f"  Found {total_orfs} ORF(s)")
         typer.echo(f"  Translated {total_proteins} protein(s)")
         typer.echo(f"  Results saved to: {output}")
-        
+
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(3)

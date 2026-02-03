@@ -25,10 +25,10 @@ def fasta_to_protein_command(
     ),
 ) -> None:
     """Convert protein FASTA file to protein JSON format.
-    
+
     Takes a FASTA file containing protein sequences and converts them
     to the protein JSON format required for input to encode3di.
-    
+
     Since these are direct protein sequences (not translated from ORFs),
     minimal OrfRecord metadata is created for compatibility.
     """
@@ -37,12 +37,12 @@ def fasta_to_protein_command(
         from ...io.jsonio import write_json
         from ...orf.types import OrfRecord
         from ...translate.translator import ProteinRecord
-        
+
         typer.echo(f"Reading proteins from: {input}")
         sequences = read_fasta(input)
-        
+
         typer.echo(f"  Loaded {len(sequences)} protein sequence(s)")
-        
+
         # Convert to ProteinRecord objects
         proteins = []
         for seq_id, aa_sequence in sequences.items():
@@ -62,21 +62,21 @@ def fasta_to_protein_command(
                 has_stop_codon=False,
                 in_genbank=False,
             )
-            
+
             protein = ProteinRecord(
                 orf=orf,
                 aa_sequence=aa_sequence,
                 aa_length=len(aa_sequence),
             )
             proteins.append(protein)
-        
+
         typer.echo(f"\nConverted {len(proteins)} protein(s)")
-        
+
         typer.echo(f"\nWriting results to: {output}")
         write_json(proteins, output)
-        
+
         typer.echo("✓ Conversion complete!")
-        
+
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(3)

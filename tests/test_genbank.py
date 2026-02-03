@@ -53,13 +53,13 @@ ORIGIN
 def test_read_genbank() -> None:
     """Test reading DNA sequences from GenBank file."""
     genbank_file = create_test_genbank_file()
-    
+
     try:
         sequences = read_genbank(genbank_file)
-        
+
         assert len(sequences) == 1
         assert "TEST_SEQ.1" in sequences
-        
+
         # Check that sequence is uppercase
         seq = sequences["TEST_SEQ.1"]
         assert seq == seq.upper()
@@ -77,12 +77,12 @@ def test_read_genbank_nonexistent_file() -> None:
 def test_extract_cds_features() -> None:
     """Test extracting CDS features from GenBank file."""
     genbank_file = create_test_genbank_file()
-    
+
     try:
         cds_features = extract_cds_features(genbank_file)
-        
+
         assert len(cds_features) == 2
-        
+
         # Check first CDS (forward strand)
         cds1 = cds_features[0]
         assert cds1.parent_id == "TEST_SEQ.1"
@@ -90,7 +90,7 @@ def test_extract_cds_features() -> None:
         assert cds1.end == 100  # exclusive
         assert cds1.strand == "+"
         assert cds1.protein_sequence == "MKSLLTSLAVVSGFLATCVAETKQEQ"
-        
+
         # Check second CDS (reverse strand)
         cds2 = cds_features[1]
         assert cds2.parent_id == "TEST_SEQ.1"
@@ -114,10 +114,10 @@ def test_match_orf_to_genbank_cds_exact_match() -> None:
             protein_sequence="MKSLLTSLAVVSGFLATCVAETKQEQ",
         ),
     ]
-    
+
     # ORF with same C-terminal sequence
     orf_aa = "MKSLLTSLAVVSGFLATCVAETKQEQ"
-    
+
     result = match_orf_to_genbank_cds(orf_aa, cds_list, min_c_terminal_match=10)
     assert result is True
 
@@ -133,10 +133,10 @@ def test_match_orf_to_genbank_cds_partial_match() -> None:
             protein_sequence="MKSLLTSLAVVSGFLATCVAETKQEQ",
         ),
     ]
-    
+
     # ORF with different start but same C-terminal (last 10 amino acids)
     orf_aa = "XXXXXXXXVVSGFLATCVAETKQEQ"  # Different N-terminal, same C-terminal
-    
+
     result = match_orf_to_genbank_cds(orf_aa, cds_list, min_c_terminal_match=10)
     assert result is True
 
@@ -152,10 +152,10 @@ def test_match_orf_to_genbank_cds_no_match() -> None:
             protein_sequence="MKSLLTSLAVVSGFLATCVAETKQEQ",
         ),
     ]
-    
+
     # ORF with completely different sequence
     orf_aa = "AAAAAAAAAAAAAAAAAAAAAAAAAA"
-    
+
     result = match_orf_to_genbank_cds(orf_aa, cds_list, min_c_terminal_match=10)
     assert result is False
 
@@ -171,10 +171,10 @@ def test_match_orf_to_genbank_cds_with_stop_codon() -> None:
             protein_sequence="MKSLLTSLAVVSGFLATCVAETKQEQ",
         ),
     ]
-    
+
     # ORF with stop codon at end
     orf_aa = "MKSLLTSLAVVSGFLATCVAETKQEQ*"
-    
+
     result = match_orf_to_genbank_cds(orf_aa, cds_list, min_c_terminal_match=10)
     assert result is True
 
@@ -190,10 +190,10 @@ def test_match_orf_to_genbank_cds_short_sequence() -> None:
             protein_sequence="MKSLLTSLA",
         ),
     ]
-    
+
     # ORF shorter than min_c_terminal_match
     orf_aa = "MKSLLTSLA"
-    
+
     result = match_orf_to_genbank_cds(orf_aa, cds_list, min_c_terminal_match=10)
     assert result is True
 
@@ -203,7 +203,7 @@ def test_match_orf_to_genbank_cds_empty_inputs() -> None:
     # Empty ORF sequence
     result = match_orf_to_genbank_cds("", [], min_c_terminal_match=10)
     assert result is False
-    
+
     # Empty CDS list
     result = match_orf_to_genbank_cds("MKSLLTSLA", [], min_c_terminal_match=10)
     assert result is False
@@ -227,10 +227,10 @@ def test_match_orf_to_genbank_cds_multiple_cds() -> None:
             protein_sequence="MKSLLTSLAVVSGFLATCVAETKQEQ",
         ),
     ]
-    
+
     # ORF matching second CDS
     orf_aa = "MKSLLTSLAVVSGFLATCVAETKQEQ"
-    
+
     result = match_orf_to_genbank_cds(orf_aa, cds_list, min_c_terminal_match=10)
     assert result is True
 
@@ -244,7 +244,7 @@ def test_genbank_cds_dataclass() -> None:
         strand="+",
         protein_sequence="MKSLLTSLA",
     )
-    
+
     assert cds.parent_id == "TEST_SEQ"
     assert cds.start == 10
     assert cds.end == 100

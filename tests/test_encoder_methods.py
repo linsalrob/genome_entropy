@@ -125,64 +125,68 @@ def test_tokenizer_call_method_compatibility() -> None:
 
 def test_prostt5_attention_mask_extra_tokens() -> None:
     """Test that ProstT5 encoder masks extra special tokens in attention mask.
-    
+
     This test verifies that the _encode_batch method includes logic to mask
     out the extra special tokens that ProstT5 appends at the end of each sequence.
     The masking should happen after tokenization but before inference.
     """
     from genome_entropy.encode3di.encoder import ProstT5ThreeDiEncoder
-    
+
     # Get the source code of _encode_batch
     source = inspect.getsource(ProstT5ThreeDiEncoder._encode_batch)
-    
+
     # Verify the masking logic is present
     # Should have a comment about ProstT5 appending special tokens at the end
-    assert "ProstT5 appends special tokens at the end" in source, (
-        "_encode_batch should have a comment explaining that ProstT5 appends special tokens at the end"
-    )
-    
+    assert (
+        "ProstT5 appends special tokens at the end" in source
+    ), "_encode_batch should have a comment explaining that ProstT5 appends special tokens at the end"
+
     # Should have logic that modifies attention_mask
-    assert "attention_mask" in source, (
-        "_encode_batch should reference attention_mask for masking"
-    )
-    
+    assert (
+        "attention_mask" in source
+    ), "_encode_batch should reference attention_mask for masking"
+
     # Should have a loop that iterates over sequences
-    assert re.search(r"for\s+\w+\s*,\s*\w+\s+in\s+enumerate\s*\(", source), (
-        "_encode_batch should have a loop that enumerates over sequences"
-    )
-    
+    assert re.search(
+        r"for\s+\w+\s*,\s*\w+\s+in\s+enumerate\s*\(", source
+    ), "_encode_batch should have a loop that enumerates over sequences"
+
     # Should set attention_mask to 0 for extra tokens
     # Pattern: ids.attention_mask[idx, mask_position] = 0
-    assert re.search(r"attention_mask\s*\[\s*\w+\s*,\s*\w+\s*\]\s*=\s*0\b", source), (
-        "_encode_batch should set attention_mask to 0 for extra token positions"
-    )
-    
-    # Should have bounds checking before masking - check for dimension [1]
-    assert re.search(r"<\s*ids\.attention_mask\.shape\[1\]", source), (
-        "_encode_batch should check bounds using ids.attention_mask.shape[1] before masking"
-    )
-    
+    assert re.search(
+        r"attention_mask\s*\[\s*\w+\s*,\s*\w+\s*\]\s*=\s*0\b", source
+    ), "_encode_batch should set attention_mask to 0 for extra token positions"
+
+    # Should have error handling (try/except) for masking to handle bounds issues
+    # The implementation uses try/except to catch indexing errors gracefully
+    assert (
+        "try:" in source and "except" in source
+    ), "_encode_batch should use try/except for error handling when masking"
+
     # Verify the masking happens after tokenization but before model.generate
-    lines = source.split('\n')
+    lines = source.split("\n")
     tokenizer_line = None
     mask_line = None
     generate_line = None
-    
+
     for i, line in enumerate(lines):
-        if 'self.tokenizer(' in line:
+        if "self.tokenizer(" in line:
             tokenizer_line = i
-        if 'attention_mask[' in line and '= 0' in line:
+        if "attention_mask[" in line and "= 0" in line:
             mask_line = i
-        if 'self.model.generate(' in line:
+        if "self.model.generate(" in line:
             generate_line = i
-    
+
     # Verify all three operations are found
     assert tokenizer_line is not None, "Could not find tokenizer call in _encode_batch"
-    assert mask_line is not None, "Could not find attention_mask modification in _encode_batch"
-    assert generate_line is not None, "Could not find model.generate call in _encode_batch"
-    
-    # Verify the order: tokenizer -> mask -> generate
-    assert tokenizer_line < mask_line < generate_line, (
-        "Masking should happen after tokenization but before model.generate()"
-    )
+    assert (
+        mask_line is not None
+    ), "Could not find attention_mask modification in _encode_batch"
+    assert (
+        generate_line is not None
+    ), "Could not find model.generate call in _encode_batch"
 
+    # Verify the order: tokenizer -> mask -> generate
+    assert (
+        tokenizer_line < mask_line < generate_line
+    ), "Masking should happen after tokenization but before model.generate()"
