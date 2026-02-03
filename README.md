@@ -45,9 +45,10 @@ The documentation includes:
 - 🧬 **ORF Finding**: Extract Open Reading Frames from DNA sequences using customizable genetic codes
 - 🔄 **Translation**: Convert ORFs to protein sequences with support for all NCBI genetic code tables
 - 🏗️ **3Di Encoding**: Predict structural alphabet tokens directly from sequences using ProstT5 or ModernProst models
-  - ProstT5 (Rostlab/ProstT5_fp16) - Original model
-  - ModernProst-base (gbouras13/modernprost-base) - Newer base model
+  - ModernProst-base (gbouras13/modernprost-base) - Default, newer base model
   - ModernProst-profiles (gbouras13/modernprost-profiles) - Newer model with profile support
+  - ProstT5 (Rostlab/ProstT5) - Original model, full precision
+  - ProstT5 fp16 (Rostlab/ProstT5_fp16) - Original model, half precision
 - 📊 **Entropy Analysis**: Calculate Shannon entropy at DNA, ORF, protein, and 3Di levels
 - 🤖 **ML Classifier**: Train machine learning models to predict GenBank annotations from ORF features
 - ⚡ **GPU Acceleration**: Auto-detect and use CUDA, MPS (Apple Silicon), or CPU
@@ -106,25 +107,26 @@ genome_entropy entropy --input 3di.json --output entropy.json
 genome_entropy supports multiple models for 3Di encoding:
 
 ```bash
-# Use default ProstT5 model (original)
+# Use default ModernProst base model (recommended)
 genome_entropy run --input input.fasta --output results.json
-
-# Use ModernProst base model (newer, faster)
-genome_entropy run --input input.fasta --output results.json \
-    --model gbouras13/modernprost-base
 
 # Use ModernProst with profiles (for Foldseek profile searches)
 genome_entropy run --input input.fasta --output results.json \
     --model gbouras13/modernprost-profiles
+
+# Use original ProstT5 models
+genome_entropy run --input input.fasta --output results.json \
+    --model Rostlab/ProstT5_fp16
 ```
 
 **Model Comparison:**
 
 | Model | Description | Use Case | Requirements |
 |-------|-------------|----------|--------------|
-| `Rostlab/ProstT5_fp16` | Original ProstT5 model | Default, well-tested | transformers >= 4.30.0 |
-| `gbouras13/modernprost-base` | Newer ModernProst base | Faster inference, modern architecture | transformers >= 4.47.0 |
+| `gbouras13/modernprost-base` | Newer ModernProst base (default) | Faster inference, modern architecture | transformers >= 4.47.0 |
 | `gbouras13/modernprost-profiles` | ModernProst with profiles | For generating 3Di PSSM profiles for Foldseek | transformers >= 4.47.0 |
+| `Rostlab/ProstT5` | Original ProstT5 model (full precision) | Well-tested, compatible | transformers >= 4.30.0 |
+| `Rostlab/ProstT5_fp16` | Original ProstT5 model (half precision) | Well-tested, faster on GPU | transformers >= 4.30.0 |
 
 **Notes:** 
 - ModernProst models are based on the implementation from [phold](https://github.com/gbouras13/phold) by George Bouras.
