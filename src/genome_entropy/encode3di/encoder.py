@@ -259,8 +259,6 @@ class ProstT5ThreeDiEncoder:
                 ids.attention_mask[idx, mask_position] = 0
             except Exception as e:
                 err_msg = f"Tried to mask at {mask_position} but attention is only {len(ids.attention_mask[idx])}";
-                err_msg += f"\nSequences: {seq.replace(" ", "")}\n"
-                err_msg += f"\nMask: {ids.attention_mask[idx]}\n"
                 logger.exception(err_msg)
 
         
