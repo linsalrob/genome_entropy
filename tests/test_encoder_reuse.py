@@ -10,7 +10,7 @@ import pytest
 def mock_orf_finder(monkeypatch):
     """Mock ORF finder to return synthetic ORFs without needing genome_entropy binary."""
     from genome_entropy.orf.types import OrfRecord
-    
+
     def mock_find_orfs(sequences, table_id=11, min_nt_length=90):
         """Return mock ORFs for each sequence."""
         orfs = []
@@ -19,7 +19,7 @@ def mock_orf_finder(monkeypatch):
             nt_seq = dna_seq[:90] if len(dna_seq) >= 90 else dna_seq
             # Provide placeholder AA sequence - translation will be mocked separately
             aa_seq = "M" + "A" * (len(nt_seq) // 3 - 1)
-            
+
             orf = OrfRecord(
                 parent_id=seq_id,
                 orf_id=f"{seq_id}_orf_1",
@@ -36,9 +36,10 @@ def mock_orf_finder(monkeypatch):
             )
             orfs.append(orf)
         return orfs
-    
+
     # Patch where find_orfs is used, not where it's defined
     from genome_entropy.pipeline import runner
+
     monkeypatch.setattr(runner, "find_orfs", mock_find_orfs)
 
 
@@ -46,7 +47,7 @@ def mock_orf_finder(monkeypatch):
 def mock_translator(monkeypatch):
     """Mock translator to avoid translation validation errors."""
     from genome_entropy.translate.translator import ProteinRecord
-    
+
     def mock_translate_orfs(orfs, table_id=11):
         """Return protein records without translation validation."""
         proteins = []
@@ -58,22 +59,25 @@ def mock_translator(monkeypatch):
             )
             proteins.append(protein)
         return proteins
-    
+
     # Patch where translate_orfs is used, not where it's defined
     from genome_entropy.pipeline import runner
+
     monkeypatch.setattr(runner, "translate_orfs", mock_translate_orfs)
 
 
-def test_encoder_instantiated_once_for_multiple_sequences(mock_prostt5_encoder, mock_orf_finder, mock_translator):
+def test_encoder_instantiated_once_for_multiple_sequences(
+    mock_prostt5_encoder, mock_orf_finder, mock_translator
+):
     """Test that encoder is instantiated only once when processing multiple GenBank sequences.
-    
+
     This test verifies the optimization where the ProstT5ThreeDiEncoder is created
     once before the loop and reused for all sequences, rather than creating a new
     instance for each sequence.
     """
     from genome_entropy.pipeline.runner import run_pipeline
     from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
-    
+
     # Create a test FASTA file with multiple sequences
     fasta_content = """>seq1
 ATGGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAG
@@ -83,21 +87,21 @@ ATGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAA
 >seq3
 ATGCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTAA
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as tmp:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".fasta", delete=False) as tmp:
         tmp.write(fasta_content)
         tmp_path = tmp.name
-    
+
     try:
         # Mock the ProstT5ThreeDiEncoder.__init__ to track instantiation
         original_init = ProstT5ThreeDiEncoder.__init__
         init_call_count = [0]
-        
+
         def mock_init(self, model_name=None, device=None):
             init_call_count[0] += 1
             original_init(self, model_name=model_name, device=device)
-        
-        with patch.object(ProstT5ThreeDiEncoder, '__init__', mock_init):
+
+        with patch.object(ProstT5ThreeDiEncoder, "__init__", mock_init):
             # Run pipeline with multiple sequences
             results = run_pipeline(
                 input_fasta=tmp_path,
@@ -106,30 +110,32 @@ ATGCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTAA
                 compute_entropy=True,
                 device="cpu",
             )
-            
+
             # Verify we got results for all sequences
             assert len(results) == 3
-            
+
             # CRITICAL: Verify encoder was instantiated only ONCE
             # (not once per sequence)
             assert init_call_count[0] == 1, (
                 f"Encoder should be instantiated once, but was instantiated "
                 f"{init_call_count[0]} times for {len(results)} sequences"
             )
-    
+
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
 
-def test_encoder_reused_for_genbank_multiple_entries(mock_prostt5_encoder, mock_orf_finder, mock_translator):
+def test_encoder_reused_for_genbank_multiple_entries(
+    mock_prostt5_encoder, mock_orf_finder, mock_translator
+):
     """Test that encoder is reused when processing GenBank file with multiple entries.
-    
+
     This is the specific use case mentioned in the issue: GenBank files with
     multiple entries should reuse the same encoder instance and loaded model.
     """
     from genome_entropy.pipeline.runner import run_pipeline
     from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
-    
+
     # Create a GenBank file with multiple entries
     genbank_content = """LOCUS       SEQ1                    102 bp    DNA     linear   BCT 01-JAN-2024
 DEFINITION  Test sequence 1.
@@ -153,21 +159,21 @@ ORIGIN
         1 atgaaaaaa aaaaaaaa aaaaaaaa aaaaaaaa aaaaaaaa aaataa
 //
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.gb', delete=False) as tmp:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".gb", delete=False) as tmp:
         tmp.write(genbank_content)
         tmp_path = tmp.name
-    
+
     try:
         # Track encoder instantiation
         original_init = ProstT5ThreeDiEncoder.__init__
         init_call_count = [0]
-        
+
         def mock_init(self, model_name=None, device=None):
             init_call_count[0] += 1
             original_init(self, model_name=model_name, device=device)
-        
-        with patch.object(ProstT5ThreeDiEncoder, '__init__', mock_init):
+
+        with patch.object(ProstT5ThreeDiEncoder, "__init__", mock_init):
             # Run pipeline with GenBank file
             results = run_pipeline(
                 genbank_file=tmp_path,
@@ -176,29 +182,31 @@ ORIGIN
                 compute_entropy=True,
                 device="cpu",
             )
-            
+
             # Verify we processed both GenBank entries
             assert len(results) == 2
-            
+
             # CRITICAL: Verify encoder was instantiated only ONCE for both entries
             assert init_call_count[0] == 1, (
                 f"Encoder should be instantiated once for GenBank with "
                 f"{len(results)} entries, but was instantiated {init_call_count[0]} times"
             )
-    
+
     finally:
         Path(tmp_path).unlink(missing_ok=True)
 
 
-def test_encoder_load_model_called_once(mock_prostt5_encoder, mock_orf_finder, mock_translator):
+def test_encoder_load_model_called_once(
+    mock_prostt5_encoder, mock_orf_finder, mock_translator
+):
     """Test that _load_model is called only once even with multiple sequences.
-    
+
     This verifies that not only is the encoder instantiated once, but the
     model loading happens only once as well.
     """
     from genome_entropy.pipeline.runner import run_pipeline
     from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
-    
+
     # Create a test FASTA file with multiple sequences
     fasta_content = """>seq1
 ATGGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAG
@@ -206,23 +214,23 @@ CTAGCTAGCTAGCTAGCTAGCTGA
 >seq2
 ATGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAA
 """
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.fasta', delete=False) as tmp:
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".fasta", delete=False) as tmp:
         tmp.write(fasta_content)
         tmp_path = tmp.name
-    
+
     try:
         # Track _load_model calls
         load_model_call_count = [0]
         original_load_model = ProstT5ThreeDiEncoder._load_model
-        
+
         def mock_load_model(self):
             load_model_call_count[0] += 1
             # Don't actually load the model in tests
             self.model = Mock()
             self.tokenizer = Mock()
-        
-        with patch.object(ProstT5ThreeDiEncoder, '_load_model', mock_load_model):
+
+        with patch.object(ProstT5ThreeDiEncoder, "_load_model", mock_load_model):
             # Run pipeline
             results = run_pipeline(
                 input_fasta=tmp_path,
@@ -231,10 +239,10 @@ ATGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAA
                 compute_entropy=True,
                 device="cpu",
             )
-            
+
             # Verify we processed both sequences
             assert len(results) == 2
-            
+
             # Verify _load_model was called only once (or not at all due to mocking)
             # With the mock_prostt5_encoder fixture, _load_model may not be called at all
             # The key is that it's not called multiple times
@@ -242,6 +250,6 @@ ATGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAA
                 f"_load_model should be called at most once, but was called "
                 f"{load_model_call_count[0]} times for {len(results)} sequences"
             )
-    
+
     finally:
         Path(tmp_path).unlink(missing_ok=True)

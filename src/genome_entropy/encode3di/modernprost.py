@@ -15,16 +15,18 @@ try:
     import torch.nn.functional as F
     from transformers import AutoModel, AutoTokenizer
     from accelerate import Accelerator
-    
+
     # Check transformers version for ModernBert support
     import transformers
-    transformers_version = tuple(map(int, transformers.__version__.split('.')[:2]))
+
+    transformers_version = tuple(map(int, transformers.__version__.split(".")[:2]))
     if transformers_version < (4, 47):
         import warnings
+
         warnings.warn(
             f"ModernProst models require transformers >= 4.47.0 (current: {transformers.__version__}). "
             "Please upgrade: pip install --upgrade 'transformers>=4.47.0'",
-            UserWarning
+            UserWarning,
         )
 except ImportError as e:
     torch = None  # type: ignore[assignment]
@@ -55,28 +57,28 @@ logger = get_logger(__name__)
 
 def _is_model_cached(model_name: str) -> bool:
     """Check if a model is already cached locally.
-    
+
     Args:
         model_name: HuggingFace model identifier
-        
+
     Returns:
         True if model is cached, False otherwise
     """
     try:
         from transformers.utils import TRANSFORMERS_CACHE
         from huggingface_hub import try_to_load_from_cache
-        
+
         # Try to find the model in the cache
         cache_path = try_to_load_from_cache(
             repo_id=model_name,
             filename="config.json",
         )
-        
+
         # If we get a path (not None or _CACHED_NO_EXIST), model is cached
         if cache_path is not None and isinstance(cache_path, (str, Path)):
             logger.debug(f"Model {model_name} found in cache at {cache_path}")
             return True
-            
+
         logger.debug(f"Model {model_name} not found in cache")
         return False
     except Exception as e:
@@ -90,7 +92,7 @@ class ModernProstThreeDiEncoder:
 
     Uses ModernProst models (gbouras13/modernprost-base or modernprost-profiles)
     from HuggingFace to predict 3Di tokens directly from protein sequences.
-    
+
     Based on implementation from phold:
     https://github.com/gbouras13/phold/blob/main/src/phold/features/predict_3Di.py
     """
@@ -121,7 +123,7 @@ class ModernProstThreeDiEncoder:
         self.model_name = model_name
         self.use_accelerate = use_accelerate
         self.accelerator: Any = None
-        
+
         if use_accelerate:
             if Accelerator is None:
                 raise ModelError(
@@ -134,7 +136,7 @@ class ModernProstThreeDiEncoder:
             logger.info(f"Using accelerate with device: {self.device}")
         else:
             self.device = self._select_device(device)
-            
+
         self.model: Any = None
         self.tokenizer: Any = None
 
@@ -178,28 +180,30 @@ class ModernProstThreeDiEncoder:
 
         try:
             logger.info("Loading ModernProst model: %s", self.model_name)
-            
+
             # Check if model is already cached
             is_cached = _is_model_cached(self.model_name)
             if is_cached:
                 logger.info("Model found in cache, using local files only")
             else:
                 logger.info("Model not in cache, will download from HuggingFace")
-            
+
             if not self.use_accelerate:
                 # Disable torch.compile/dynamo globally for multi-GPU compatibility
                 # ModernBert uses compiled_mlp which conflicts with multi-threading
                 import torch._dynamo
+
                 torch._dynamo.config.suppress_errors = True
                 torch._dynamo.reset()
-                
+
                 # Disable compilation by setting environment
                 import os
+
                 os.environ["PYTORCH_JIT"] = "0"
                 os.environ["TORCH_COMPILE_DISABLE"] = "1"
-                
+
                 logger.info("Disabled torch.compile/dynamo for multi-GPU compatibility")
-            
+
             # Load tokenizer with trust_remote_code for custom models
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name,
@@ -207,22 +211,22 @@ class ModernProstThreeDiEncoder:
                 local_files_only=is_cached,
                 force_download=not is_cached,
             )
-            
+
             # Load model config first
             import transformers
-            
+
             config = transformers.AutoConfig.from_pretrained(
                 self.model_name,
                 trust_remote_code=True,
                 local_files_only=is_cached,
                 force_download=not is_cached,
             )
-            
+
             # Disable torch.compile if supported (ModernBert has this option)
             if hasattr(config, "reference_compile"):
                 config.reference_compile = False
                 logger.debug("Set reference_compile=False in model config")
-            
+
             # Load model with modified config
             if self.use_accelerate:
                 # Use accelerate for multi-GPU - don't move to device yet
@@ -233,7 +237,7 @@ class ModernProstThreeDiEncoder:
                     local_files_only=is_cached,
                     force_download=not is_cached,
                 )
-                
+
                 # Prepare model with accelerate for distributed inference
                 self.model = self.accelerator.prepare(self.model)
                 logger.info("Prepared model with accelerate for multi-GPU")
@@ -246,22 +250,22 @@ class ModernProstThreeDiEncoder:
                     local_files_only=is_cached,
                     force_download=not is_cached,
                 ).to(self.device)
-                
+
                 # Additional safety: Remove torch.compile from model if it was applied
                 self._disable_torch_compile_in_model()
-            
+
             # ModernProst models use half precision only on CUDA
             # CPU and MPS may not support half precision properly
             if self.device.startswith("cuda") or self.device == CUDA_DEVICE:
                 self.model = self.model.half()
-            
+
             self.model = self.model.eval()
-            
+
             # ModernProst models use half precision only on CUDA
             # CPU and MPS may not support half precision properly
             if self.device.startswith("cuda") or self.device == CUDA_DEVICE:
                 self.model = self.model.half()
-            
+
             self.model = self.model.eval()
 
             logger.info("Loaded model %s on device %s", self.model_name, self.device)
@@ -274,7 +278,7 @@ class ModernProstThreeDiEncoder:
 
     def _disable_torch_compile_in_model(self) -> None:
         """Disable torch.compile in the model for multi-GPU compatibility.
-        
+
         ModernBert models use compiled_mlp which causes issues with multi-threading.
         This method walks through the model and replaces any compiled components
         with their original uncompiled versions.
@@ -289,15 +293,17 @@ class ModernProstThreeDiEncoder:
                     # Get the parent module and attribute name
                     parent_name = ".".join(name.split(".")[:-1])
                     attr_name = name.split(".")[-1]
-                    
+
                     if parent_name:
                         parent = dict(self.model.named_modules())[parent_name]
                         setattr(parent, attr_name, module._orig_mod)
                     else:
                         # This is a top-level module
                         self.model = module._orig_mod
-                        
-            logger.info("Removed torch.compile optimizations for multi-GPU compatibility")
+
+            logger.info(
+                "Removed torch.compile optimizations for multi-GPU compatibility"
+            )
         except Exception as e:
             # If removal fails, just log a warning - the config approach might have worked
             logger.debug(f"Could not remove torch.compile (this may be okay): {e}")
@@ -433,17 +439,33 @@ class ModernProstThreeDiEncoder:
 
         # Extract logits and compute predictions
         logits = outputs.logits  # [B, L, C]
-        
+
         # Get predictions (argmax over classes)
         preds = torch.argmax(logits, dim=-1)  # [B, L]
         preds_cpu = preds.cpu().numpy()
 
         # Map predictions to 3Di alphabet
         ss_mapping = {
-            0: "A", 1: "C", 2: "D", 3: "E", 4: "F",
-            5: "G", 6: "H", 7: "I", 8: "K", 9: "L",
-            10: "M", 11: "N", 12: "P", 13: "Q", 14: "R",
-            15: "S", 16: "T", 17: "V", 18: "W", 19: "Y",
+            0: "A",
+            1: "C",
+            2: "D",
+            3: "E",
+            4: "F",
+            5: "G",
+            6: "H",
+            7: "I",
+            8: "K",
+            9: "L",
+            10: "M",
+            11: "N",
+            12: "P",
+            13: "Q",
+            14: "R",
+            15: "S",
+            16: "T",
+            17: "V",
+            18: "W",
+            19: "Y",
         }
 
         # Convert predictions to 3Di strings
@@ -482,41 +504,50 @@ class ModernProstThreeDiEncoder:
             # Use accelerate for multi-GPU encoding
             if not self.use_accelerate:
                 # Need to re-initialize with accelerate support
-                logger.info("Re-initializing encoder with accelerate for multi-GPU support")
+                logger.info(
+                    "Re-initializing encoder with accelerate for multi-GPU support"
+                )
                 self.__init__(
                     model_name=self.model_name,
                     device=None,
                     use_accelerate=True,
                 )
-            
+
             self._load_model()
-            
+
             # Preprocess sequences (ModernProst-specific, no ProstT5 prefix)
             processed_seqs = []
             for seq in aa_sequences:
                 # Replace rare/ambiguous amino acids
-                seq = seq.replace("U", "X").replace("Z", "X").replace("O", "X").replace("B", "X")
+                seq = (
+                    seq.replace("U", "X")
+                    .replace("Z", "X")
+                    .replace("O", "X")
+                    .replace("B", "X")
+                )
                 processed_seqs.append(seq)
 
             # Process in batches using accelerate
             import math
+
             total_sequences = len(processed_seqs)
             total_batches = math.ceil(sum(map(len, processed_seqs)) / encoding_size)
-            
+
             # Create batches
             batches = list(self.token_budget_batches(processed_seqs, encoding_size))
-            
+
             # Process all batches with accelerate
             three_di_sequences: List[str] = [None] * total_sequences  # type: ignore[list-item]
-            
+
             from .encoding import format_seconds, get_memory_info
+
             t0 = time.perf_counter()
             avg_batch_sec: float | None = None
-            
+
             for idx, batch in enumerate(batches, start=1):
                 batch_seqs = [x.seq for x in batch]
                 batch_idxs = [x.idx for x in batch]
-                
+
                 # Calculate ETA
                 remaining = total_batches - (idx - 1)
                 eta_str = (
@@ -524,10 +555,10 @@ class ModernProstThreeDiEncoder:
                     if avg_batch_sec is None
                     else format_seconds(avg_batch_sec * remaining)
                 )
-                
+
                 # Get memory info
                 allocated, reserved = get_memory_info()
-                
+
                 logger.info(
                     "3Di encoding batch %d of %d batches. "
                     "Estimated %s remaining. Cuda memory allocated: %.1f GB reserved: %.1f GB",
@@ -537,14 +568,14 @@ class ModernProstThreeDiEncoder:
                     allocated,
                     reserved,
                 )
-                
+
                 batch_start = time.perf_counter()
                 batch_results = self._encode_batch(batch_seqs)
-                
+
                 # Store results in original order
                 for bi, br in zip(batch_idxs, batch_results):
                     three_di_sequences[bi] = br
-                
+
                 # Update timing
                 batch_elapsed = time.perf_counter() - batch_start
                 if idx == 1:
@@ -552,7 +583,7 @@ class ModernProstThreeDiEncoder:
                 else:
                     elapsed_total = time.perf_counter() - t0
                     avg_batch_sec = elapsed_total / idx
-            
+
             return three_di_sequences
         else:
             # Use single-GPU encoding
@@ -563,11 +594,17 @@ class ModernProstThreeDiEncoder:
             processed_seqs = []
             for seq in aa_sequences:
                 # Replace rare/ambiguous amino acids
-                seq = seq.replace("U", "X").replace("Z", "X").replace("O", "X").replace("B", "X")
+                seq = (
+                    seq.replace("U", "X")
+                    .replace("Z", "X")
+                    .replace("O", "X")
+                    .replace("B", "X")
+                )
                 processed_seqs.append(seq)
 
             # Calculate batch info
             import math
+
             total_sequences = len(processed_seqs)
             total_batches = math.ceil(sum(map(len, processed_seqs)) / encoding_size)
 
@@ -576,6 +613,7 @@ class ModernProstThreeDiEncoder:
 
             # Process all batches
             from .encoding import process_batches
+
             return process_batches(
                 batches,
                 self._encode_batch,
@@ -617,7 +655,11 @@ class ModernProstThreeDiEncoder:
 
         # Create records
         records = []
-        method = "modernprost_profiles" if self.model_name == MODERNPROST_PROFILES_MODEL else "modernprost_base"
+        method = (
+            "modernprost_profiles"
+            if self.model_name == MODERNPROST_PROFILES_MODEL
+            else "modernprost_base"
+        )
         for protein, three_di in zip(proteins, three_di_sequences):
             record = ThreeDiRecord(
                 protein=protein,

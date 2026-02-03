@@ -21,13 +21,13 @@ def test_protein_record_creation() -> None:
         has_start_codon=True,
         has_stop_codon=False,
     )
-    
+
     protein = ProteinRecord(
         orf=orf,
         aa_sequence="M" * 30,
         aa_length=30,
     )
-    
+
     assert protein.orf == orf
     assert protein.aa_sequence == "M" * 30
     assert protein.aa_length == 30
@@ -48,7 +48,7 @@ def test_protein_record_length_mismatch() -> None:
         has_start_codon=True,
         has_stop_codon=False,
     )
-    
+
     with pytest.raises(ValueError, match="aa_length"):
         ProteinRecord(
             orf=orf,
@@ -72,14 +72,14 @@ def test_protein_record_with_stop() -> None:
         has_start_codon=True,
         has_stop_codon=True,
     )
-    
+
     # In real translation, stop codon would be removed
     protein = ProteinRecord(
         orf=orf,
         aa_sequence="MA" * 10,  # Stop removed
         aa_length=20,
     )
-    
+
     assert protein.aa_length == 20
     assert "*" not in protein.aa_sequence
 
@@ -99,14 +99,14 @@ def test_protein_record_various_amino_acids() -> None:
         has_start_codon=False,
         has_stop_codon=False,
     )
-    
+
     # Ambiguous codons translate to X
     protein = ProteinRecord(
         orf=orf,
         aa_sequence="ACDEFGHIKLMNPQRSTVWY",  # 20 standard AAs
         aa_length=20,
     )
-    
+
     assert len(set(protein.aa_sequence)) == 20  # All different
     assert protein.aa_length == 20
 
@@ -126,13 +126,13 @@ def test_protein_record_short_protein() -> None:
         has_start_codon=True,
         has_stop_codon=False,
     )
-    
+
     protein = ProteinRecord(
         orf=orf,
         aa_sequence="MA",  # Stop removed if present
         aa_length=2,
     )
-    
+
     assert protein.aa_length == 2
 
 
@@ -151,13 +151,13 @@ def test_protein_record_ambiguous_codons() -> None:
         has_start_codon=True,
         has_stop_codon=False,
     )
-    
+
     # NNN should translate to X
     protein = ProteinRecord(
         orf=orf,
         aa_sequence="MXGF",  # M from ATG, X from NNN, G from GGG, F from TTT
         aa_length=4,
     )
-    
+
     assert "X" in protein.aa_sequence
     assert protein.aa_length == 4

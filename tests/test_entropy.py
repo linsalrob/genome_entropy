@@ -61,11 +61,11 @@ def test_shannon_entropy_normalization() -> None:
     # Perfect uniform distribution over 4 symbols
     entropy_norm = shannon_entropy("ACGT", alphabet=set("ACGT"), normalize=True)
     assert abs(entropy_norm - 1.0) < 1e-10
-    
+
     # Low entropy sequence
     entropy_norm = shannon_entropy("AAAA", alphabet=set("ACGT"), normalize=True)
     assert abs(entropy_norm - 0.0) < 1e-10
-    
+
     # Half entropy
     entropy_norm = shannon_entropy("ATAT", alphabet=set("ACGT"), normalize=True)
     expected = 1.0 / 2.0  # H=1.0, max=2.0
@@ -86,9 +86,9 @@ def test_calculate_entropies_for_sequences() -> None:
         "seq2": "ACGT",
         "seq3": "ATAT",
     }
-    
+
     entropies = calculate_entropies_for_sequences(sequences)
-    
+
     assert len(entropies) == 3
     assert abs(entropies["seq1"] - 0.0) < 1e-10
     assert abs(entropies["seq2"] - 2.0) < 1e-10
@@ -104,7 +104,7 @@ def test_entropy_report_dataclass() -> None:
         three_di_entropy={"orf1": 2.9},
         alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
     )
-    
+
     assert report.dna_entropy_global == 2.5
     assert report.orf_nt_entropy["orf1"] == 1.8
     assert report.protein_aa_entropy["orf1"] == 3.2
@@ -116,7 +116,7 @@ def test_shannon_entropy_protein_sequence() -> None:
     """Test entropy for protein sequences."""
     # All alanine
     assert shannon_entropy("AAAA") == 0.0
-    
+
     # Simple protein sequence
     protein = "ACDEFGHIKLMNPQRSTVWY"  # All 20 standard amino acids
     entropy = shannon_entropy(protein)

@@ -7,7 +7,7 @@ from typing import Literal
 @dataclass
 class OrfRecord:
     """Represents a single Open Reading Frame (ORF).
-    
+
     Attributes:
         parent_id: ID of the parent DNA sequence
         orf_id: Unique identifier for this ORF
@@ -35,7 +35,7 @@ class OrfRecord:
     has_start_codon: bool
     has_stop_codon: bool
     in_genbank: bool = False
-    
+
     def __post_init__(self) -> None:
         """Validate ORF attributes."""
         if self.strand not in ("+", "-"):
@@ -45,6 +45,8 @@ class OrfRecord:
         if self.start < 0:
             raise ValueError(f"Invalid start position: {self.start}")
         if self.end <= self.start:
-            raise ValueError(f"Invalid end position: {self.end} (must be > start {self.start})")
+            raise ValueError(
+                f"Invalid end position: {self.end} (must be > start {self.start})"
+            )
         # Note: We don't validate sequence length here because sequences may be empty
         # when initially created and filled in later (e.g., by ORF finder)

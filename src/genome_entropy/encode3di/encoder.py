@@ -248,6 +248,20 @@ class ProstT5ThreeDiEncoder:
             "repetition_penalty": 1.2,
         }
 
+        # ProstT5 appends special tokens at the end of each sequence after tokenization.
+        # These extra tokens should be masked out during inference to avoid including
+        # them in the residue embeddings. The position len(seq) + 1 accounts for the
+        # sequence length plus the prefix token added by preprocessing (<AA2fold>).
+        for idx, seq in enumerate(aa_sequences):
+            mask_position = (
+                len(seq.replace(" ", "")) - 9
+            ) + 1  # Note: len(<AA2fold>) == 9 so this accounts for that tag
+            try:
+                ids.attention_mask[idx, mask_position] = 0
+            except Exception as e:
+                err_msg = f"Tried to mask at {mask_position} but attention is only {len(ids.attention_mask[idx])}"
+                logger.exception(err_msg)
+
         # translate from AA to 3Di (AA-->3Di)
         with torch.no_grad():
             translations = self.model.generate(
@@ -259,6 +273,7 @@ class ProstT5ThreeDiEncoder:
                 num_return_sequences=1,  # return only a single sequence
                 **gen_kwargs_aa2fold,
             )
+
         # Decode and remove white-spaces between tokens
         decoded_translations = self.tokenizer.batch_decode(
             translations, skip_special_tokens=True
@@ -370,6 +385,10 @@ class ProstT5ThreeDiEncoder:
             gpu_ids=gpu_ids,
             multi_gpu_encoder=multi_gpu_encoder,
         )
+
+        # trim the sequences?
+        for i, seq in enumerate(aa_sequences):
+            three_di_sequences[i] = three_di_sequences[i][: len(seq)]
 
         # Create records
         records = []
