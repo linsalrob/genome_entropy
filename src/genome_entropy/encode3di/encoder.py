@@ -388,6 +388,10 @@ class ProstT5ThreeDiEncoder:
             gpu_ids=gpu_ids,
             multi_gpu_encoder=multi_gpu_encoder,
         )
+        
+        # trim the sequences?
+        for i, seq in enumerate(aa_sequences):
+            three_di_sequences[i] = three_di_sequences[i][:len(seq)]
 
         # Create records
         records = []
