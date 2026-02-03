@@ -15,6 +15,8 @@ trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 eval "$(conda shell.bash hook)"
 conda activate genome_entropy
 
+pip install --upgrade 'transformers>=4.47.0' torch
+
 pip install .[dev,docs,ml]
 
 

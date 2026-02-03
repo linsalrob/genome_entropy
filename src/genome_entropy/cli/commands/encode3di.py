@@ -52,19 +52,19 @@ def encode3di_command(
         None,
         "--gpu-ids",
         help="Comma-separated list of GPU IDs to use (e.g., '0,1,2'). "
-             "If not specified, auto-discovers available GPUs.",
+        "If not specified, auto-discovers available GPUs.",
     ),
 ) -> None:
     """Encode proteins to 3Di structural tokens.
 
     Uses ProstT5 or ModernProst models to predict 3Di structural alphabet tokens
     directly from amino acid sequences.
-    
+
     Available models:
     - Rostlab/ProstT5_fp16 (default, original ProstT5 model)
     - gbouras13/modernprost-base (newer base model)
     - gbouras13/modernprost-profiles (newer model with profile support)
-    
+
     Multi-GPU encoding can significantly speed up encoding by distributing
     batches across multiple GPUs. Use --multi-gpu to enable, and optionally
     specify --gpu-ids to select specific GPUs.
@@ -112,7 +112,7 @@ def encode3di_command(
             encoder = ModernProstThreeDiEncoder(model_name=model, device=device)
         else:
             encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
-        
+
         if multi_gpu:
             typer.echo(f"  Multi-GPU encoding: enabled")
             if parsed_gpu_ids:

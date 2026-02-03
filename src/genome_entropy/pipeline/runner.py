@@ -149,7 +149,7 @@ def run_pipeline(
         # Initialize encoder once before processing all sequences
         # This ensures the model is loaded only once and reused for all entries
         logger.info("Initializing 3Di encoder (model will be loaded on first use)...")
-        
+
         # Select encoder based on model name
         if model_name in MODERNPROST_MODELS:
             encoder = ModernProstThreeDiEncoder(model_name=model_name, device=device)
@@ -157,7 +157,7 @@ def run_pipeline(
         else:
             encoder = ProstT5ThreeDiEncoder(model_name=model_name, device=device)
             encoder_class = ProstT5ThreeDiEncoder
-        
+
         actual_encoding_size = (
             encoding_size if encoding_size is not None else DEFAULT_ENCODING_SIZE
         )

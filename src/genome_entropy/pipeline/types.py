@@ -19,13 +19,14 @@ from typing import Dict, Literal
 @dataclass
 class FeatureLocation:
     """Genomic location of a feature (ORF).
-    
+
     Attributes:
         start: 0-based start position (inclusive)
         end: 0-based end position (exclusive)
         strand: Strand orientation ('+' or '-')
         frame: Reading frame (0, 1, 2, or 3)
     """
+
     start: int
     end: int
     strand: Literal["+", "-"]
@@ -35,11 +36,12 @@ class FeatureLocation:
 @dataclass
 class FeatureDNA:
     """DNA-level information for a feature.
-    
+
     Attributes:
         nt_sequence: Nucleotide sequence
         length: Length of nucleotide sequence
     """
+
     nt_sequence: str
     length: int
 
@@ -47,11 +49,12 @@ class FeatureDNA:
 @dataclass
 class FeatureProtein:
     """Protein-level information for a feature.
-    
+
     Attributes:
         aa_sequence: Amino acid sequence
         length: Length of amino acid sequence
     """
+
     aa_sequence: str
     length: int
 
@@ -59,7 +62,7 @@ class FeatureProtein:
 @dataclass
 class FeatureThreeDi:
     """3Di structural encoding for a feature.
-    
+
     Attributes:
         encoding: 3Di token sequence
         length: Length of 3Di sequence
@@ -67,6 +70,7 @@ class FeatureThreeDi:
         model_name: Name of the model used
         inference_device: Device used for inference ("cuda", "mps", or "cpu")
     """
+
     encoding: str
     length: int
     method: str
@@ -77,7 +81,7 @@ class FeatureThreeDi:
 @dataclass
 class FeatureMetadata:
     """Metadata about a feature.
-    
+
     Attributes:
         parent_id: ID of the parent DNA sequence
         table_id: NCBI genetic code table ID used
@@ -85,6 +89,7 @@ class FeatureMetadata:
         has_stop_codon: Whether the ORF has a stop codon
         in_genbank: Whether this ORF matches a CDS annotated in GenBank
     """
+
     parent_id: str
     table_id: int
     has_start_codon: bool
@@ -95,12 +100,13 @@ class FeatureMetadata:
 @dataclass
 class FeatureEntropy:
     """Entropy values at different representation levels for a feature.
-    
+
     Attributes:
         dna_entropy: Shannon entropy of nucleotide sequence
         protein_entropy: Shannon entropy of amino acid sequence
         three_di_entropy: Shannon entropy of 3Di encoding
     """
+
     dna_entropy: float
     protein_entropy: float
     three_di_entropy: float
@@ -109,12 +115,12 @@ class FeatureEntropy:
 @dataclass
 class UnifiedFeature:
     """Unified representation of a biological feature (ORF and derived data).
-    
+
     This structure consolidates all information about a single ORF into one
     hierarchical object, eliminating the redundancy present in the old format
     where ORF data was duplicated in proteins list and protein data was
     duplicated in three_dis list.
-    
+
     Attributes:
         orf_id: Unique identifier for this feature
         location: Genomic coordinates
@@ -124,6 +130,7 @@ class UnifiedFeature:
         metadata: Additional metadata
         entropy: Entropy values at all representation levels
     """
+
     orf_id: str
     location: FeatureLocation
     dna: FeatureDNA
@@ -136,11 +143,11 @@ class UnifiedFeature:
 @dataclass
 class UnifiedPipelineResult:
     """Result of running the complete DNA to 3Di pipeline (unified format).
-    
+
     This is the new format that eliminates redundancy by using a single
     dictionary of features keyed by orf_id, instead of separate parallel
     lists for orfs, proteins, and three_dis.
-    
+
     Attributes:
         schema_version: Version of the output schema (for compatibility tracking)
         input_id: ID of the input DNA sequence
@@ -149,6 +156,7 @@ class UnifiedPipelineResult:
         alphabet_sizes: Dictionary with alphabet sizes for each representation
         features: Dictionary mapping orf_id to UnifiedFeature objects
     """
+
     schema_version: str
     input_id: str
     input_dna_length: int

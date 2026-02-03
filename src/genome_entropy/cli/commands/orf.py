@@ -36,7 +36,7 @@ def orf_command(
     ),
 ) -> None:
     """Extract ORFs from DNA sequences.
-    
+
     Finds all Open Reading Frames (ORFs) in input FASTA sequences
     using the get_orfs binary. Outputs ORF records as JSON.
     """
@@ -44,20 +44,20 @@ def orf_command(
         from ...io.fasta import read_fasta
         from ...io.jsonio import write_json
         from ...orf.finder import find_orfs
-        
+
         typer.echo(f"Reading FASTA from: {input}")
         sequences = read_fasta(input)
         typer.echo(f"  Found {len(sequences)} sequence(s)")
-        
+
         typer.echo(f"\nFinding ORFs (min length: {min_nt} nt, table: {table})...")
         orfs = find_orfs(sequences, table_id=table, min_nt_length=min_nt)
         typer.echo(f"  Found {len(orfs)} ORF(s)")
-        
+
         typer.echo(f"\nWriting results to: {output}")
         write_json(orfs, output)
-        
+
         typer.echo("✓ ORF extraction complete!")
-        
+
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(3)

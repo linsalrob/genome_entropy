@@ -44,7 +44,7 @@ def test_unified_feature_structure():
             dna_entropy=1.5, protein_entropy=1.2, three_di_entropy=0.8
         ),
     )
-    
+
     # Verify structure
     assert feature.orf_id == "test_orf_1"
     assert feature.location.start == 0
@@ -72,9 +72,9 @@ def test_convert_pipeline_result_to_unified():
         has_stop_codon=False,
         in_genbank=False,
     )
-    
+
     protein = ProteinRecord(orf=orf, aa_sequence="MASSSSSS", aa_length=8)
-    
+
     three_di = ThreeDiRecord(
         protein=protein,
         three_di="AAAAAAAA",
@@ -82,7 +82,7 @@ def test_convert_pipeline_result_to_unified():
         model_name="test_model",
         inference_device="cpu",
     )
-    
+
     entropy = EntropyReport(
         dna_entropy_global=1.8,
         orf_nt_entropy={"orf_1": 1.2},
@@ -90,7 +90,7 @@ def test_convert_pipeline_result_to_unified():
         three_di_entropy={"orf_1": 0.0},
         alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
     )
-    
+
     old_result = PipelineResult(
         input_id="test_seq",
         input_dna_length=100,
@@ -99,10 +99,10 @@ def test_convert_pipeline_result_to_unified():
         three_dis=[three_di],
         entropy=entropy,
     )
-    
+
     # Convert to unified format
     unified = convert_pipeline_result_to_unified(old_result)
-    
+
     # Verify top-level fields
     assert isinstance(unified, UnifiedPipelineResult)
     assert unified.schema_version == "2.0.0"
@@ -110,43 +110,43 @@ def test_convert_pipeline_result_to_unified():
     assert unified.input_dna_length == 100
     assert unified.dna_entropy_global == 1.8
     assert unified.alphabet_sizes == {"dna": 4, "protein": 20, "three_di": 20}
-    
+
     # Verify features dictionary
     assert len(unified.features) == 1
     assert "orf_1" in unified.features
-    
+
     # Verify feature structure
     feature = unified.features["orf_1"]
     assert feature.orf_id == "orf_1"
-    
+
     # Verify location
     assert feature.location.start == 0
     assert feature.location.end == 30
     assert feature.location.strand == "+"
     assert feature.location.frame == 0
-    
+
     # Verify DNA
     assert feature.dna.nt_sequence == "ATGGCTAGCTAGCTAGCTAGCTAGCTAG"
     assert feature.dna.length == 28
-    
+
     # Verify protein
     assert feature.protein.aa_sequence == "MASSSSSS"
     assert feature.protein.length == 8
-    
+
     # Verify 3Di
     assert feature.three_di.encoding == "AAAAAAAA"
     assert feature.three_di.length == 8
     assert feature.three_di.method == "prostt5_aa2fold"
     assert feature.three_di.model_name == "test_model"
     assert feature.three_di.inference_device == "cpu"
-    
+
     # Verify metadata
     assert feature.metadata.parent_id == "test_seq"
     assert feature.metadata.table_id == 11
     assert feature.metadata.has_start_codon is True
     assert feature.metadata.has_stop_codon is False
     assert feature.metadata.in_genbank is False
-    
+
     # Verify entropy
     assert feature.entropy.dna_entropy == 1.2
     assert feature.entropy.protein_entropy == 0.8
@@ -159,7 +159,7 @@ def test_conversion_handles_multiple_features():
     orfs = []
     proteins = []
     three_dis = []
-    
+
     for i in range(3):
         orf_id = f"orf_{i}"
         orf = OrfRecord(
@@ -177,10 +177,10 @@ def test_conversion_handles_multiple_features():
             in_genbank=False,
         )
         orfs.append(orf)
-        
+
         protein = ProteinRecord(orf=orf, aa_sequence="K" * 10, aa_length=10)
         proteins.append(protein)
-        
+
         three_di = ThreeDiRecord(
             protein=protein,
             three_di="A" * 10,
@@ -189,7 +189,7 @@ def test_conversion_handles_multiple_features():
             inference_device="cpu",
         )
         three_dis.append(three_di)
-    
+
     entropy = EntropyReport(
         dna_entropy_global=2.0,
         orf_nt_entropy={f"orf_{i}": 1.0 for i in range(3)},
@@ -197,7 +197,7 @@ def test_conversion_handles_multiple_features():
         three_di_entropy={f"orf_{i}": 0.0 for i in range(3)},
         alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
     )
-    
+
     old_result = PipelineResult(
         input_id="test_seq",
         input_dna_length=300,
@@ -206,10 +206,10 @@ def test_conversion_handles_multiple_features():
         three_dis=three_dis,
         entropy=entropy,
     )
-    
+
     # Convert
     unified = convert_pipeline_result_to_unified(old_result)
-    
+
     # Verify all features are present
     assert len(unified.features) == 3
     for i in range(3):
@@ -237,9 +237,9 @@ def test_no_data_loss_in_conversion():
         has_stop_codon=True,
         in_genbank=True,
     )
-    
+
     protein = ProteinRecord(orf=orf, aa_sequence="MRSID", aa_length=5)
-    
+
     three_di = ThreeDiRecord(
         protein=protein,
         three_di="ABCDE",
@@ -247,7 +247,7 @@ def test_no_data_loss_in_conversion():
         model_name="Rostlab/ProstT5",
         inference_device="cuda",
     )
-    
+
     entropy = EntropyReport(
         dna_entropy_global=3.5,
         orf_nt_entropy={"orf_test": 2.1},
@@ -255,7 +255,7 @@ def test_no_data_loss_in_conversion():
         three_di_entropy={"orf_test": 1.5},
         alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
     )
-    
+
     old_result = PipelineResult(
         input_id="seq_xyz",
         input_dna_length=500,
@@ -264,42 +264,42 @@ def test_no_data_loss_in_conversion():
         three_dis=[three_di],
         entropy=entropy,
     )
-    
+
     # Convert
     unified = convert_pipeline_result_to_unified(old_result)
     feature = unified.features["orf_test"]
-    
+
     # Verify ALL fields are present
     # Top level
     assert unified.input_id == "seq_xyz"
     assert unified.input_dna_length == 500
     assert unified.dna_entropy_global == 3.5
-    
+
     # Location
     assert feature.location.start == 100
     assert feature.location.end == 250
     assert feature.location.strand == "-"
     assert feature.location.frame == 2
-    
+
     # DNA
     assert feature.dna.nt_sequence == "ATGCGATCGATCG"
-    
+
     # Protein
     assert feature.protein.aa_sequence == "MRSID"
-    
+
     # 3Di
     assert feature.three_di.encoding == "ABCDE"
     assert feature.three_di.method == "prostt5_aa2fold"
     assert feature.three_di.model_name == "Rostlab/ProstT5"
     assert feature.three_di.inference_device == "cuda"
-    
+
     # Metadata
     assert feature.metadata.parent_id == "parent_123"
     assert feature.metadata.table_id == 4
     assert feature.metadata.has_start_codon is False
     assert feature.metadata.has_stop_codon is True
     assert feature.metadata.in_genbank is True
-    
+
     # Entropy
     assert feature.entropy.dna_entropy == 2.1
     assert feature.entropy.protein_entropy == 1.8
@@ -322,7 +322,7 @@ def test_unified_json_serialization():
         has_stop_codon=False,
         in_genbank=False,
     )
-    
+
     protein = ProteinRecord(orf=orf, aa_sequence="MAS", aa_length=3)
     three_di = ThreeDiRecord(
         protein=protein,
@@ -331,7 +331,7 @@ def test_unified_json_serialization():
         model_name="test",
         inference_device="cpu",
     )
-    
+
     entropy = EntropyReport(
         dna_entropy_global=1.5,
         orf_nt_entropy={"orf_1": 1.2},
@@ -339,7 +339,7 @@ def test_unified_json_serialization():
         three_di_entropy={"orf_1": 0.5},
         alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
     )
-    
+
     old_result = PipelineResult(
         input_id="test_seq",
         input_dna_length=100,
@@ -348,11 +348,11 @@ def test_unified_json_serialization():
         three_dis=[three_di],
         entropy=entropy,
     )
-    
+
     # Convert and serialize
     unified = convert_pipeline_result_to_unified(old_result)
     json_dict = to_json_dict(unified)
-    
+
     # Verify JSON structure
     assert "schema_version" in json_dict
     assert json_dict["schema_version"] == "2.0.0"
@@ -361,11 +361,11 @@ def test_unified_json_serialization():
     assert "dna_entropy_global" in json_dict
     assert "alphabet_sizes" in json_dict
     assert "features" in json_dict
-    
+
     # Verify features structure
     assert "orf_1" in json_dict["features"]
     feature_dict = json_dict["features"]["orf_1"]
-    
+
     # Verify hierarchical organization
     assert "location" in feature_dict
     assert "dna" in feature_dict
@@ -373,14 +373,17 @@ def test_unified_json_serialization():
     assert "three_di" in feature_dict
     assert "metadata" in feature_dict
     assert "entropy" in feature_dict
-    
+
     # Verify no redundancy (nt_sequence appears only once)
     import json as json_module
+
     json_str = json_module.dumps(json_dict)
     # Count occurrences of the DNA sequence
     sequence_count = json_str.count("ATGGCTAGC")
-    assert sequence_count == 1, f"DNA sequence appears {sequence_count} times, expected 1"
-    
+    assert (
+        sequence_count == 1
+    ), f"DNA sequence appears {sequence_count} times, expected 1"
+
     # Count occurrences of the AA sequence
     aa_count = json_str.count("MAS")
     assert aa_count == 1, f"Protein sequence appears {aa_count} times, expected 1"
@@ -429,10 +432,10 @@ def test_conversion_handles_list_of_results():
                 entropy=entropy,
             )
         )
-    
+
     # Convert list
     unified_list = convert_pipeline_result_to_unified(results)
-    
+
     # Verify
     assert isinstance(unified_list, list)
     assert len(unified_list) == 2

@@ -2,6 +2,7 @@
 
 import inspect
 import pytest
+import re
 
 
 def test_modernprost_encoder_uses_correct_tokenizer_api() -> None:
@@ -55,9 +56,9 @@ def test_modernprost_encoder_no_special_tokens() -> None:
     source = inspect.getsource(ModernProstThreeDiEncoder._encode_batch)
 
     # Verify we set add_special_tokens=False for ModernProst
-    assert "add_special_tokens=False" in source, (
-        "ModernProst encoder should use add_special_tokens=False in tokenization"
-    )
+    assert (
+        "add_special_tokens=False" in source
+    ), "ModernProst encoder should use add_special_tokens=False in tokenization"
 
 
 def test_modernprost_encoder_handles_nonstandard_aa() -> None:
@@ -68,15 +69,15 @@ def test_modernprost_encoder_handles_nonstandard_aa() -> None:
     source = inspect.getsource(ModernProstThreeDiEncoder._encode_batch)
 
     # Verify we replace U, Z, O with X
-    assert 'replace("U", "X")' in source, (
-        "ModernProst encoder should replace non-standard amino acid U with X"
-    )
-    assert 'replace("Z", "X")' in source, (
-        "ModernProst encoder should replace non-standard amino acid Z with X"
-    )
-    assert 'replace("O", "X")' in source, (
-        "ModernProst encoder should replace non-standard amino acid O with X"
-    )
+    assert (
+        'replace("U", "X")' in source
+    ), "ModernProst encoder should replace non-standard amino acid U with X"
+    assert (
+        'replace("Z", "X")' in source
+    ), "ModernProst encoder should replace non-standard amino acid Z with X"
+    assert (
+        'replace("O", "X")' in source
+    ), "ModernProst encoder should replace non-standard amino acid O with X"
 
 
 def test_config_has_modernprost_models() -> None:
@@ -114,8 +115,7 @@ def test_modernprost_encoder_instantiation() -> None:
     try:
         # Test that encoder can be instantiated (without loading model)
         encoder = ModernProstThreeDiEncoder(
-            model_name="gbouras13/modernprost-base",
-            device="cpu"
+            model_name="gbouras13/modernprost-base", device="cpu"
         )
 
         # Verify encoder has expected attributes
@@ -127,3 +127,27 @@ def test_modernprost_encoder_instantiation() -> None:
         assert encoder.model_name == "gbouras13/modernprost-base"
     except Exception:
         pytest.skip("Cannot instantiate encoder without dependencies")
+
+
+def test_modernprost_no_attention_mask_modification() -> None:
+    """Test that ModernProst encoder does NOT modify attention mask.
+
+    Unlike ProstT5, ModernProst uses add_special_tokens=False, so it doesn't
+    need to mask out extra tokens. This test verifies that there's no
+    attention mask modification logic in _encode_batch.
+    """
+    from genome_entropy.encode3di.modernprost import ModernProstThreeDiEncoder
+
+    # Get the source code of _encode_batch
+    source = inspect.getsource(ModernProstThreeDiEncoder._encode_batch)
+
+    # Verify add_special_tokens=False is used
+    assert (
+        "add_special_tokens=False" in source
+    ), "ModernProst should use add_special_tokens=False"
+
+    # Verify there's NO attention mask modification (setting to 0)
+    # Pattern: attention_mask[...] = 0 (exactly 0, not 0.5 or 01)
+    assert not re.search(
+        r"attention_mask\s*\[.*\]\s*=\s*0\b", source
+    ), "ModernProst should NOT modify attention_mask (no extra tokens to mask)"
