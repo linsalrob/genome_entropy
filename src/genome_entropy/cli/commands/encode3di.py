@@ -96,7 +96,7 @@ def encode3di_command(
         
         # Detect input format based on file extension
         input_str = str(input).lower()
-        is_fasta = input_str.endswith(('.fasta', '.fa', '.faa', '.fna'))
+        is_fasta = input_str.endswith(('.fasta', '.fa', '.faa'))
         
         if is_fasta:
             # Read FASTA file and convert to ProteinRecord objects
