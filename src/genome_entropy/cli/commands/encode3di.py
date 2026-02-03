@@ -15,7 +15,7 @@ def encode3di_command(
         ...,
         "--input",
         "-i",
-        help="Input JSON file with protein records",
+        help="Input protein file (FASTA or JSON format)",
         exists=True,
         dir_okay=False,
     ),
@@ -60,6 +60,10 @@ def encode3di_command(
     Uses ProstT5 or ModernProst models to predict 3Di structural alphabet tokens
     directly from amino acid sequences.
     
+    Input formats:
+    - FASTA file: Protein sequences in FASTA format (.fasta, .fa, .faa)
+    - JSON file: Protein records in JSON format (output from translate or fasta-to-protein)
+    
     Available models:
     - Rostlab/ProstT5_fp16 (default, original ProstT5 model)
     - gbouras13/modernprost-base (newer base model)
@@ -74,6 +78,7 @@ def encode3di_command(
         from ...encode3di.prostt5 import ProstT5ThreeDiEncoder
         from ...encode3di.modernprost import ModernProstThreeDiEncoder
         from ...io.jsonio import read_json, write_json
+        from ...io.fasta import read_fasta
         from ...orf.types import OrfRecord
         from ...translate.translator import ProteinRecord
 
@@ -88,21 +93,60 @@ def encode3di_command(
                 raise typer.Exit(2)
 
         typer.echo(f"Reading proteins from: {input}")
-        protein_data = read_json(input)
-
-        # Reconstruct ProteinRecord objects
-        if isinstance(protein_data, list):
+        
+        # Detect input format based on file extension
+        input_str = str(input).lower()
+        is_fasta = input_str.endswith(('.fasta', '.fa', '.faa', '.fna'))
+        
+        if is_fasta:
+            # Read FASTA file and convert to ProteinRecord objects
+            typer.echo("  Detected FASTA format")
+            sequences = read_fasta(input)
+            
+            # Convert to ProteinRecord objects (similar to fasta_to_protein)
             proteins = []
-            for p in protein_data:
-                orf = OrfRecord(**p["orf"])
+            for seq_id, aa_sequence in sequences.items():
+                # Create a minimal OrfRecord for compatibility
+                # These proteins are not from ORFs, so we use placeholder values
+                orf = OrfRecord(
+                    parent_id=seq_id,
+                    orf_id=seq_id,
+                    start=0,
+                    end=len(aa_sequence) * 3,  # Approximate nucleotide length
+                    strand="+",
+                    frame=0,
+                    nt_sequence="",  # No nucleotide sequence available
+                    aa_sequence=aa_sequence,
+                    table_id=11,  # Default genetic code table
+                    has_start_codon=False,
+                    has_stop_codon=False,
+                    in_genbank=False,
+                )
+                
                 protein = ProteinRecord(
                     orf=orf,
-                    aa_sequence=p["aa_sequence"],
-                    aa_length=p["aa_length"],
+                    aa_sequence=aa_sequence,
+                    aa_length=len(aa_sequence),
                 )
                 proteins.append(protein)
         else:
-            raise ValueError("Invalid protein JSON format")
+            # Read JSON file (original behavior)
+            typer.echo("  Detected JSON format")
+            protein_data = read_json(input)
+            
+            # Reconstruct ProteinRecord objects
+            if isinstance(protein_data, list):
+                proteins = []
+                for p in protein_data:
+                    orf = OrfRecord(**p["orf"])
+                    protein = ProteinRecord(
+                        orf=orf,
+                        aa_sequence=p["aa_sequence"],
+                        aa_length=p["aa_length"],
+                    )
+                    proteins.append(protein)
+            else:
+                raise ValueError("Invalid protein JSON format")
 
         typer.echo(f"  Loaded {len(proteins)} protein(s)")
 
