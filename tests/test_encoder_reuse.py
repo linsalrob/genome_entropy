@@ -107,6 +107,7 @@ ATGCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCTAA
                 input_fasta=tmp_path,
                 table_id=11,
                 min_aa_len=10,
+                model_name="Rostlab/ProstT5_fp16",
                 compute_entropy=True,
                 device="cpu",
             )
@@ -179,6 +180,7 @@ ORIGIN
                 genbank_file=tmp_path,
                 table_id=11,
                 min_aa_len=10,
+                model_name="Rostlab/ProstT5_fp16",
                 compute_entropy=True,
                 device="cpu",
             )
@@ -236,6 +238,7 @@ ATGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAA
                 input_fasta=tmp_path,
                 table_id=11,
                 min_aa_len=10,
+                model_name="Rostlab/ProstT5_fp16",
                 compute_entropy=True,
                 device="cpu",
             )

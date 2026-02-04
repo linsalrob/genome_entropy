@@ -26,10 +26,10 @@ def encode3di_command(
         help="Output JSON file with 3Di records",
     ),
     model: str = typer.Option(
-        "Rostlab/ProstT5_fp16",
+        "gbouras13/modernprost-base",
         "--model",
         "-m",
-        help="Model name (Rostlab/ProstT5_fp16, gbouras13/modernprost-base, or gbouras13/modernprost-profiles)",
+        help="Model name (gbouras13/modernprost-base, gbouras13/modernprost-profiles, Rostlab/ProstT5, or Rostlab/ProstT5_fp16)",
     ),
     device: Optional[str] = typer.Option(
         None,
@@ -65,9 +65,10 @@ def encode3di_command(
     - JSON file: Protein records in JSON format (output from translate or fasta-to-protein)
 
     Available models:
-    - Rostlab/ProstT5_fp16 (default, original ProstT5 model)
-    - gbouras13/modernprost-base (newer base model)
+    - gbouras13/modernprost-base (default, newer base model, fastest)
     - gbouras13/modernprost-profiles (newer model with profile support)
+    - Rostlab/ProstT5 (original ProstT5 model, full precision)
+    - Rostlab/ProstT5_fp16 (original ProstT5 model, half precision)
 
     Multi-GPU encoding can significantly speed up encoding by distributing
     batches across multiple GPUs. Use --multi-gpu to enable, and optionally

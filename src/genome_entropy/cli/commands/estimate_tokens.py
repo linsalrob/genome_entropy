@@ -12,10 +12,10 @@ except ImportError:
 
 def estimate_token_size_command(
     model: str = typer.Option(
-        "Rostlab/ProstT5_fp16",
+        "gbouras13/modernprost-base",
         "--model",
         "-m",
-        help="ProstT5 model name",
+        help="Model name (gbouras13/modernprost-base, gbouras13/modernprost-profiles, Rostlab/ProstT5, or Rostlab/ProstT5_fp16)",
     ),
     device: Optional[str] = typer.Option(
         None,
