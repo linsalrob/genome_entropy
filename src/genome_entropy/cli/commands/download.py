@@ -38,10 +38,10 @@ def _is_model_cached(model_name: str) -> bool:
 
 def download_command(
     model: str = typer.Option(
-        "Rostlab/ProstT5_fp16",
+        "gbouras13/modernprost-base",
         "--model",
         "-m",
-        help="Model to download (Rostlab/ProstT5_fp16, gbouras13/modernprost-base, or gbouras13/modernprost-profiles)",
+        help="Model to download (gbouras13/modernprost-base, gbouras13/modernprost-profiles, Rostlab/ProstT5, or Rostlab/ProstT5_fp16)",
     ),
     test_data: bool = typer.Option(
         False,
