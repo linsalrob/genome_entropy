@@ -73,9 +73,9 @@ def estimate_token_size_command(
     The recommended token size is returned as 90% of the maximum for safety.
     """
     try:
-        from ...config import VALID_LOG_LEVELS
+        from ...config import VALID_LOG_LEVELS, MODERNPROST_MODELS
         from ...logging_config import configure_logging
-        from ...encode3di import ProstT5ThreeDiEncoder, estimate_token_size
+        from ...encode3di import ProstT5ThreeDiEncoder, ModernProstThreeDiEncoder, estimate_token_size
 
         # Validate and configure logging
         if log_level.upper() not in VALID_LOG_LEVELS:
@@ -96,8 +96,12 @@ def estimate_token_size_command(
         typer.echo(f"Base protein length: {base_protein_length} AA")
         typer.echo("=" * 60)
 
-        typer.echo("\nInitializing ProstT5 encoder...")
-        encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
+        # Select encoder based on model name
+        typer.echo("\nInitializing encoder...")
+        if model in MODERNPROST_MODELS:
+            encoder = ModernProstThreeDiEncoder(model_name=model, device=device)
+        else:
+            encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
         typer.echo(f"Using device: {encoder.device}")
 
         typer.echo("\nStarting estimation (this may take several minutes)...")
