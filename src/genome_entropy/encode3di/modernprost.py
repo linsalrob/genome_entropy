@@ -261,13 +261,6 @@ class ModernProstThreeDiEncoder:
 
             self.model = self.model.eval()
 
-            # ModernProst models use half precision only on CUDA
-            # CPU and MPS may not support half precision properly
-            if self.device.startswith("cuda") or self.device == CUDA_DEVICE:
-                self.model = self.model.half()
-
-            self.model = self.model.eval()
-
             logger.info("Loaded model %s on device %s", self.model_name, self.device)
             logger.debug("Model config:\n%s", self.model.config)
         except Exception as e:
