@@ -68,7 +68,7 @@ def translate_orf(
         aa_sequence = PyGeneticCode.translate(orf.nt_sequence, table_id)
 
         if aa_sequence != orf.aa_sequence:
-            errmsg = f"""
+            warning_message = f"""
             Translated amino acid sequence is not the same as read from the file:
             Provided:
             {orf.aa_sequence}
@@ -79,8 +79,11 @@ def translate_orf(
             Location:
             Start: {orf.start} Stop: {orf.end} Frame: {orf.frame} Strand: {orf.strand}
             """
-            logger.error("Translation mismatch for ORF %s", orf.orf_id)
-            raise ValueError(errmsg)
+            logger.warning(
+                "Translation mismatch for ORF %s; using translated sequence.%s",
+                orf.orf_id,
+                warning_message,
+            )
 
         # Remove stop codon (*) if present at the end
         if aa_sequence.endswith("*"):
