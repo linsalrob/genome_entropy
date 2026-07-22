@@ -16,10 +16,11 @@ trap 's=$?; echo "$0: Error on line $LINENO: $BASH_COMMAND"; exit $s' ERR
 # The project pkgs are in the pyproject.toml
 # ------------------------
 ROCM_MODULE_DEFAULT="rocm/6.4.1"
-VENV_DIR="/scratch/pawsey1018/edwa0468/software/pip/genome_entropy"
+VENV_DIR="/scratch/$PAWSEY_PROJECT/$USER/software/pip/genome_entropy"
 PROJECT_PKGS=(
   genome_entropy
   "transformers>=4.30.0"
+  "accelerate>=0.20.0"
   "pygenetic_code>=0.20.0"
   "typer>=0.9.0"
   "tqdm>=4.65.0"

@@ -13,7 +13,7 @@ trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
 
 
 
-VENV_DIR="/scratch/pawsey1018/edwa0468/software/pip/genome_entropy"
+VENV_DIR="/scratch/$PAWSEY_PROJECT/$USER/software/pip/genome_entropy"
 if [[ ! -e "$VENV_DIR" ]]; then 
 	echo "Please run the installer to create the venv" >&2;
 	exit 1;
