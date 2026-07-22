@@ -670,7 +670,9 @@ Training GenBank Annotation Classifiers
 
 .. code-block:: bash
 
-   genome_entropy run --genbank genome.gbk --output annotated_results.json
+   # Store annotated pipeline output in the directory used for training.
+   mkdir -p results
+   genome_entropy run --genbank genome.gbk --output results/annotated_results.json
    genome_entropy ml train --json-dir results/ --output genbank_classifier.ubj
    genome_entropy ml predict \
        --json-dir new_results/ \
