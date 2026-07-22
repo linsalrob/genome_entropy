@@ -1,9 +1,11 @@
 """Tests for translation functionality."""
 
+import logging
+
 import pytest
 
 from genome_entropy.orf.types import OrfRecord
-from genome_entropy.translate.translator import ProteinRecord
+from genome_entropy.translate.translator import ProteinRecord, translate_orf
 
 
 def test_protein_record_creation() -> None:
@@ -161,3 +163,30 @@ def test_protein_record_ambiguous_codons() -> None:
 
     assert "X" in protein.aa_sequence
     assert protein.aa_length == 4
+
+
+def test_translate_orf_warns_and_uses_translation_on_mismatch(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A supplied protein mismatch is reported without stopping translation."""
+    orf = OrfRecord(
+        parent_id="seq1",
+        orf_id="orf1",
+        start=0,
+        end=9,
+        strand="+",
+        frame=0,
+        nt_sequence="ATGGCATAG",
+        aa_sequence="MV*",
+        table_id=11,
+        has_start_codon=True,
+        has_stop_codon=True,
+    )
+
+    with caplog.at_level(logging.WARNING):
+        protein = translate_orf(orf, table_id=11)
+
+    assert protein.aa_sequence == "MA"
+    assert protein.aa_length == 2
+    assert "Translation mismatch for ORF orf1" in caplog.text
+    assert "using translated sequence" in caplog.text
