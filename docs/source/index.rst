@@ -22,9 +22,10 @@ Overview
 
 * Extract Open Reading Frames (ORFs) from DNA sequences
 * Translate ORFs to protein sequences using customizable genetic codes
-* Predict structural alphabet tokens (3Di) directly from sequences using ProstT5
+* Predict structural alphabet tokens (3Di) directly from sequences using ModernProst or ProstT5
 * Calculate and compare Shannon entropy at DNA, ORF, protein, and 3Di levels
-* Process data efficiently with GPU acceleration (CUDA, MPS, or CPU)
+* Train ML classifiers that predict GenBank annotations from ORF-level features
+* Process data efficiently with GPU acceleration (CUDA, MPS, CPU, or multiple GPUs)
 
 Key Features
 ------------
@@ -36,13 +37,19 @@ Key Features
    Convert ORFs to protein sequences with support for all NCBI genetic code tables
 
 🏗️ **3Di Encoding**
-   Predict structural alphabet tokens directly from sequences using ProstT5
+   Predict structural alphabet tokens directly from sequences using ModernProst or ProstT5
 
 📊 **Entropy Analysis**
    Calculate Shannon entropy at DNA, ORF, protein, and 3Di levels
 
+🤖 **ML Classifier**
+   Train XGBoost or neural-network models to predict GenBank annotations
+
 ⚡ **GPU Acceleration**
-   Auto-detect and use CUDA, MPS (Apple Silicon), or CPU
+   Auto-detect and use CUDA, MPS (Apple Silicon), CPU, or multiple GPUs
+
+🚀 **Multi-GPU Support**
+   Parallelize 3Di encoding across available GPUs
 
 🔧 **Modular CLI**
    Run complete pipeline or individual steps

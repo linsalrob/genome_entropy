@@ -176,7 +176,7 @@ genome_entropy ml train --split-dir results/ --output model.ubj \
     --json-output detailed_results.json
 
 # Make predictions on new data
-genome_entropy ml predict --json-dir new_results/ --model model.ubj --output predictions.csv
+genome_entropy ml predict --json-dir new_results/ --model model.ubj --output predictions.tsv
 ```
 
 **Two modes of operation:**
@@ -256,20 +256,25 @@ genome_entropy run \
     --output results.json \
     --table 11 \
     --min-aa 30 \
-    --model Rostlab/ProstT5_fp16 \
+    --model gbouras13/modernprost-base \
     --device auto
 ```
 
 **Options:**
-- `--input, -i`: Input FASTA file (required)
+- `--input, -i`: Input FASTA file (required if `--genbank` is not provided)
+- `--genbank, -g`: GenBank file with DNA sequences and CDS annotations
 - `--output, -o`: Output JSON file (required)
 - `--table, -t`: NCBI genetic code table ID (default: 11)
 - `--min-aa`: Minimum protein length in amino acids (default: 30)
-- `--model, -m`: Model name (default: Rostlab/ProstT5_fp16)
-  - `Rostlab/ProstT5_fp16` - Original ProstT5 model
+- `--model, -m`: Model name (default: `gbouras13/modernprost-base`)
   - `gbouras13/modernprost-base` - Newer ModernProst base model
   - `gbouras13/modernprost-profiles` - Newer ModernProst with profile support
+  - `Rostlab/ProstT5` - Original ProstT5 model
+  - `Rostlab/ProstT5_fp16` - Original ProstT5 model
 - `--device, -d`: Device for inference (auto/cuda/mps/cpu)
+- `--encoding-size, -e`: Total amino acids per encoding batch (default: 10000)
+- `--multi-gpu`: Use multi-GPU parallel encoding when available
+- `--gpu-ids`: Comma-separated GPU IDs to use with `--multi-gpu`
 - `--skip-entropy`: Skip entropy calculation
 
 ### `genome_entropy orf` - Find ORFs
@@ -318,10 +323,14 @@ Convert proteins to 3Di structural tokens using ProstT5 or ModernProst:
 genome_entropy encode3di \
     --input proteins.json \
     --output 3di.json \
-    --model Rostlab/ProstT5_fp16 \
+    --model gbouras13/modernprost-base \
     --device auto \
-    --batch-size 4
+    --encoding-size 10000
 ```
+
+`encode3di` accepts protein JSON from `translate` or `fasta-to-protein`, and can
+also read protein FASTA files (`.fasta`, `.fa`, `.faa`) directly. Add
+`--multi-gpu` and optional `--gpu-ids 0,1` to parallelize encoding across GPUs.
 
 ### `genome_entropy entropy` - Calculate Entropy
 
@@ -336,12 +345,41 @@ genome_entropy entropy --input 3di.json --output entropy.json --normalize
 Pre-download ProstT5 or ModernProst models to cache:
 
 ```bash
-# Download default ProstT5 model
-genome_entropy download --model Rostlab/ProstT5_fp16
+# Download default ModernProst model
+genome_entropy download
 
 # Download ModernProst models
 genome_entropy download --model gbouras13/modernprost-base
 genome_entropy download --model gbouras13/modernprost-profiles
+```
+
+### `genome_entropy estimate-tokens` - Estimate Encoding Size
+
+Estimate a practical encoding size for the selected model and device:
+
+```bash
+genome_entropy estimate-tokens --device cuda --model gbouras13/modernprost-base
+```
+
+### `genome_entropy ml` - GenBank Annotation Classifier
+
+Train and use classifiers that predict whether ORFs are annotated in GenBank:
+
+```bash
+# Train from pipeline JSON output
+genome_entropy ml train --json-dir results/ --output model.ubj
+
+# Train with a file-level 80/20 train/test split and detailed report
+genome_entropy ml train \
+    --split-dir results/ \
+    --output model.ubj \
+    --json-output detailed_results.json
+
+# Predict into a TSV file
+genome_entropy ml predict \
+    --json-dir new_results/ \
+    --model model.ubj \
+    --output predictions.tsv
 ```
 
 ## Logging
@@ -548,7 +586,7 @@ Contributions welcome! Please:
 - Install get_orfs and add to PATH or set GET_ORFS_PATH environment variable
 
 **CUDA out of memory**
-- Use CPU with `--device cpu` or reduce batch size with `--batch-size 1`
+- Use CPU with `--device cpu`, reduce `--encoding-size`, or use `--multi-gpu`
 
 **Model download fails**
 - Check internet connection
