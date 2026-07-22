@@ -48,12 +48,17 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
 **Required Options:**
 
 ``--input, -i PATH``
-   Input FASTA file with DNA sequences
+   Input FASTA file with DNA sequences. Required if ``--genbank`` is not provided.
 
 ``--output, -o PATH``
    Output JSON file for results
 
 **Optional Options:**
+
+``--genbank, -g PATH``
+   GenBank file with DNA sequences and CDS annotations. Can be used instead of
+   ``--input``, or together with ``--input`` to use FASTA sequences with GenBank
+   annotations.
 
 ``--table, -t INTEGER``
    NCBI genetic code table ID
@@ -66,24 +71,30 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
    Default: 30
 
 ``--model, -m TEXT``
-   ProstT5 model name from HuggingFace
+   3Di model name from HuggingFace
    
-   Default: Rostlab/ProstT5_fp16
+   Default: gbouras13/modernprost-base
+
+   Supported models include ``gbouras13/modernprost-base``,
+   ``gbouras13/modernprost-profiles``, ``Rostlab/ProstT5``, and
+   ``Rostlab/ProstT5_fp16``.
 
 ``--device, -d TEXT``
-   Device for inference (auto, cuda, mps, cpu)
+   Device for inference (auto, cuda, mps, cpu). Ignored when ``--multi-gpu`` is set.
    
    Default: auto
-
-``--batch-size INTEGER``
-   Batch size for encoding
-   
-   Default: 4
 
 ``--encoding-size INTEGER``
    Total sequence length per encoding batch (in amino acids)
    
-   Default: 5000
+   Default: 10000
+
+``--multi-gpu``
+   Use multi-GPU parallel encoding when available.
+
+``--gpu-ids TEXT``
+   Comma-separated GPU IDs to use with ``--multi-gpu`` (for example, ``0,1,2``).
+   If omitted, available GPUs are auto-discovered.
 
 ``--skip-entropy``
    Skip entropy calculation
@@ -101,11 +112,17 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
        --output results.json \
        --table 1 \
        --min-aa 50 \
-       --device cuda \
-       --batch-size 8
+       --device cuda
 
    # Skip entropy for faster processing
    genome_entropy run --input genome.fasta --output results.json --skip-entropy
+
+   # Use GenBank annotations and multi-GPU encoding
+   genome_entropy run \
+       --genbank annotations.gbk \
+       --output results.json \
+       --multi-gpu \
+       --gpu-ids 0,1
 
 orf
 ^^^
@@ -194,7 +211,7 @@ Translate ORFs to protein sequences.
 encode3di
 ^^^^^^^^^
 
-Encode protein sequences to 3Di structural tokens using ProstT5.
+Encode protein sequences to 3Di structural tokens using ModernProst or ProstT5.
 
 **Usage:**
 
@@ -205,7 +222,9 @@ Encode protein sequences to 3Di structural tokens using ProstT5.
 **Required Options:**
 
 ``--input, -i PATH``
-   Input JSON file with protein records
+   Input protein file. FASTA files (``.fasta``, ``.fa``, ``.faa``) are read as
+   amino acid sequences; other inputs are treated as protein JSON records from
+   ``translate`` or ``fasta-to-protein``.
 
 ``--output, -o PATH``
    Output JSON file with 3Di records
@@ -213,24 +232,30 @@ Encode protein sequences to 3Di structural tokens using ProstT5.
 **Optional Options:**
 
 ``--model, -m TEXT``
-   ProstT5 model name
+   3Di model name
    
-   Default: Rostlab/ProstT5_fp16
+   Default: gbouras13/modernprost-base
+
+   Supported models include ``gbouras13/modernprost-base``,
+   ``gbouras13/modernprost-profiles``, ``Rostlab/ProstT5``, and
+   ``Rostlab/ProstT5_fp16``.
 
 ``--device, -d TEXT``
-   Device for inference (auto, cuda, mps, cpu)
+   Device for inference (auto, cuda, mps, cpu). Ignored when ``--multi-gpu`` is set.
    
    Default: auto
-
-``--batch-size INTEGER``
-   Number of sequences per batch
-   
-   Default: 4
 
 ``--encoding-size INTEGER``
    Total amino acids per encoding batch
    
-   Default: 5000
+   Default: 10000
+
+``--multi-gpu``
+   Use multi-GPU parallel encoding when available.
+
+``--gpu-ids TEXT``
+   Comma-separated GPU IDs to use with ``--multi-gpu`` (for example, ``0,1,2``).
+   If omitted, available GPUs are auto-discovered.
 
 **Examples:**
 
@@ -244,14 +269,53 @@ Encode protein sequences to 3Di structural tokens using ProstT5.
        --input proteins.json \
        --output 3di.json \
        --device cuda \
-       --batch-size 8 \
        --encoding-size 10000
+
+   # Encode a protein FASTA directly
+   genome_entropy encode3di --input proteins.faa --output 3di.json
+
+   # Encode on multiple GPUs
+   genome_entropy encode3di \
+       --input proteins.json \
+       --output 3di.json \
+       --multi-gpu \
+       --gpu-ids 0,1
 
    # Force CPU usage
    genome_entropy encode3di \
        --input proteins.json \
        --output 3di.json \
        --device cpu
+
+fasta-to-protein
+^^^^^^^^^^^^^^^^
+
+Convert protein FASTA input to the protein JSON format used by ``encode3di``.
+
+This is useful when you already have amino acid sequences and want to bypass ORF
+finding and translation. Because the proteins are not derived from ORFs, the
+command creates minimal placeholder ORF metadata for compatibility with the
+pipeline JSON schema.
+
+**Usage:**
+
+.. code-block:: bash
+
+   genome_entropy fasta-to-protein [OPTIONS]
+
+**Required Options:**
+
+``--input, -i PATH``
+   Input protein FASTA file
+
+``--output, -o PATH``
+   Output JSON file with protein records
+
+**Examples:**
+
+.. code-block:: bash
+
+   genome_entropy fasta-to-protein --input proteins.faa --output proteins.json
 
 entropy
 ^^^^^^^
@@ -293,7 +357,7 @@ Calculate Shannon entropy at all representation levels.
 download
 ^^^^^^^^
 
-Pre-download ProstT5 models to cache.
+Pre-download ModernProst or ProstT5 models to the HuggingFace cache.
 
 **Usage:**
 
@@ -306,7 +370,11 @@ Pre-download ProstT5 models to cache.
 ``--model, -m TEXT``
    Model name to download
    
-   Default: Rostlab/ProstT5_fp16
+   Default: gbouras13/modernprost-base
+
+``--test-data``
+   Request test datasets. This option is currently a placeholder; use
+   ``examples/example_small.fasta`` for local testing.
 
 **Examples:**
 
@@ -337,9 +405,9 @@ Estimate optimal encoding size for your GPU.
    Default: auto
 
 ``--model, -m TEXT``
-   ProstT5 model name
+   3Di model name
    
-   Default: Rostlab/ProstT5_fp16
+   Default: gbouras13/modernprost-base
 
 ``--start INTEGER``
    Starting encoding size to test
@@ -361,6 +429,19 @@ Estimate optimal encoding size for your GPU.
    
    Default: 3
 
+``--base-length, -b INTEGER``
+   Approximate length of generated individual proteins in amino acids
+
+   Default: 100
+
+``--log-level, -l LEVEL``
+   Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+   Default: INFO
+
+``--log-file PATH``
+   Path to log file
+
 **Examples:**
 
 .. code-block:: bash
@@ -377,6 +458,149 @@ Estimate optimal encoding size for your GPU.
 
    # Test CPU limits
    genome_entropy estimate-tokens --device cpu
+
+ml
+^^
+
+Train and use machine learning classifiers that predict whether ORFs correspond
+to GenBank CDS annotations. The classifier consumes JSON files produced by the
+pipeline, extracts tabular ORF-level features such as entropy values, lengths,
+position, strand, frame, and start/stop codon flags, then trains either an
+XGBoost model or a PyTorch neural network.
+
+The ML dependencies are optional. Install them with:
+
+.. code-block:: bash
+
+   pip install "genome_entropy[ml]"
+
+ml train
+""""""""
+
+Train a classifier and save the model.
+
+**Usage:**
+
+.. code-block:: bash
+
+   genome_entropy ml train [OPTIONS]
+
+**Required Options:**
+
+Exactly one input source is required:
+
+``--json-dir, -i PATH``
+   Directory containing JSON output files from ``genome_entropy run``. Uses all
+   files with random sample-level validation and test splits.
+
+``--split-dir PATH``
+   Directory containing JSON output files to split 80/20 by file into training
+   and held-out test sets.
+
+``--output, -o PATH``
+   Path where the trained model will be saved.
+
+**Optional Options:**
+
+``--model-type, -m TEXT``
+   Model type: ``xgboost`` or ``neural_net``
+
+   Default: xgboost
+
+``--device, -d TEXT``
+   Training device: ``cuda``, ``cpu``, or auto-detect when omitted.
+
+``--validation-split, -v FLOAT``
+   Fraction of data used for validation during training.
+
+   Default: 0.2
+
+``--test-split, -t FLOAT``
+   Fraction of samples held out for final testing in ``--json-dir`` mode. Ignored
+   when ``--split-dir`` is used.
+
+   Default: 0.1
+
+``--json-output PATH``
+   Save a detailed JSON report in ``--split-dir`` mode, including file lists and
+   test metrics.
+
+``--random-seed INTEGER``
+   Random seed for reproducible file splits.
+
+   Default: 42
+
+**Examples:**
+
+.. code-block:: bash
+
+   # Train the recommended XGBoost classifier
+   genome_entropy ml train --json-dir results/ --output model.ubj
+
+   # File-based train/test split with detailed reporting
+   genome_entropy ml train \
+       --split-dir results/ \
+       --output model.ubj \
+       --json-output detailed_results.json
+
+   # Train a neural network on CUDA
+   genome_entropy ml train \
+       --json-dir results/ \
+       --output model.pt \
+       --model-type neural_net \
+       --device cuda
+
+ml predict
+""""""""""
+
+Load a trained classifier and write per-ORF predictions.
+
+**Usage:**
+
+.. code-block:: bash
+
+   genome_entropy ml predict [OPTIONS]
+
+**Required Options:**
+
+``--json-dir, -i PATH``
+   Directory containing JSON files to predict on.
+
+``--model, -m PATH``
+   Path to a trained model file.
+
+``--output, -o PATH``
+   Path to save predictions in TSV format.
+
+**Optional Options:**
+
+``--model-type, -t TEXT``
+   Model type: ``xgboost`` or ``neural_net``
+
+   Default: xgboost
+
+**Output Columns:**
+
+``orf_id``
+   ORF identifier.
+
+``predicted_label``
+   Predicted class, where ``1`` means in GenBank and ``0`` means not in GenBank.
+
+``prob_not_in_genbank`` / ``prob_in_genbank``
+   Class probabilities from the model.
+
+``in_genbank``
+   Actual label when present in the input metadata, otherwise ``NA``.
+
+**Examples:**
+
+.. code-block:: bash
+
+   genome_entropy ml predict \
+       --json-dir new_results/ \
+       --model model.ubj \
+       --output predictions.tsv
 
 Common Workflows
 ----------------
@@ -409,8 +633,7 @@ Step-by-Step Analysis
    genome_entropy encode3di \
        --input proteins.json \
        --output 3di.json \
-       --device cuda \
-       --batch-size 8
+       --device cuda
 
    # Step 4: Calculate entropy
    genome_entropy entropy --input 3di.json --output entropy.json --normalize
@@ -429,6 +652,30 @@ Optimizing Performance
        --output results.json \
        --device cuda \
        --encoding-size 15000  # Use recommended value from estimate-tokens
+
+Protein FASTA to 3Di
+^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   # Convert first, then encode
+   genome_entropy fasta-to-protein --input proteins.faa --output proteins.json
+   genome_entropy encode3di --input proteins.json --output 3di.json
+
+   # Or encode the FASTA directly
+   genome_entropy encode3di --input proteins.faa --output 3di.json
+
+Training GenBank Annotation Classifiers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   genome_entropy run --genbank genome.gbk --output annotated_results.json
+   genome_entropy ml train --json-dir results/ --output genbank_classifier.ubj
+   genome_entropy ml predict \
+       --json-dir new_results/ \
+       --model genbank_classifier.ubj \
+       --output predictions.tsv
 
 Exit Codes
 ----------

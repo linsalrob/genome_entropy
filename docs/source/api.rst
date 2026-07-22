@@ -16,6 +16,7 @@ Core Modules
    genome_entropy.entropy
    genome_entropy.pipeline
    genome_entropy.io
+   genome_entropy.ml
 
 ORF Finding
 -----------
@@ -81,10 +82,42 @@ Encoder
    :undoc-members:
    :show-inheritance:
 
+ModernProst Encoder
+^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: genome_entropy.encode3di.modernprost
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ProstT5 Encoder
+^^^^^^^^^^^^^^^
+
+.. automodule:: genome_entropy.encode3di.prostt5
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Encoding Functions
 ^^^^^^^^^^^^^^^^^^
 
 .. automodule:: genome_entropy.encode3di.encoding
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Multi-GPU Encoding
+^^^^^^^^^^^^^^^^^^
+
+.. automodule:: genome_entropy.encode3di.multi_gpu
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+GPU Utilities
+^^^^^^^^^^^^^
+
+.. automodule:: genome_entropy.encode3di.gpu_utils
    :members:
    :undoc-members:
    :show-inheritance:
@@ -153,6 +186,99 @@ JSON I/O
    :undoc-members:
    :show-inheritance:
 
+GenBank I/O
+^^^^^^^^^^^
+
+.. automodule:: genome_entropy.io.genbank
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Machine Learning
+----------------
+
+.. automodule:: genome_entropy.ml
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Classifier
+^^^^^^^^^^
+
+.. automodule:: genome_entropy.ml.classifier
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Models
+^^^^^^
+
+.. automodule:: genome_entropy.ml.models
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+File-Based Splitting
+^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: genome_entropy.ml.file_split
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+CLI Commands
+------------
+
+.. automodule:: genome_entropy.cli.main
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.run
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.orf
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.translate
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.fasta_to_protein
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.encode3di
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.entropy
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.estimate_tokens
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.download
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: genome_entropy.cli.commands.ml
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Configuration
 -------------
 
@@ -185,13 +311,15 @@ ORF Finding
 
 .. code-block:: python
 
+   from genome_entropy.io.fasta import read_fasta
    from genome_entropy.orf.finder import find_orfs
 
-   # Find ORFs in a FASTA file
+   # Read DNA sequences and find ORFs
+   sequences = read_fasta("genome.fasta")
    orfs = find_orfs(
-       fasta_path="genome.fasta",
+       sequences=sequences,
        table_id=11,
-       min_length_nt=90
+       min_nt_length=90
    )
 
    # Examine results
@@ -219,11 +347,11 @@ Translation
 
 .. code-block:: python
 
-   from genome_entropy.encode3di import ProstT5ThreeDiEncoder
+   from genome_entropy.encode3di import ModernProstThreeDiEncoder
 
    # Initialize encoder
-   encoder = ProstT5ThreeDiEncoder(
-       model_name="Rostlab/ProstT5_fp16",
+   encoder = ModernProstThreeDiEncoder(
+       model_name="gbouras13/modernprost-base",
        device="auto"  # Auto-detect CUDA/MPS/CPU
    )
 
@@ -231,8 +359,7 @@ Translation
    aa_sequences = [p.aa_sequence for p in proteins]
    three_di_tokens = encoder.encode(
        aa_sequences,
-       batch_size=4,
-       encoding_size=5000
+       encoding_size=10000
    )
 
    for i, tokens in enumerate(three_di_tokens):
@@ -243,10 +370,10 @@ Token Estimation
 
 .. code-block:: python
 
-   from genome_entropy.encode3di import ProstT5ThreeDiEncoder, estimate_token_size
+   from genome_entropy.encode3di import ModernProstThreeDiEncoder, estimate_token_size
 
    # Initialize encoder
-   encoder = ProstT5ThreeDiEncoder()
+   encoder = ModernProstThreeDiEncoder()
 
    # Find optimal encoding size
    results = estimate_token_size(
@@ -258,12 +385,37 @@ Token Estimation
    )
 
    print(f"Recommended encoding size: {results['recommended_token_size']} AA")
-   
-   # Use in encoding
+
+   # Use the recommendation in encoding
    three_di = encoder.encode(
-       sequences,
-       encoding_size=results['recommended_token_size']
+       aa_sequences,
+       encoding_size=results["recommended_token_size"]
    )
+
+Machine Learning
+^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   from pathlib import Path
+
+   from genome_entropy.ml import GenbankClassifier, extract_features, load_json_data
+
+   # Load pipeline JSON files and extract ORF-level tabular features
+   json_data = load_json_data(Path("results"))
+   X, y, feature_names, metadata = extract_features(json_data, return_metadata=True)
+
+   # Train the default XGBoost classifier
+   classifier = GenbankClassifier(model_type="xgboost", device="cuda")
+   metrics = classifier.fit(X, y, feature_names=feature_names)
+   print(metrics)
+
+   # Save and reload the model
+   classifier.save(Path("genbank_classifier.ubj"))
+
+   loaded = GenbankClassifier(model_type="xgboost")
+   loaded.load(Path("genbank_classifier.ubj"))
+   predictions = loaded.predict(X)
 
 Shannon Entropy
 ^^^^^^^^^^^^^^^
@@ -304,7 +456,7 @@ Complete Pipeline
        output_json=Path("results.json"),
        table_id=11,
        min_aa_len=30,
-       model_name="Rostlab/ProstT5_fp16",
+       model_name="gbouras13/modernprost-base",
        device="auto",
        compute_entropy=True
    )
@@ -325,24 +477,24 @@ I/O Operations
 .. code-block:: python
 
    from genome_entropy.io.fasta import read_fasta, write_fasta
-   from genome_entropy.io.jsonio import save_json, load_json
+   from genome_entropy.io.jsonio import write_json, read_json
 
    # Read FASTA
    sequences = read_fasta("genome.fasta")
-   for seq_id, seq in sequences:
+   for seq_id, seq in sequences.items():
        print(f"{seq_id}: {len(seq)} bp")
 
    # Write FASTA
-   output_sequences = [
-       ("seq1", "ATCGATCG"),
-       ("seq2", "GCTAGCTA")
-   ]
-   write_fasta("output.fasta", output_sequences)
+   output_sequences = {
+       "seq1": "ATCGATCG",
+       "seq2": "GCTAGCTA",
+   }
+   write_fasta(output_sequences, "output.fasta")
 
    # Save/load JSON
    data = {"key": "value", "results": [1, 2, 3]}
-   save_json(data, "output.json")
-   loaded = load_json("output.json")
+   write_json(data, "output.json")
+   loaded = read_json("output.json")
 
 Error Handling
 ^^^^^^^^^^^^^^
@@ -357,7 +509,7 @@ Error Handling
    )
 
    try:
-       orfs = find_orfs("genome.fasta", table_id=11)
+       orfs = find_orfs({"seq1": "ATGGCTTAATAG"}, table_id=11)
    except OrfFinderError as e:
        print(f"ORF finding failed: {e}")
    except OrfEntropyError as e:
