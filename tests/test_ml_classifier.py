@@ -8,9 +8,11 @@ import pytest
 import numpy as np
 
 from genome_entropy.ml.classifier import (
-    load_json_data,
-    extract_features,
     GenbankClassifier,
+    extract_features,
+    load_json_data,
+    load_json_file,
+    split_json_records,
 )
 
 
@@ -114,6 +116,83 @@ def test_load_json_data_empty_dir():
     with tempfile.TemporaryDirectory() as tmpdir:
         with pytest.raises(ValueError, match="No JSON files found"):
             load_json_data(Path(tmpdir))
+
+
+def test_load_multi_record_json_file(sample_json_unified, tmp_path):
+    """Each top-level record in one JSON file remains an independent group."""
+    records = []
+    for i in range(3):
+        record = json.loads(json.dumps(sample_json_unified[0]))
+        record["input_id"] = f"sequence_{i}"
+        records.append(record)
+
+    json_file = tmp_path / "combined.json"
+    json_file.write_text(json.dumps(records))
+
+    data = load_json_file(json_file)
+
+    assert len(data) == 3
+    assert [group[0]["input_id"] for group in data] == [
+        "sequence_0",
+        "sequence_1",
+        "sequence_2",
+    ]
+    assert all(len(group) == 1 for group in data)
+
+
+def test_split_multi_record_json_keeps_records_together(
+    sample_json_unified, tmp_path
+):
+    """Record-level splitting never divides one record's ORFs across sets."""
+    records = []
+    for i in range(10):
+        record = json.loads(json.dumps(sample_json_unified[0]))
+        record["input_id"] = f"sequence_{i}"
+        records.append(record)
+
+    json_file = tmp_path / "combined.json"
+    json_file.write_text(json.dumps(records))
+    data = load_json_file(json_file)
+
+    train_data, test_data = split_json_records(
+        data, test_split=0.2, random_seed=123
+    )
+    train_ids = {group[0]["input_id"] for group in train_data}
+    test_ids = {group[0]["input_id"] for group in test_data}
+
+    assert len(train_data) == 8
+    assert len(test_data) == 2
+    assert train_ids.isdisjoint(test_ids)
+    assert train_ids | test_ids == {f"sequence_{i}" for i in range(10)}
+
+
+def test_multi_record_file_extracts_all_orfs_and_input_ids(
+    sample_json_unified, tmp_path
+):
+    """Prediction inputs include every ORF with record-identifying metadata."""
+    records = []
+    for i in range(3):
+        record = json.loads(json.dumps(sample_json_unified[0]))
+        record["input_id"] = f"sequence_{i}"
+        records.append(record)
+
+    json_file = tmp_path / "combined.json"
+    json_file.write_text(json.dumps(records))
+
+    data = load_json_file(json_file)
+    X, y, _, metadata = extract_features(data, return_metadata=True)
+
+    assert X.shape[0] == 6
+    assert y.shape[0] == 6
+    assert metadata is not None
+    assert [item["input_id"] for item in metadata] == [
+        "sequence_0",
+        "sequence_0",
+        "sequence_1",
+        "sequence_1",
+        "sequence_2",
+        "sequence_2",
+    ]
 
 
 def test_extract_features_unified_format(sample_json_unified):

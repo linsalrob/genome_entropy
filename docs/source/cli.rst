@@ -489,6 +489,10 @@ Train a classifier and save the model.
 
 Exactly one input source is required:
 
+``--json PATH``
+   One JSON file containing multiple pipeline records. Records are split between
+   training and test sets while all ORFs from a record remain together.
+
 ``--json-dir, -i PATH``
    Directory containing JSON output files from ``genome_entropy run``. Uses all
    files with random sample-level validation and test splits.
@@ -516,8 +520,9 @@ Exactly one input source is required:
    Default: 0.2
 
 ``--test-split, -t FLOAT``
-   Fraction of samples held out for final testing in ``--json-dir`` mode. Ignored
-   when ``--split-dir`` is used.
+   Fraction held out for final testing. In ``--json`` mode this is the fraction
+   of top-level records; in ``--json-dir`` mode it is the fraction of ORFs.
+   Ignored when ``--split-dir`` is used.
 
    Default: 0.1
 
@@ -536,6 +541,9 @@ Exactly one input source is required:
 
    # Train the recommended XGBoost classifier
    genome_entropy ml train --json-dir results/ --output model.ubj
+
+   # Train from one multi-record JSON without record-level leakage
+   genome_entropy ml train --json results.json --output model.ubj
 
    # File-based train/test split with detailed reporting
    genome_entropy ml train \
@@ -563,6 +571,11 @@ Load a trained classifier and write per-ORF predictions.
 
 **Required Options:**
 
+Exactly one input source is required:
+
+``--json PATH``
+   One JSON file containing one or more pipeline records.
+
 ``--json-dir, -i PATH``
    Directory containing JSON files to predict on.
 
@@ -580,6 +593,9 @@ Load a trained classifier and write per-ORF predictions.
    Default: xgboost
 
 **Output Columns:**
+
+``input_id``
+   Identifier of the top-level input record.
 
 ``orf_id``
    ORF identifier.
@@ -599,6 +615,11 @@ Load a trained classifier and write per-ORF predictions.
 
    genome_entropy ml predict \
        --json-dir new_results/ \
+       --model model.ubj \
+       --output predictions.tsv
+
+   genome_entropy ml predict \
+       --json results.json \
        --model model.ubj \
        --output predictions.tsv
 
