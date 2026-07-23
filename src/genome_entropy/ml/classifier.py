@@ -314,6 +314,32 @@ def extract_features(
         return X, y, feature_names, None
 
 
+def filter_json_records_with_features(
+    json_data: List[List[Dict[str, Any]]],
+) -> List[List[Dict[str, Any]]]:
+    """Return only record groups containing at least one extractable ORF."""
+    usable_records = []
+    for record_group in json_data:
+        try:
+            extract_features([record_group])
+        except ValueError:
+            input_ids = [
+                str(record.get("input_id", "<unknown>")) for record in record_group
+            ]
+            logger.warning(
+                "Skipping record(s) with no usable ORFs: %s", ", ".join(input_ids)
+            )
+            continue
+        usable_records.append(record_group)
+
+    logger.info(
+        "Retained %d/%d record(s) containing usable ORFs",
+        len(usable_records),
+        len(json_data),
+    )
+    return usable_records
+
+
 class GenbankClassifier:
     """Machine learning classifier for predicting GenBank ORF annotations.
 

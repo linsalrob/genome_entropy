@@ -9,6 +9,7 @@ from ...logging_config import get_logger
 from ...ml.classifier import (
     GenbankClassifier,
     extract_features,
+    filter_json_records_with_features,
     load_json_data,
     load_json_file,
     split_json_records,
@@ -232,10 +233,12 @@ def train_classifier(
             logger.info("\nSINGLE-FILE MODE: Using record-level split")
             logger.info(f"\nLoading JSON records from: {json_file}")
             json_data = load_json_file(json_file)
+            json_data = filter_json_records_with_features(json_data)
             if len(json_data) < 2:
                 raise ValueError(
                     "Training with --json requires at least 2 top-level records "
-                    "so both training and test sets are non-empty"
+                    "containing usable ORFs so both training and test sets are "
+                    "non-empty"
                 )
         else:
             logger.info("\nSTANDARD MODE: Using all files with sample-level split")

@@ -10,6 +10,7 @@ import numpy as np
 from genome_entropy.ml.classifier import (
     GenbankClassifier,
     extract_features,
+    filter_json_records_with_features,
     load_json_data,
     load_json_file,
     split_json_records,
@@ -164,6 +165,38 @@ def test_split_multi_record_json_keeps_records_together(
     assert len(test_data) == 2
     assert train_ids.isdisjoint(test_ids)
     assert train_ids | test_ids == {f"sequence_{i}" for i in range(10)}
+
+
+def test_featureless_records_are_removed_before_record_split(
+    sample_json_unified, tmp_path
+):
+    """Empty pipeline results cannot become an unusable train or test set."""
+    usable_records = []
+    for i in range(2):
+        record = json.loads(json.dumps(sample_json_unified[0]))
+        record["input_id"] = f"usable_{i}"
+        usable_records.append(record)
+    empty_record = {
+        "schema_version": "2.0.0",
+        "input_id": "no_orfs",
+        "features": {},
+    }
+
+    json_file = tmp_path / "combined.json"
+    json_file.write_text(json.dumps([empty_record, *usable_records]))
+
+    data = filter_json_records_with_features(load_json_file(json_file))
+    train_data, test_data = split_json_records(
+        data, test_split=0.5, random_seed=42
+    )
+
+    assert len(data) == 2
+    assert len(train_data) == 1
+    assert len(test_data) == 1
+    assert {
+        train_data[0][0]["input_id"],
+        test_data[0][0]["input_id"],
+    } == {"usable_0", "usable_1"}
 
 
 def test_multi_record_file_extracts_all_orfs_and_input_ids(
