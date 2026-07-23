@@ -101,6 +101,12 @@ def load_json_files(file_list: List[Path]) -> List[List[Dict[str, Any]]]:
     for json_file in file_list:
         try:
             content = read_json(json_file)
+            if isinstance(content, dict):
+                content = [content]
+            if not isinstance(content, list) or not all(
+                isinstance(record, dict) for record in content
+            ):
+                raise ValueError("top level must be a JSON object or list of objects")
             data.append(content)
             logger.debug(f"Loaded {json_file.name}")
         except json.JSONDecodeError as e:

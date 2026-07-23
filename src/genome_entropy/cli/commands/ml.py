@@ -6,7 +6,14 @@ from typing import Optional
 import typer
 
 from ...logging_config import get_logger
-from ...ml.classifier import GenbankClassifier, load_json_data, extract_features
+from ...ml.classifier import (
+    GenbankClassifier,
+    extract_features,
+    filter_json_records_with_features,
+    load_json_data,
+    load_json_file,
+    split_json_records,
+)
 
 logger = get_logger(__name__)
 
@@ -15,6 +22,11 @@ app = typer.Typer(help="Train ML classifier to predict GenBank annotations")
 
 @app.command("train")
 def train_classifier(
+    json_file: Optional[Path] = typer.Option(
+        None,
+        "--json",
+        help="Single JSON file containing multiple pipeline records",
+    ),
     json_dir: Optional[Path] = typer.Option(
         None,
         "--json-dir",
@@ -65,13 +77,16 @@ def train_classifier(
     original GenBank file (in_genbank: True/False) based on sequence features
     including entropy values, length, position, and other characteristics.
     
-    TWO MODES OF OPERATION:
+    THREE MODES OF OPERATION:
     -----------------------
     
-    1. **Standard mode** (--json-dir): Uses all files in directory with random
+    1. **Single-file mode** (--json): Splits top-level records into training and
+       test sets while keeping all ORFs from each record together.
+
+    2. **Standard mode** (--json-dir): Uses all files in directory with random
        sample-level train/test split.
        
-    2. **File-based split mode** (--split-dir): Randomly splits files 80/20 into
+    3. **File-based split mode** (--split-dir): Randomly splits files 80/20 into
        training and test sets, trains on training files, evaluates on test files.
        Outputs detailed JSON report with file lists and results.
     
@@ -117,6 +132,9 @@ def train_classifier(
     
     Basic usage with XGBoost (recommended):
         genome_entropy ml train --json-dir results/ --output model.ubj
+
+    Train from one multi-record JSON file:
+        genome_entropy ml train --json results.json --output model.ubj
     
     File-based train/test split with detailed JSON report:
         genome_entropy ml train --split-dir results/ --output model.ubj \\
@@ -134,19 +152,26 @@ def train_classifier(
     logger.info("GenBank ORF Classification - Model Training")
     logger.info("=" * 60)
 
-    # Validate inputs - exactly one of json_dir or split_dir must be provided
-    if json_dir is None and split_dir is None:
-        logger.error("Either --json-dir or --split-dir must be provided")
+    # Validate inputs - exactly one input mode must be provided
+    inputs = [json_file, json_dir, split_dir]
+    if sum(value is not None for value in inputs) != 1:
+        logger.error(
+            "Exactly one of --json, --json-dir, or --split-dir must be provided"
+        )
         raise typer.Exit(1)
 
-    if json_dir is not None and split_dir is not None:
-        logger.error("Cannot use both --json-dir and --split-dir. Choose one mode.")
+    if not 0 < test_split < 1:
+        logger.error("--test-split must be between 0 and 1")
         raise typer.Exit(1)
 
-    # Validate directories exist
-    input_dir = json_dir if json_dir is not None else split_dir
-    if not input_dir.is_dir():
-        logger.error(f"Directory not found: {input_dir}")
+    # Validate the selected input path
+    input_path = json_file or json_dir or split_dir
+    path_is_valid = (
+        input_path.is_file() if json_file is not None else input_path.is_dir()
+    )
+    if not path_is_valid:
+        expected = "file" if json_file is not None else "directory"
+        logger.error(f"Input {expected} not found: {input_path}")
         raise typer.Exit(1)
 
     if model_type not in ["xgboost", "neural_net"]:
@@ -202,23 +227,58 @@ def train_classifier(
 
         return
 
-    # Original logic for standard mode (--json-dir)
-    logger.info("\nSTANDARD MODE: Using all files with sample-level split")
-
-    # Load data
-    logger.info(f"\nLoading JSON files from: {json_dir}")
+    # Load data for standard directory mode or record-aware single-file mode
     try:
-        json_data = load_json_data(json_dir)
+        if json_file is not None:
+            logger.info("\nSINGLE-FILE MODE: Using record-level split")
+            logger.info(f"\nLoading JSON records from: {json_file}")
+            json_data = load_json_file(json_file)
+            json_data = filter_json_records_with_features(json_data)
+            if len(json_data) < 2:
+                raise ValueError(
+                    "Training with --json requires at least 2 top-level records "
+                    "containing usable ORFs so both training and test sets are "
+                    "non-empty"
+                )
+        else:
+            logger.info("\nSTANDARD MODE: Using all files with sample-level split")
+            logger.info(f"\nLoading JSON files from: {json_dir}")
+            json_data = load_json_data(json_dir)
     except Exception as e:
         logger.error(f"Failed to load JSON data: {e}")
         raise typer.Exit(1)
 
-    # Extract features
-    logger.info("\nExtracting features from JSON data...")
+    import numpy as np
+
+    # Split a multi-record file by record, keeping all ORFs belonging to one
+    # genome/sequence together. Directory mode retains its sample-level split.
     try:
-        X, y, feature_names, _ = extract_features(json_data)
+        if json_file is not None:
+            train_data, test_data = split_json_records(
+                json_data, test_split=test_split, random_seed=random_seed
+            )
+
+            X_trainval, y_trainval, feature_names, _ = extract_features(train_data)
+            X_test, y_test, _, _ = extract_features(test_data)
+            X = np.concatenate((X_trainval, X_test))
+            y = np.concatenate((y_trainval, y_test))
+            logger.info(
+                f"Record split: {len(train_data)} train+val records, "
+                f"{len(test_data)} test records"
+            )
+        else:
+            X, y, feature_names, _ = extract_features(json_data)
+            n_samples = len(X)
+            n_test = int(n_samples * test_split)
+            n_test = max(1, min(n_test, n_samples - 1))
+            rng = np.random.default_rng(random_seed)
+            indices = rng.permutation(n_samples)
+            X_trainval = X[indices[n_test:]]
+            y_trainval = y[indices[n_test:]]
+            X_test = X[indices[:n_test]]
+            y_test = y[indices[:n_test]]
     except Exception as e:
-        logger.error(f"Failed to extract features: {e}")
+        logger.error(f"Failed to extract or split features: {e}")
         raise typer.Exit(1)
 
     logger.info(f"Extracted {len(X)} ORF samples with {len(feature_names)} features")
@@ -232,18 +292,6 @@ def train_classifier(
     if pos_ratio < 0.1 or pos_ratio > 0.9:
         logger.warning(f"Class imbalance detected: {pos_ratio:.1%} positive samples")
         logger.warning("Model may have difficulty with minority class")
-
-    # Split data into train+val and test sets
-    import numpy as np
-
-    n_samples = len(X)
-    n_test = int(n_samples * test_split)
-    indices = np.random.permutation(n_samples)
-
-    X_trainval = X[indices[n_test:]]
-    y_trainval = y[indices[n_test:]]
-    X_test = X[indices[:n_test]]
-    y_test = y[indices[:n_test]]
 
     logger.info(f"\nData split: {len(X_trainval)} train+val, {len(X_test)} test")
 
@@ -322,8 +370,11 @@ def train_classifier(
 
 @app.command("predict")
 def predict_with_classifier(
-    json_dir: Path = typer.Option(
-        ..., "--json-dir", "-i", help="Directory containing JSON files to predict on"
+    json_file: Optional[Path] = typer.Option(
+        None, "--json", help="Single JSON file containing records to predict"
+    ),
+    json_dir: Optional[Path] = typer.Option(
+        None, "--json-dir", "-i", help="Directory containing JSON files to predict"
     ),
     model: Path = typer.Option(..., "--model", "-m", help="Path to trained model file"),
     output: Path = typer.Option(
@@ -335,13 +386,21 @@ def predict_with_classifier(
 ) -> None:
     """Make predictions using a trained classifier.
 
-    Loads a previously trained model and makes predictions on new JSON files.
-    Outputs predictions in TSV format with ORF IDs, predicted labels, probabilities,
-    and actual in_genbank values (if available).
+    Loads a previously trained model and makes predictions on a multi-record JSON
+    file or a directory of JSON files. Outputs every ORF in TSV format with input
+    IDs, ORF IDs, predicted labels, probabilities, and actual in_genbank values.
     """
-    logger.info("Loading JSON files...")
+    if (json_file is None) == (json_dir is None):
+        logger.error("Exactly one of --json or --json-dir must be provided")
+        raise typer.Exit(1)
+
+    logger.info("Loading JSON data...")
     try:
-        json_data = load_json_data(json_dir)
+        json_data = (
+            load_json_file(json_file)
+            if json_file is not None
+            else load_json_data(json_dir)
+        )
     except Exception as e:
         logger.error(f"Failed to load JSON data: {e}")
         raise typer.Exit(1)
@@ -375,15 +434,20 @@ def predict_with_classifier(
     with open(output, "w") as f:
         # Write header
         f.write(
-            "orf_id\tpredicted_label\tprob_not_in_genbank\tprob_in_genbank\tin_genbank\n"
+            "input_id\torf_id\tpredicted_label\tprob_not_in_genbank\t"
+            "prob_in_genbank\tin_genbank\n"
         )
 
         # Write predictions
         for i, (pred, prob) in enumerate(zip(predictions, probabilities)):
             orf_id = metadata[i]["orf_id"] if metadata else f"orf_{i}"
+            input_id = metadata[i]["input_id"] if metadata else ""
             actual_label = metadata[i]["in_genbank"] if metadata else "NA"
 
-            f.write(f"{orf_id}\t{pred}\t{prob[0]:.6f}\t{prob[1]:.6f}\t{actual_label}\n")
+            f.write(
+                f"{input_id}\t{orf_id}\t{pred}\t{prob[0]:.6f}\t"
+                f"{prob[1]:.6f}\t{actual_label}\n"
+            )
 
     logger.info(f"Predictions saved. {len(predictions)} samples processed.")
     logger.info(f"Predicted in GenBank: {(predictions == 1).sum()}")

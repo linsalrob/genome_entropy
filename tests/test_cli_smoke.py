@@ -159,3 +159,36 @@ def test_fasta_to_protein_command_help() -> None:
     assert "input" in result.stdout.lower()
     assert "output" in result.stdout.lower()
     assert "fasta" in result.stdout.lower() or "protein" in result.stdout.lower()
+
+
+def test_ml_commands_expose_single_json_input() -> None:
+    """Both ML workflows advertise the single multi-record JSON option."""
+    for subcommand in ("train", "predict"):
+        result = runner.invoke(app, ["ml", subcommand, "--help"])
+        assert result.exit_code == 0
+        clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+        assert "--json" in clean_output
+        assert "--json-dir" in clean_output
+
+
+def test_ml_predict_rejects_json_and_json_dir_together(tmp_path) -> None:
+    """Single-file and directory prediction inputs are mutually exclusive."""
+    json_file = tmp_path / "records.json"
+    json_file.write_text("[]")
+    result = runner.invoke(
+        app,
+        [
+            "ml",
+            "predict",
+            "--json",
+            str(json_file),
+            "--json-dir",
+            str(tmp_path),
+            "--model",
+            str(tmp_path / "model.ubj"),
+            "--output",
+            str(tmp_path / "predictions.tsv"),
+        ],
+    )
+
+    assert result.exit_code == 1

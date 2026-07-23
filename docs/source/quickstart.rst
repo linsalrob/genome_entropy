@@ -181,6 +181,7 @@ Tips for Large Datasets
 3. **Filter short ORFs**: Use ``--min-aa`` to exclude short proteins
 4. **Log to file**: Use ``--log-file`` to track progress
 5. **Estimate tokens first**: Use ``estimate-tokens`` to find optimal encoding size
+6. **Combine all the sequences into one file**: Use a single FASTA file or GenBank for all sequences because we only need to load the model onto the GPU once, and then reuse it for all sequences. This is much faster than loading the model for each sequence.
 
 Example Workflow
 ----------------

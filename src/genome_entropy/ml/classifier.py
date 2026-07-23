@@ -48,6 +48,12 @@ def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
     for json_file in json_files:
         try:
             content = read_json(json_file)
+            if isinstance(content, dict):
+                content = [content]
+            if not isinstance(content, list) or not all(
+                isinstance(record, dict) for record in content
+            ):
+                raise ValueError("top level must be a JSON object or list of objects")
             data.append(content)
             logger.debug(f"Loaded {json_file.name}")
         except json.JSONDecodeError as e:
@@ -62,6 +68,61 @@ def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
 
     logger.info(f"Successfully loaded {len(data)} JSON files")
     return data
+
+
+def load_json_file(json_file: Path) -> List[List[Dict[str, Any]]]:
+    """Load records from one pipeline JSON file as independent groups.
+
+    Keeping each top-level record separate allows train/test splitting by
+    genome or sequence instead of mixing ORFs from one record across splits.
+    """
+    from ..io.jsonio import read_json
+
+    json_file = Path(json_file)
+    if not json_file.is_file():
+        raise ValueError(f"Not a file: {json_file}")
+
+    content = read_json(json_file)
+    if isinstance(content, dict):
+        records = [content]
+    elif isinstance(content, list):
+        records = content
+    else:
+        raise ValueError(
+            f"Expected a JSON object or list of records in {json_file}, "
+            f"got {type(content).__name__}"
+        )
+
+    if not records:
+        raise ValueError(f"No records found in {json_file}")
+    if not all(isinstance(record, dict) for record in records):
+        raise ValueError(f"All records in {json_file} must be JSON objects")
+
+    logger.info(f"Successfully loaded {len(records)} record(s) from {json_file}")
+    return [[record] for record in records]
+
+
+def split_json_records(
+    json_data: List[List[Dict[str, Any]]],
+    test_split: float = 0.1,
+    random_seed: int = 42,
+) -> Tuple[List[List[Dict[str, Any]]], List[List[Dict[str, Any]]]]:
+    """Split top-level JSON records into reproducible train and test groups."""
+    if not 0 < test_split < 1:
+        raise ValueError(f"test_split must be between 0 and 1, got {test_split}")
+    if len(json_data) < 2:
+        raise ValueError("Record splitting requires at least 2 top-level records")
+
+    rng = np.random.default_rng(random_seed)
+    indices = rng.permutation(len(json_data))
+    n_test = int(len(json_data) * test_split)
+    n_test = max(1, min(n_test, len(json_data) - 1))
+    test_indices = indices[:n_test]
+    train_indices = indices[n_test:]
+    return (
+        [json_data[i] for i in train_indices],
+        [json_data[i] for i in test_indices],
+    )
 
 
 def extract_features(
@@ -152,6 +213,7 @@ def extract_features(
                         if return_metadata:
                             metadata_list.append(
                                 {
+                                    "input_id": data.get("input_id", ""),
                                     "orf_id": orf_id,
                                     "in_genbank": feature["metadata"]["in_genbank"],
                                 }
@@ -217,6 +279,7 @@ def extract_features(
                         if return_metadata:
                             metadata_list.append(
                                 {
+                                    "input_id": data.get("input_id", ""),
                                     "orf_id": orf_id,
                                     "in_genbank": orf.get("in_genbank", False),
                                 }
@@ -249,6 +312,32 @@ def extract_features(
         return X, y, feature_names, metadata_list
     else:
         return X, y, feature_names, None
+
+
+def filter_json_records_with_features(
+    json_data: List[List[Dict[str, Any]]],
+) -> List[List[Dict[str, Any]]]:
+    """Return only record groups containing at least one extractable ORF."""
+    usable_records = []
+    for record_group in json_data:
+        try:
+            extract_features([record_group])
+        except ValueError:
+            input_ids = [
+                str(record.get("input_id", "<unknown>")) for record in record_group
+            ]
+            logger.warning(
+                "Skipping record(s) with no usable ORFs: %s", ", ".join(input_ids)
+            )
+            continue
+        usable_records.append(record_group)
+
+    logger.info(
+        "Retained %d/%d record(s) containing usable ORFs",
+        len(usable_records),
+        len(json_data),
+    )
+    return usable_records
 
 
 class GenbankClassifier:
