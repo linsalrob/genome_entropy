@@ -6,7 +6,7 @@ _genome_entropy_. Start Jupyter from the repository environment so the local
 
 ```bash
 source venv/bin/activate
-pip install -e ".[ml]"
+pip install -e ".[ml]" jupyterlab pandas matplotlib
 jupyter lab notebooks/
 ```
 
