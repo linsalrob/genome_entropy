@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 from ..config import (
     DEFAULT_GENETIC_CODE_TABLE,
@@ -234,9 +234,7 @@ def run_pipeline(
             if genbank_file and genbank_cds_list:
                 logger.info("Matching ORFs to GenBank CDS annotations...")
                 for orf in orfs:
-                    orf.in_genbank = match_orf_to_genbank_cds(
-                        orf.aa_sequence, genbank_cds_list
-                    )
+                    orf.in_genbank = match_orf_to_genbank_cds(orf, genbank_cds_list)
                 matched_count = sum(1 for orf in orfs if orf.in_genbank)
                 logger.info(
                     "Matched %d/%d ORFs to GenBank CDS", matched_count, len(orfs)

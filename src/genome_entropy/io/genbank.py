@@ -8,6 +8,7 @@ from typing import Dict, List, Union
 from Bio import SeqIO
 
 from ..logging_config import get_logger
+from ..orf.types import OrfRecord
 
 logger = get_logger(__name__)
 
@@ -157,57 +158,54 @@ def extract_cds_features(genbank_path: Union[str, Path]) -> List[GenBankCDS]:
     return cds_features
 
 
-def match_orf_to_genbank_cds(
-    orf_aa_sequence: str,
-    genbank_cds_list: List[GenBankCDS],
-    min_c_terminal_match: int = 10,
-) -> bool:
-    """Check if an ORF matches any GenBank CDS by C-terminal sequence.
+def orf_matches_genbank_cds(orf: OrfRecord, cds: GenBankCDS) -> bool:
+    """Match proteins by their strand-aware stop and exact C-terminal sequence.
 
-    Matches are determined by comparing the C-terminal (end) sequences of the
-    protein sequences. This accounts for cases where the predicted ORF may
-    not exactly match the annotated CDS start position.
-
-    Args:
-        orf_aa_sequence: Amino acid sequence of the ORF
-        genbank_cds_list: List of CDS features from GenBank
-        min_c_terminal_match: Minimum length of C-terminal sequence to match (default: 10)
-
-    Returns:
-        True if the ORF C-terminal matches any GenBank CDS, False otherwise
+    C-terminal matching recognises partial CDS translations and alternative
+    initiation residues without treating internal or N-terminal similarity as
+    evidence that two proteins are the same.
     """
-    if not orf_aa_sequence or not genbank_cds_list:
+    if orf.parent_id != cds.parent_id or orf.strand != cds.strand:
         return False
 
-    # Remove stop codon (*) from ORF sequence for comparison
-    orf_seq_clean = orf_aa_sequence.rstrip("*")
+    # get_orfs reports one-based inclusive coordinates. Biopython reports
+    # zero-based, half-open locations, so only the reverse-strand low coordinate
+    # needs an offset when comparing biological translation termination sites.
+    orf_stop = orf.end if orf.strand == "+" else orf.start
+    cds_stop = cds.end if cds.strand == "+" else cds.start + 1
+    if orf_stop != cds_stop:
+        return False
 
-    # Get C-terminal sequence (last N amino acids)
-    orf_c_terminal = orf_seq_clean[-min_c_terminal_match:]
+    def normalise(sequence: str) -> str:
+        normalised = "".join(sequence.split()).upper()
+        return normalised.removesuffix("*")
 
-    # If ORF is shorter than min match length, use the whole sequence
-    if len(orf_seq_clean) < min_c_terminal_match:
-        orf_c_terminal = orf_seq_clean
+    orf_c_terminal = normalise(orf.aa_sequence)[1:]
+    cds_c_terminal = normalise(cds.protein_sequence)[1:]
+    if not orf_c_terminal or not cds_c_terminal:
+        return False
 
-    # Check against all GenBank CDS features
+    shorter, longer = sorted(
+        (orf_c_terminal, cds_c_terminal),
+        key=len,
+    )
+    return longer.endswith(shorter)
+
+
+def match_orf_to_genbank_cds(
+    orf: OrfRecord,
+    genbank_cds_list: List[GenBankCDS],
+) -> bool:
+    """Return whether an ORF represents any annotated GenBank CDS."""
     for cds in genbank_cds_list:
-        if not cds.protein_sequence:
-            continue
-
-        cds_seq_clean = cds.protein_sequence.rstrip("*")
-
-        # Get C-terminal of CDS
-        cds_c_terminal = cds_seq_clean[-min_c_terminal_match:]
-
-        # If CDS is shorter than min match length, use the whole sequence
-        if len(cds_seq_clean) < min_c_terminal_match:
-            cds_c_terminal = cds_seq_clean
-
-        # Check if C-terminals match
-        if orf_c_terminal == cds_c_terminal:
+        if orf_matches_genbank_cds(orf, cds):
             logger.debug(
-                "ORF C-terminal matches GenBank CDS (match_length=%d)",
-                len(orf_c_terminal),
+                "ORF %s matches GenBank CDS at %s:%d-%d (%s)",
+                orf.orf_id,
+                cds.parent_id,
+                cds.start,
+                cds.end,
+                cds.strand,
             )
             return True
 
