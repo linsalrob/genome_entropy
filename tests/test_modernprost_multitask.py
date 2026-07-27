@@ -1,8 +1,8 @@
 """Focused tests for ModernProst model capabilities and dual-head decoding."""
 
+import json
 import math
 import os
-import json
 from contextlib import nullcontext
 from types import SimpleNamespace
 
@@ -24,8 +24,7 @@ from genome_entropy.config import (
     get_model_capabilities,
     resolve_model_name,
 )
-from genome_entropy.encode3di.types import IndexedSeq, StructuralEncoding
-from genome_entropy.encode3di.types import ThreeDiRecord
+from genome_entropy.encode3di.types import IndexedSeq, StructuralEncoding, ThreeDiRecord
 from genome_entropy.entropy.shannon import shannon_entropy
 from genome_entropy.errors import ModelError
 from genome_entropy.io.jsonio import read_json, to_json_dict
@@ -356,6 +355,96 @@ def test_multi_gpu_reordering_keeps_structural_encodings_together() -> None:
         2,
     )
     assert result == [expected["first"], expected["second"]]
+
+
+def test_modernprost_multi_gpu_reuses_prebuilt_manager(monkeypatch) -> None:
+    encoder = make_encoder(monkeypatch, MODERNPROST_50M_MODEL, {})
+
+    class Manager:
+        def __init__(self):
+            self.calls = []
+
+        def encode_multi_gpu(
+            self, aa_sequences, token_budget_batches_fn, encoding_size, skip_model_loading
+        ):
+            self.calls.append(
+                (
+                    aa_sequences,
+                    token_budget_batches_fn,
+                    encoding_size,
+                    skip_model_loading,
+                )
+            )
+            return [StructuralEncoding("AA", "BC")]
+
+    manager = Manager()
+    result = encoder.encode(
+        ["UB"],
+        encoding_size=17,
+        use_multi_gpu=True,
+        gpu_ids=[2, 3],
+        multi_gpu_encoder=manager,
+    )
+
+    assert result == [StructuralEncoding("AA", "BC")]
+    assert manager.calls == [(["XX"], encoder.token_budget_batches, 17, True)]
+
+
+def test_modernprost_multi_gpu_creates_manager_with_requested_gpu_ids(
+    monkeypatch,
+) -> None:
+    encoder = make_encoder(monkeypatch, MODERNPROST_50M_MODEL, {})
+
+    from genome_entropy.encode3di import multi_gpu as multi_gpu_module
+
+    captured = {}
+
+    class Loader:
+        def __init__(self):
+            self.load_calls = 0
+
+        def _load_model(self):
+            self.load_calls += 1
+
+    class FakeMultiGPUEncoder:
+        def __init__(self, model_name, encoder_class, gpu_ids=None):
+            captured["model_name"] = model_name
+            captured["encoder_class"] = encoder_class
+            captured["gpu_ids"] = gpu_ids
+            self.encoders = [Loader() for _ in gpu_ids]
+            captured["encoders"] = self.encoders
+
+        def encode_multi_gpu(
+            self, aa_sequences, token_budget_batches_fn, encoding_size, skip_model_loading
+        ):
+            captured["encode_args"] = (
+                aa_sequences,
+                token_budget_batches_fn,
+                encoding_size,
+                skip_model_loading,
+            )
+            return [StructuralEncoding("AA", "CD")]
+
+    monkeypatch.setattr(multi_gpu_module, "MultiGPUEncoder", FakeMultiGPUEncoder)
+
+    result = encoder.encode(
+        ["UZ"],
+        encoding_size=23,
+        use_multi_gpu=True,
+        gpu_ids=[4, 5],
+    )
+
+    assert result == [StructuralEncoding("AA", "CD")]
+    assert captured["model_name"] == MODERNPROST_50M_MODEL
+    assert captured["encoder_class"].__name__ == "ModernProstThreeDiEncoder"
+    assert captured["gpu_ids"] == [4, 5]
+    assert captured["encode_args"] == (
+        ["XX"],
+        encoder.token_budget_batches,
+        23,
+        True,
+    )
+    assert [loader.load_calls for loader in captured["encoders"]] == [1, 1]
 
 
 @pytest.mark.integration
