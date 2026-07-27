@@ -44,16 +44,22 @@ The previous output format (v1.x) contained significant redundancy:
 
 The new format uses a single `features` dictionary where each ORF appears exactly once with all its related data organized hierarchically:
 
+Schema 2.1 adds the optional 12-state structural representation and its entropy.
+Legacy models write both values as JSON `null`; they are not represented as zero
+or an empty string. Readers also accept older files where these fields are absent
+and treat the values as unavailable.
+
 ```json
 {
-  "schema_version": "2.0.0",
+  "schema_version": "2.1.0",
   "input_id": "sequence_name",
   "input_dna_length": 1000,
   "dna_entropy_global": 1.85,
   "alphabet_sizes": {
     "dna": 4,
     "protein": 20,
-    "three_di": 20
+    "three_di": 20,
+    "twelve_state": 12
   },
   "features": {
     "orf_1": {
@@ -79,6 +85,10 @@ The new format uses a single `features` dictionary where each ORF appears exactl
         "model_name": "Rostlab/ProstT5",
         "inference_device": "cpu"
       },
+      "twelve_state": {
+        "encoding": "ABCDABCD...",
+        "length": 100
+      },
       "metadata": {
         "parent_id": "sequence_name",
         "table_id": 11,
@@ -89,7 +99,8 @@ The new format uses a single `features` dictionary where each ORF appears exactl
       "entropy": {
         "dna_entropy": 1.2,
         "protein_entropy": 0.8,
-        "three_di_entropy": 0.0
+        "three_di_entropy": 0.0,
+        "twelve_state_entropy": 1.95
       }
     }
   }
@@ -110,11 +121,11 @@ The new format uses a single `features` dictionary where each ORF appears exactl
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `schema_version` | string | Format version (e.g., "2.0.0") |
+| `schema_version` | string | Format version (e.g., "2.1.0") |
 | `input_id` | string | ID of the input DNA sequence |
 | `input_dna_length` | integer | Length of input DNA in nucleotides |
 | `dna_entropy_global` | float | Shannon entropy of entire DNA sequence |
-| `alphabet_sizes` | object | Size of each alphabet (dna: 4, protein: 20, three_di: 20) |
+| `alphabet_sizes` | object | Alphabet sizes (dna: 4, protein: 20, three_di: 20, twelve_state: 12) |
 | `features` | object | Dictionary of features keyed by `orf_id` |
 
 ### Feature Structure

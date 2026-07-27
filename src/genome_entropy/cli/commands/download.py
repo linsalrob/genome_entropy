@@ -7,6 +7,8 @@ try:
 except ImportError:
     typer = None
 
+from ...config import DEFAULT_PROSTT5_MODEL, supported_models_help
+
 
 def _is_model_cached(model_name: str) -> bool:
     """Check if a model is already cached locally.
@@ -38,10 +40,10 @@ def _is_model_cached(model_name: str) -> bool:
 
 def download_command(
     model: str = typer.Option(
-        "gbouras13/modernprost-base",
+        DEFAULT_PROSTT5_MODEL,
         "--model",
         "-m",
-        help="Model to download (gbouras13/modernprost-base, gbouras13/modernprost-profiles, Rostlab/ProstT5, or Rostlab/ProstT5_fp16)",
+        help=supported_models_help(),
     ),
     test_data: bool = typer.Option(
         False,
@@ -56,7 +58,16 @@ def download_command(
     """
     try:
         from transformers import AutoModel, AutoTokenizer
-        from ...config import MODERNPROST_MODELS
+        from ...config import get_model_capabilities, resolve_model_name
+
+        model = resolve_model_name(model)
+        capabilities = get_model_capabilities(model, warn=False)
+        if capabilities.deprecated:
+            typer.echo(
+                "Warning: selected model is deprecated and produces only 3Di; "
+                "12-state values will be null.",
+                err=True,
+            )
 
         typer.echo(f"Downloading model: {model}")
 
@@ -68,19 +79,18 @@ def download_command(
             typer.echo("This may take a few minutes on first run...")
 
         # Check if this is a ModernProst model
-        is_modernprost = model in MODERNPROST_MODELS
+        is_modernprost = capabilities.family.startswith("modernprost")
 
-        # Download tokenizer
-        typer.echo("  - Downloading tokenizer...")
+        typer.echo("  - Downloading tokenizer and model...")
         if is_modernprost:
-            tokenizer = AutoTokenizer.from_pretrained(
-                model,
-                trust_remote_code=True,
-                local_files_only=is_cached,
-                force_download=not is_cached,
-            )
+            # Reuse the encoder's trusted-remote-code compatibility path so the
+            # multitask repository's sibling imports and cache are handled alike.
+            from ...encode3di.modernprost import ModernProstThreeDiEncoder
+
+            encoder = ModernProstThreeDiEncoder(model, device="cpu")
+            encoder._load_model()
         else:
-            tokenizer = AutoTokenizer.from_pretrained(
+            AutoTokenizer.from_pretrained(
                 model,
                 use_fast=False,
                 legacy=True,
@@ -88,17 +98,7 @@ def download_command(
                 force_download=not is_cached,
             )
 
-        # Download model
-        typer.echo("  - Downloading model...")
-        if is_modernprost:
-            model_obj = AutoModel.from_pretrained(
-                model,
-                trust_remote_code=True,
-                local_files_only=is_cached,
-                force_download=not is_cached,
-            )
-        else:
-            model_obj = AutoModel.from_pretrained(
+            AutoModel.from_pretrained(
                 model,
                 local_files_only=is_cached,
                 force_download=not is_cached,
@@ -121,9 +121,9 @@ def download_command(
         # Check if it's a ModernBert-related error
         if "ModernBertModel" in error_msg or "ModernBert" in error_msg:
             typer.echo("\n" + "=" * 60, err=True)
-            typer.echo("ModernProst models require transformers >= 4.47.0", err=True)
+            typer.echo("ModernProst models require transformers >= 5.14.1", err=True)
             typer.echo("Please upgrade transformers:", err=True)
-            typer.echo("  pip install --upgrade 'transformers>=4.47.0'", err=True)
+            typer.echo("  pip install --upgrade 'transformers>=5.14.1'", err=True)
             typer.echo("=" * 60, err=True)
         else:
             typer.echo("Error: transformers package required", err=True)

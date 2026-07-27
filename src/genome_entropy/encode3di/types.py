@@ -1,8 +1,6 @@
-"""Data types for 3Di encoding."""
+"""Data types for structural-state encoding."""
 
 from dataclasses import dataclass
-from typing import Literal
-
 from ..translate.translator import ProteinRecord
 
 
@@ -20,9 +18,18 @@ class ThreeDiRecord:
 
     protein: ProteinRecord
     three_di: str
-    method: Literal["prostt5_aa2fold"]
+    method: str
     model_name: str
     inference_device: str
+    twelve_state: str | None = None
+
+
+@dataclass(frozen=True)
+class StructuralEncoding:
+    """Associated structural encodings produced by one model forward pass."""
+
+    three_di: str
+    twelve_state: str | None
 
 
 @dataclass(frozen=True)

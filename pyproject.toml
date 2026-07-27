@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "torch>=2.0.0",
-    "transformers>=4.47.0",  # ModernBert support required for modernprost models
+    "transformers>=5.14.1",  # Required by the new ModernProst remote code
     "accelerate>=0.20.0",  # Multi-GPU support for ModernProst models
     "pygenetic_code>=0.20.0",
     "typer>=0.9.0",

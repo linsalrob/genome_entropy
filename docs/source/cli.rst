@@ -73,11 +73,11 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
 ``--model, -m TEXT``
    3Di model name from HuggingFace
    
-   Default: gbouras13/modernprost-base
+   Default: gbouras13/modernprost-50M
 
-   Supported models include ``gbouras13/modernprost-base``,
-   ``gbouras13/modernprost-profiles``, ``Rostlab/ProstT5``, and
-   ``Rostlab/ProstT5_fp16``.
+   Supported models include the multitask ``gbouras13/modernprost-50M`` and
+   ``gbouras13/modernprost`` models, both deprecated ModernProst repositories,
+   and both ProstT5 repositories.
 
 ``--device, -d TEXT``
    Device for inference (auto, cuda, mps, cpu). Ignored when ``--multi-gpu`` is set.
@@ -211,7 +211,8 @@ Translate ORFs to protein sequences.
 encode3di
 ^^^^^^^^^
 
-Encode protein sequences to 3Di structural tokens using ModernProst or ProstT5.
+Encode proteins into structural-state sequences. New ModernProst models produce
+both 3Di and 12-state encodings; legacy models produce only 3Di.
 
 **Usage:**
 
@@ -234,11 +235,11 @@ Encode protein sequences to 3Di structural tokens using ModernProst or ProstT5.
 ``--model, -m TEXT``
    3Di model name
    
-   Default: gbouras13/modernprost-base
+   Default: gbouras13/modernprost-50M
 
-   Supported models include ``gbouras13/modernprost-base``,
-   ``gbouras13/modernprost-profiles``, ``Rostlab/ProstT5``, and
-   ``Rostlab/ProstT5_fp16``.
+   Supported models include ``gbouras13/modernprost-50M``,
+   ``gbouras13/modernprost``, the two ``-deprecated`` ModernProst repositories,
+   ``Rostlab/ProstT5``, and ``Rostlab/ProstT5_fp16``.
 
 ``--device, -d TEXT``
    Device for inference (auto, cuda, mps, cpu). Ignored when ``--multi-gpu`` is set.
@@ -370,7 +371,7 @@ Pre-download ModernProst or ProstT5 models to the HuggingFace cache.
 ``--model, -m TEXT``
    Model name to download
    
-   Default: gbouras13/modernprost-base
+   Default: gbouras13/modernprost-50M
 
 ``--test-data``
    Request test datasets. This option is currently a placeholder; use
@@ -407,7 +408,7 @@ Estimate optimal encoding size for your GPU.
 ``--model, -m TEXT``
    3Di model name
    
-   Default: gbouras13/modernprost-base
+   Default: gbouras13/modernprost-50M
 
 ``--start INTEGER``
    Starting encoding size to test

@@ -105,7 +105,7 @@ def test_convert_pipeline_result_to_unified():
 
     # Verify top-level fields
     assert isinstance(unified, UnifiedPipelineResult)
-    assert unified.schema_version == "2.0.0"
+    assert unified.schema_version == "2.1.0"
     assert unified.input_id == "test_seq"
     assert unified.input_dna_length == 100
     assert unified.dna_entropy_global == 1.8
@@ -355,7 +355,7 @@ def test_unified_json_serialization():
 
     # Verify JSON structure
     assert "schema_version" in json_dict
-    assert json_dict["schema_version"] == "2.0.0"
+    assert json_dict["schema_version"] == "2.1.0"
     assert "input_id" in json_dict
     assert "input_dna_length" in json_dict
     assert "dna_entropy_global" in json_dict

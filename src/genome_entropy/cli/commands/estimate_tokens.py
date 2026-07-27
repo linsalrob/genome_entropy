@@ -9,13 +9,15 @@ try:
 except ImportError:
     typer = None
 
+from ...config import DEFAULT_PROSTT5_MODEL, supported_models_help
+
 
 def estimate_token_size_command(
     model: str = typer.Option(
-        "gbouras13/modernprost-base",
+        DEFAULT_PROSTT5_MODEL,
         "--model",
         "-m",
-        help="Model name (gbouras13/modernprost-base, gbouras13/modernprost-profiles, Rostlab/ProstT5, or Rostlab/ProstT5_fp16)",
+        help=supported_models_help(),
     ),
     device: Optional[str] = typer.Option(
         None,
@@ -73,9 +75,17 @@ def estimate_token_size_command(
     The recommended token size is returned as 90% of the maximum for safety.
     """
     try:
-        from ...config import VALID_LOG_LEVELS, MODERNPROST_MODELS
+        from ...config import (
+            VALID_LOG_LEVELS,
+            get_model_capabilities,
+            resolve_model_name,
+        )
         from ...logging_config import configure_logging
-        from ...encode3di import ProstT5ThreeDiEncoder, ModernProstThreeDiEncoder, estimate_token_size
+        from ...encode3di import (
+            ProstT5ThreeDiEncoder,
+            ModernProstThreeDiEncoder,
+            estimate_token_size,
+        )
 
         # Validate and configure logging
         if log_level.upper() not in VALID_LOG_LEVELS:
@@ -98,7 +108,9 @@ def estimate_token_size_command(
 
         # Select encoder based on model name
         typer.echo("\nInitializing encoder...")
-        if model in MODERNPROST_MODELS:
+        model = resolve_model_name(model)
+        capabilities = get_model_capabilities(model, warn=False)
+        if capabilities.family.startswith("modernprost"):
             encoder = ModernProstThreeDiEncoder(model_name=model, device=device)
         else:
             encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)

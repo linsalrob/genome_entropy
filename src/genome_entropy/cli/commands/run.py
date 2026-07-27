@@ -8,6 +8,8 @@ try:
 except ImportError:
     typer = None
 
+from ...config import DEFAULT_PROSTT5_MODEL, supported_models_help
+
 
 def run_command(
     input: Optional[Path] = typer.Option(
@@ -36,10 +38,10 @@ def run_command(
         help="Minimum protein length in amino acids",
     ),
     model: str = typer.Option(
-        "gbouras13/modernprost-base",
+        DEFAULT_PROSTT5_MODEL,
         "--model",
         "-m",
-        help="Model name (gbouras13/modernprost-base, gbouras13/modernprost-profiles, Rostlab/ProstT5, or Rostlab/ProstT5_fp16)",
+        help=supported_models_help(),
     ),
     device: Optional[str] = typer.Option(
         None,
@@ -91,12 +93,12 @@ def run_command(
         help="Path to log file (default: log to STDOUT)",
     ),
 ) -> None:
-    """Run the complete DNA to 3Di pipeline.
+    """Run the complete structural-state entropy pipeline.
 
     Executes all pipeline steps:
     1. Find ORFs in DNA sequences
     2. Translate ORFs to proteins
-    3. Encode proteins to 3Di tokens
+    3. Encode proteins to 3Di and, for new ModernProst models, 12-state tokens
     4. Calculate entropy at all levels
     5. Optionally match ORFs to GenBank CDS annotations
 

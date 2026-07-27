@@ -44,12 +44,13 @@ The documentation includes:
 
 - 🧬 **ORF Finding**: Extract Open Reading Frames from DNA sequences using customizable genetic codes
 - 🔄 **Translation**: Convert ORFs to protein sequences with support for all NCBI genetic code tables
-- 🏗️ **3Di Encoding**: Predict structural alphabet tokens directly from sequences using ProstT5 or ModernProst models
-  - ModernProst-base (gbouras13/modernprost-base) - Default, newer base model
-  - ModernProst-profiles (gbouras13/modernprost-profiles) - Newer model with profile support
+- 🏗️ **Structural-state encoding**: Predict 3Di and, with multitask ModernProst models, 12-state tokens directly from protein sequences
+  - ModernProst 50M (`gbouras13/modernprost-50M`) - Default lightweight multitask model
+  - ModernProst 1B (`gbouras13/modernprost`) - Larger multitask model
+  - Deprecated ModernProst models - Legacy 3Di-only models
   - ProstT5 (Rostlab/ProstT5) - Original model, full precision
   - ProstT5 fp16 (Rostlab/ProstT5_fp16) - Original model, half precision
-- 📊 **Entropy Analysis**: Calculate Shannon entropy at DNA, ORF, protein, and 3Di levels
+- 📊 **Entropy Analysis**: Calculate Shannon entropy for DNA, ORFs, proteins, 3Di, and 12-state encodings
 - 🤖 **ML Classifier**: Train machine learning models to predict GenBank annotations from ORF features
 - ⚡ **GPU Acceleration**: Auto-detect and use CUDA, MPS (Apple Silicon), or CPU
 - 🚀 **Multi-GPU Support**: Parallelize 3Di encoding across multiple GPUs for faster processing
@@ -104,33 +105,41 @@ genome_entropy entropy --input 3di.json --output entropy.json
 
 ### Model Selection
 
-genome_entropy supports multiple models for 3Di encoding:
+genome_entropy supports multitask and legacy structural-state models:
 
 ```bash
-# Use default ModernProst base model (recommended)
+# Default lightweight multitask model
 genome_entropy run --input input.fasta --output results.json
 
-# Use ModernProst with profiles (for Foldseek profile searches)
+# Larger approximately 1B-parameter multitask model
 genome_entropy run --input input.fasta --output results.json \
-    --model gbouras13/modernprost-profiles
+    --model gbouras13/modernprost
 
-# Use original ProstT5 models
+# Deprecated legacy 3Di-only model
+genome_entropy run --input input.fasta --output results.json \
+    --model gbouras13/modernprost-base-deprecated
+
+# Original ProstT5 model
 genome_entropy run --input input.fasta --output results.json \
     --model Rostlab/ProstT5_fp16
 ```
 
 **Model Comparison:**
 
-| Model | Description | Use Case | Requirements |
-|-------|-------------|----------|--------------|
-| `gbouras13/modernprost-base` | Newer ModernProst base (default) | Faster inference, modern architecture | transformers >= 4.47.0 |
-| `gbouras13/modernprost-profiles` | ModernProst with profiles | For generating 3Di PSSM profiles for Foldseek | transformers >= 4.47.0 |
-| `Rostlab/ProstT5` | Original ProstT5 model (full precision) | Well-tested, compatible | transformers >= 4.30.0 |
-| `Rostlab/ProstT5_fp16` | Original ProstT5 model (half precision) | Well-tested, faster on GPU | transformers >= 4.30.0 |
+| Model | Parameters | 3Di | 12-state | Status |
+|-------|-----------:|----:|---------:|--------|
+| `gbouras13/modernprost-50M` | approximately 50M | yes | yes | default |
+| `gbouras13/modernprost` | approximately 1B | yes | yes | supported |
+| `gbouras13/modernprost-base-deprecated` | legacy | yes | no | deprecated |
+| `gbouras13/modernprost-profiles-deprecated` | legacy | yes | no | deprecated |
+| `Rostlab/ProstT5` | legacy | yes | no | supported |
+| `Rostlab/ProstT5_fp16` | legacy | yes | no | supported |
 
 **Notes:** 
 - ModernProst models are based on the implementation from [phold](https://github.com/gbouras13/phold) by George Bouras.
-- ModernProst models require transformers >= 4.47.0 for ModernBert support. Upgrade if needed: `pip install --upgrade 'transformers>=4.47.0'`
+- New ModernProst models require transformers >= 5.14.1 and load their published custom code with `trust_remote_code=True`.
+- The 12-state symbols `A` through `L` are a deterministic serialization of class IDs 0 through 11; the model does not publish a separate biological symbol nomenclature.
+- Legacy models serialize `twelve_state` and `twelve_state_entropy` as JSON `null`. Older JSON without these fields remains readable.
 - ModernProst models use HuggingFace's `accelerate` library for multi-GPU support, which handles model distribution automatically.
 - Install accelerate for multi-GPU: `pip install accelerate`
 
@@ -216,18 +225,18 @@ See [docs/ML_CLASSIFIER.md](docs/ML_CLASSIFIER.md) for detailed documentation an
 
 - Python 3.10 or higher
 - PyTorch >= 2.0.0 (GPU support optional)
-- Transformers >= 4.47.0 (HuggingFace) - **Required for ModernProst models**
+- Transformers >= 5.14.1 (HuggingFace) - **Required for new ModernProst models**
 - Accelerate >= 0.20.0 (HuggingFace) - **Required for ModernProst multi-GPU support**
 - pygenetic-code >= 0.20.0
 - typer >= 0.9.0
 
-**Note:** ModernProst models (`gbouras13/modernprost-base` and `gbouras13/modernprost-profiles`) require:
-- transformers >= 4.47.0 for ModernBert support
+**Note:** The multitask ModernProst models require:
+- transformers >= 5.14.1
 - accelerate >= 0.20.0 for multi-GPU support
 
 If you're using an older version, please upgrade:
 ```bash
-pip install --upgrade 'transformers>=4.47.0' 'accelerate>=0.20.0'
+pip install --upgrade 'transformers>=5.14.1' 'accelerate>=0.20.0'
 ```
 
 ### External Binary: get_orfs
@@ -263,7 +272,7 @@ genome_entropy run \
     --output results.json \
     --table 11 \
     --min-aa 30 \
-    --model gbouras13/modernprost-base \
+    --model gbouras13/modernprost-50M \
     --device auto
 ```
 
@@ -273,9 +282,11 @@ genome_entropy run \
 - `--output, -o`: Output JSON file (required)
 - `--table, -t`: NCBI genetic code table ID (default: 11)
 - `--min-aa`: Minimum protein length in amino acids (default: 30)
-- `--model, -m`: Model name (default: `gbouras13/modernprost-base`)
-  - `gbouras13/modernprost-base` - Newer ModernProst base model
-  - `gbouras13/modernprost-profiles` - Newer ModernProst with profile support
+- `--model, -m`: Model name (default: `gbouras13/modernprost-50M`)
+  - `gbouras13/modernprost-50M` - Lightweight 3Di + 12-state model
+  - `gbouras13/modernprost` - Approximately 1B-parameter 3Di + 12-state model
+  - `gbouras13/modernprost-base-deprecated` - Deprecated legacy 3Di-only model
+  - `gbouras13/modernprost-profiles-deprecated` - Deprecated legacy profile-capable 3Di-only model
   - `Rostlab/ProstT5` - Original ProstT5 model
   - `Rostlab/ProstT5_fp16` - Original ProstT5 model
 - `--device, -d`: Device for inference (auto/cuda/mps/cpu)
@@ -322,15 +333,15 @@ genome_entropy encode3di --input proteins.json --output 3di.json
 genome_entropy entropy --input 3di.json --output entropy.json
 ```
 
-### `genome_entropy encode3di` - Encode to 3Di
+### `genome_entropy encode3di` - Encode structural states
 
-Convert proteins to 3Di structural tokens using ProstT5 or ModernProst:
+Convert proteins to structural-state tokens. New ModernProst models produce both 3Di and 12-state encodings; legacy models produce only 3Di:
 
 ```bash
 genome_entropy encode3di \
     --input proteins.json \
     --output 3di.json \
-    --model gbouras13/modernprost-base \
+    --model gbouras13/modernprost-50M \
     --device auto \
     --encoding-size 10000
 ```
@@ -356,8 +367,10 @@ Pre-download ProstT5 or ModernProst models to cache:
 genome_entropy download
 
 # Download ModernProst models
-genome_entropy download --model gbouras13/modernprost-base
-genome_entropy download --model gbouras13/modernprost-profiles
+genome_entropy download --model gbouras13/modernprost-50M
+genome_entropy download --model gbouras13/modernprost
+genome_entropy download --model gbouras13/modernprost-base-deprecated
+genome_entropy download --model gbouras13/modernprost-profiles-deprecated
 ```
 
 ### `genome_entropy estimate-tokens` - Estimate Encoding Size
@@ -365,7 +378,7 @@ genome_entropy download --model gbouras13/modernprost-profiles
 Estimate a practical encoding size for the selected model and device:
 
 ```bash
-genome_entropy estimate-tokens --device cuda --model gbouras13/modernprost-base
+genome_entropy estimate-tokens --device cuda --model gbouras13/modernprost-50M
 ```
 
 ### `genome_entropy ml` - GenBank Annotation Classifier

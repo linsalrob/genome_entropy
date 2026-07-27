@@ -3,39 +3,40 @@
 This module implements an encoder for gbouras13/modernprost models,
 adapted from the phold implementation.
 
-Note: ModernProst models require transformers >= 4.47.0 for ModernBert support.
+Note: The multitask ModernProst models require transformers >= 5.14.1.
 Multi-GPU support uses HuggingFace accelerate library.
 """
 
-import time
+import inspect
+import sys
+from collections.abc import Mapping
 from typing import Any, Iterator, List, Optional, Sequence
 
 try:
     import torch
     import torch.nn.functional as F
-    from transformers import AutoModel, AutoTokenizer
-    from accelerate import Accelerator
 
     # Check transformers version for ModernBert support
     import transformers
+    from accelerate import Accelerator
+    from transformers import AutoModel, AutoTokenizer
 
     transformers_version = tuple(map(int, transformers.__version__.split(".")[:2]))
-    if transformers_version < (4, 47):
+    if transformers_version < (5, 14):
         import warnings
 
         warnings.warn(
-            f"ModernProst models require transformers >= 4.47.0 (current: {transformers.__version__}). "
-            "Please upgrade: pip install --upgrade 'transformers>=4.47.0'",
+            f"ModernProst models require transformers >= 5.14.1 (current: {transformers.__version__}). "
+            "Please upgrade: pip install --upgrade 'transformers>=5.14.1'",
             UserWarning,
         )
-except ImportError as e:
+except ImportError:
     torch = None  # type: ignore[assignment]
     AutoModel = None  # type: ignore[assignment,misc]
     AutoTokenizer = None  # type: ignore[assignment,misc]
     F = None  # type: ignore[assignment,misc]
     Accelerator = None  # type: ignore[assignment,misc]
 
-import numpy as np
 from pathlib import Path
 
 from ..config import (
@@ -44,15 +45,30 @@ from ..config import (
     CUDA_DEVICE,
     DEFAULT_ENCODING_SIZE,
     MPS_DEVICE,
-    MODERNPROST_PROFILES_MODEL,
+    THREEDDI_ALPHABET_ORDERED,
+    TWELVE_STATE_ALPHABET_ORDERED,
+    get_model_capabilities,
+    resolve_model_name,
 )
 from ..errors import DeviceError, ModelError
 from ..logging_config import get_logger
 from ..translate.translator import ProteinRecord
-from .encoding import encode
-from .types import IndexedSeq, ThreeDiRecord
+from .types import IndexedSeq, StructuralEncoding, ThreeDiRecord
 
 logger = get_logger(__name__)
+
+
+def _enable_remote_code_sibling_imports(config: Any) -> None:
+    """Expose the trusted remote-code directory for an absolute sibling import.
+
+    The multitask repository currently imports its configuration module without
+    a relative prefix. Transformers caches trusted remote code in a package, so
+    that import otherwise cannot resolve even though the file was downloaded.
+    """
+    module_path = Path(inspect.getfile(config.__class__)).parent
+    module_path_string = str(module_path)
+    if module_path_string not in sys.path:
+        sys.path.append(module_path_string)
 
 
 def _is_model_cached(model_name: str) -> bool:
@@ -65,7 +81,6 @@ def _is_model_cached(model_name: str) -> bool:
         True if model is cached, False otherwise
     """
     try:
-        from transformers.utils import TRANSFORMERS_CACHE
         from huggingface_hub import try_to_load_from_cache
 
         # Try to find the model in the cache
@@ -88,10 +103,10 @@ def _is_model_cached(model_name: str) -> bool:
 
 
 class ModernProstThreeDiEncoder:
-    """Encoder for converting amino acid sequences to 3Di structural tokens.
+    """Encoder for converting proteins to structural-state tokens.
 
-    Uses ModernProst models (gbouras13/modernprost-base or modernprost-profiles)
-    from HuggingFace to predict 3Di tokens directly from protein sequences.
+    Multitask models predict paired 3Di and 12-state sequences, while deprecated
+    models retain the tensor-only 3Di output API.
 
     Based on implementation from phold:
     https://github.com/gbouras13/phold/blob/main/src/phold/features/predict_3Di.py
@@ -106,7 +121,7 @@ class ModernProstThreeDiEncoder:
         """Initialize the ModernProst encoder.
 
         Args:
-            model_name: HuggingFace model identifier (gbouras13/modernprost-base or modernprost-profiles)
+            model_name: A supported Hugging Face model identifier.
             device: Device to use ("cuda", "mps", "cpu", or None for auto-detect)
             use_accelerate: If True, use HuggingFace accelerate for multi-GPU support
 
@@ -120,7 +135,15 @@ class ModernProstThreeDiEncoder:
                 "Install with: pip install torch transformers"
             )
 
-        self.model_name = model_name
+        self.model_name = resolve_model_name(model_name)
+        self.capabilities = get_model_capabilities(self.model_name, warn=False)
+        if self.capabilities.family == "prostt5":
+            raise ModelError(f"{self.model_name} is not a ModernProst model")
+        if self.capabilities.deprecated:
+            logger.warning(
+                "The selected model is deprecated and produces only 3Di output. "
+                "twelve_state and twelve_state_entropy will be null."
+            )
         self.use_accelerate = use_accelerate
         self.accelerator: Any = None
 
@@ -221,6 +244,8 @@ class ModernProstThreeDiEncoder:
                 local_files_only=is_cached,
                 force_download=not is_cached,
             )
+            if self.capabilities.supports_12st:
+                _enable_remote_code_sibling_imports(config)
 
             # Disable torch.compile if supported (ModernBert has this option)
             if hasattr(config, "reference_compile"):
@@ -261,7 +286,13 @@ class ModernProstThreeDiEncoder:
 
             self.model = self.model.eval()
 
-            logger.info("Loaded model %s on device %s", self.model_name, self.device)
+            logger.info(
+                "Loaded %s: 3Di=%s, 12-state=%s (device=%s)",
+                self.model_name,
+                "yes" if self.capabilities.supports_3di else "no",
+                "yes" if self.capabilities.supports_12st else "no",
+                self.device,
+            )
             logger.debug("Model config:\n%s", self.model.config)
         except Exception as e:
             logger.error("Failed to load ModernProst model %s: %s", self.model_name, e)
@@ -393,7 +424,51 @@ class ModernProstThreeDiEncoder:
             if batch:
                 yield batch
 
-    def _encode_batch(self, aa_sequences: List[str]) -> List[str]:
+    def _decode_head(
+        self,
+        logits: Any,
+        attention_mask: Any,
+        lengths: Sequence[int],
+        alphabet: str,
+        expected_classes: int,
+        head_name: str,
+    ) -> List[str]:
+        """Validate and decode a residue-level classifier head."""
+        if getattr(logits, "ndim", None) != 3:
+            raise ModelError(
+                f"{self.model_name} {head_name} logits must have shape B x L x "
+                f"{expected_classes}; got {getattr(logits, 'shape', None)}"
+            )
+        if logits.shape[-1] != expected_classes:
+            raise ModelError(
+                f"{self.model_name} {head_name} head has {logits.shape[-1]} classes; "
+                f"expected {expected_classes}"
+            )
+        if logits.shape[:2] != attention_mask.shape:
+            raise ModelError(
+                f"{self.model_name} {head_name} logits shape {tuple(logits.shape[:2])} "
+                f"does not match attention mask {tuple(attention_mask.shape)}"
+            )
+        if logits.shape[0] != len(lengths):
+            raise ModelError(
+                f"{self.model_name} returned {logits.shape[0]} {head_name} rows for "
+                f"{len(lengths)} proteins"
+            )
+
+        predictions = logits.argmax(dim=-1).detach().cpu()
+        masks = attention_mask.detach().cpu().bool()
+        decoded = []
+        for row, mask, expected_length in zip(predictions, masks, lengths):
+            class_ids = row[mask].tolist()
+            if len(class_ids) != expected_length:
+                raise ModelError(
+                    f"{self.model_name} tokenizer produced {len(class_ids)} residue "
+                    f"positions for a protein of length {expected_length}"
+                )
+            decoded.append("".join(alphabet[int(index)] for index in class_ids))
+        return decoded
+
+    def _encode_batch(self, aa_sequences: List[str]) -> List[StructuralEncoding]:
         """
         Encode a batch of sequences using ModernProst.
 
@@ -425,50 +500,57 @@ class ModernProstThreeDiEncoder:
 
         # Run inference
         with torch.no_grad():
-            outputs = self.model(
-                token_encoding.input_ids,
-                attention_mask=token_encoding.attention_mask,
+            outputs = self.model(**token_encoding)
+
+        logits = outputs.logits
+        if self.capabilities.supports_12st:
+            if not isinstance(logits, Mapping):
+                raise ModelError(
+                    f"{self.model_name} is declared dual-head but outputs.logits "
+                    "is not a mapping"
+                )
+            missing = {"3di", "12st"} - set(logits)
+            if missing:
+                raise ModelError(
+                    f"{self.model_name} output is missing required head(s): "
+                    f"{', '.join(sorted(missing))}"
+                )
+            logits_3di = logits["3di"]
+            logits_12st = logits["12st"]
+        else:
+            if isinstance(logits, Mapping):
+                raise ModelError(
+                    f"Legacy model {self.model_name} unexpectedly returned mapped logits"
+                )
+            logits_3di = logits
+            logits_12st = None
+
+        three_di = self._decode_head(
+            logits_3di,
+            token_encoding.attention_mask,
+            seq_lens,
+            THREEDDI_ALPHABET_ORDERED,
+            20,
+            "3di",
+        )
+        twelve_state: List[str | None] = []
+        if logits_12st is not None:
+            decoded_twelve_state = self._decode_head(
+                logits_12st,
+                token_encoding.attention_mask,
+                seq_lens,
+                TWELVE_STATE_ALPHABET_ORDERED,
+                12,
+                "12st",
             )
+            twelve_state.extend(decoded_twelve_state)
+        else:
+            twelve_state = [None] * len(three_di)
 
-        # Extract logits and compute predictions
-        logits = outputs.logits  # [B, L, C]
-
-        # Get predictions (argmax over classes)
-        preds = torch.argmax(logits, dim=-1)  # [B, L]
-        preds_cpu = preds.cpu().numpy()
-
-        # Map predictions to 3Di alphabet
-        ss_mapping = {
-            0: "A",
-            1: "C",
-            2: "D",
-            3: "E",
-            4: "F",
-            5: "G",
-            6: "H",
-            7: "I",
-            8: "K",
-            9: "L",
-            10: "M",
-            11: "N",
-            12: "P",
-            13: "Q",
-            14: "R",
-            15: "S",
-            16: "T",
-            17: "V",
-            18: "W",
-            19: "Y",
-        }
-
-        # Convert predictions to 3Di strings
-        structure_sequences = []
-        for batch_idx, s_len in enumerate(seq_lens):
-            pred = preds_cpu[batch_idx, :s_len]
-            three_di = "".join([ss_mapping[int(p)] for p in pred])
-            structure_sequences.append(three_di)
-
-        return structure_sequences
+        return [
+            StructuralEncoding(three_di=three, twelve_state=twelve)
+            for three, twelve in zip(three_di, twelve_state)
+        ]
 
     def encode(
         self,
@@ -477,7 +559,7 @@ class ModernProstThreeDiEncoder:
         use_multi_gpu: bool = False,
         gpu_ids: Optional[List[int]] = None,
         multi_gpu_encoder: Optional[Any] = None,
-    ) -> List[str]:
+    ) -> List[StructuralEncoding]:
         """Encode amino acid sequences to 3Di tokens.
 
         Args:
@@ -494,19 +576,19 @@ class ModernProstThreeDiEncoder:
             EncodingError: If encoding fails
         """
         if use_multi_gpu:
-            # Use accelerate for multi-GPU encoding
-            if not self.use_accelerate:
-                # Need to re-initialize with accelerate support
-                logger.info(
-                    "Re-initializing encoder with accelerate for multi-GPU support"
-                )
-                self.__init__(
-                    model_name=self.model_name,
-                    device=None,
-                    use_accelerate=True,
-                )
+            from .multi_gpu import MultiGPUEncoder
 
-            self._load_model()
+            # Use pre-initialized encoder if provided, otherwise create new one
+            if multi_gpu_encoder is None:
+                logger.info("Initializing multi-GPU encoding")
+                multi_gpu_encoder = MultiGPUEncoder(
+                    model_name=self.model_name,
+                    encoder_class=ModernProstThreeDiEncoder,
+                    gpu_ids=gpu_ids,
+                )
+                logger.info("Loading models on all GPUs...")
+                for gpu_encoder in multi_gpu_encoder.encoders:
+                    gpu_encoder._load_model()
 
             # Preprocess sequences (ModernProst-specific, no ProstT5 prefix)
             processed_seqs = []
@@ -520,64 +602,12 @@ class ModernProstThreeDiEncoder:
                 )
                 processed_seqs.append(seq)
 
-            # Process in batches using accelerate
-            import math
-
-            total_sequences = len(processed_seqs)
-            total_batches = math.ceil(sum(map(len, processed_seqs)) / encoding_size)
-
-            # Create batches
-            batches = list(self.token_budget_batches(processed_seqs, encoding_size))
-
-            # Process all batches with accelerate
-            three_di_sequences: List[str] = [None] * total_sequences  # type: ignore[list-item]
-
-            from .encoding import format_seconds, get_memory_info
-
-            t0 = time.perf_counter()
-            avg_batch_sec: float | None = None
-
-            for idx, batch in enumerate(batches, start=1):
-                batch_seqs = [x.seq for x in batch]
-                batch_idxs = [x.idx for x in batch]
-
-                # Calculate ETA
-                remaining = total_batches - (idx - 1)
-                eta_str = (
-                    "--"
-                    if avg_batch_sec is None
-                    else format_seconds(avg_batch_sec * remaining)
-                )
-
-                # Get memory info
-                allocated, reserved = get_memory_info()
-
-                logger.info(
-                    "3Di encoding batch %d of %d batches. "
-                    "Estimated %s remaining. Cuda memory allocated: %.1f GB reserved: %.1f GB",
-                    idx,
-                    total_batches,
-                    eta_str,
-                    allocated,
-                    reserved,
-                )
-
-                batch_start = time.perf_counter()
-                batch_results = self._encode_batch(batch_seqs)
-
-                # Store results in original order
-                for bi, br in zip(batch_idxs, batch_results):
-                    three_di_sequences[bi] = br
-
-                # Update timing
-                batch_elapsed = time.perf_counter() - batch_start
-                if idx == 1:
-                    avg_batch_sec = batch_elapsed
-                else:
-                    elapsed_total = time.perf_counter() - t0
-                    avg_batch_sec = elapsed_total / idx
-
-            return three_di_sequences
+            return multi_gpu_encoder.encode_multi_gpu(
+                processed_seqs,
+                self.token_budget_batches,
+                encoding_size,
+                skip_model_loading=True,
+            )
         else:
             # Use single-GPU encoding
             self._load_model()
@@ -602,13 +632,13 @@ class ModernProstThreeDiEncoder:
             total_batches = math.ceil(sum(map(len, processed_seqs)) / encoding_size)
 
             # Create batches iterator
-            batches = self.token_budget_batches(processed_seqs, encoding_size)
+            batch_iterator = self.token_budget_batches(processed_seqs, encoding_size)
 
             # Process all batches
             from .encoding import process_batches
 
             return process_batches(
-                batches,
+                batch_iterator,
                 self._encode_batch,
                 total_sequences,
                 total_batches,
@@ -638,7 +668,7 @@ class ModernProstThreeDiEncoder:
         aa_sequences = [p.aa_sequence for p in proteins]
 
         # Encode
-        three_di_sequences = self.encode(
+        structural_encodings = self.encode(
             aa_sequences,
             encoding_size,
             use_multi_gpu=use_multi_gpu,
@@ -648,18 +678,30 @@ class ModernProstThreeDiEncoder:
 
         # Create records
         records = []
-        method = (
-            "modernprost_profiles"
-            if self.model_name == MODERNPROST_PROFILES_MODEL
-            else "modernprost_base"
-        )
-        for protein, three_di in zip(proteins, three_di_sequences):
+        method = self.capabilities.family
+        for protein, structural in zip(proteins, structural_encodings):
+            expected = len(protein.aa_sequence)
+            observed_3di = len(structural.three_di)
+            observed_12st = (
+                None
+                if structural.twelve_state is None
+                else len(structural.twelve_state)
+            )
+            if observed_3di != expected or (
+                self.capabilities.supports_12st and observed_12st != expected
+            ):
+                raise ModelError(
+                    f"Structural encoding length mismatch for {protein.orf.orf_id}: "
+                    f"expected={expected}, three_di={observed_3di}, "
+                    f"twelve_state={observed_12st}, model={self.model_name}"
+                )
             record = ThreeDiRecord(
                 protein=protein,
-                three_di=three_di,
+                three_di=structural.three_di,
                 method=method,
                 model_name=self.model_name,
                 inference_device=self.device,
+                twelve_state=structural.twelve_state,
             )
             records.append(record)
 

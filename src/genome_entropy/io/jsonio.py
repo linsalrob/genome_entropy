@@ -11,7 +11,7 @@ from ..logging_config import get_logger
 logger = get_logger(__name__)
 
 # Schema version for tracking output format changes
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 
 
 def to_json_dict(obj: Any) -> Any:
@@ -90,6 +90,7 @@ def convert_pipeline_result_to_unified(pipeline_result):
         FeatureDNA,
         FeatureProtein,
         FeatureThreeDi,
+        FeatureTwelveState,
         FeatureMetadata,
         FeatureEntropy,
     )
@@ -136,6 +137,11 @@ def convert_pipeline_result_to_unified(pipeline_result):
         dna_entropy = result.entropy.orf_nt_entropy.get(orf_id, 0.0)
         protein_entropy = result.entropy.protein_aa_entropy.get(orf_id, 0.0)
         three_di_entropy = result.entropy.three_di_entropy.get(orf_id, 0.0)
+        twelve_state_entropy = (
+            None
+            if result.entropy.twelve_state_entropy is None
+            else result.entropy.twelve_state_entropy.get(orf_id)
+        )
 
         # Build the unified feature
         # Instead of storing the ORF object three times, we extract each
@@ -180,6 +186,15 @@ def convert_pipeline_result_to_unified(pipeline_result):
                 dna_entropy=dna_entropy,
                 protein_entropy=protein_entropy,
                 three_di_entropy=three_di_entropy,
+                twelve_state_entropy=twelve_state_entropy,
+            ),
+            twelve_state=(
+                None
+                if three_di_record.twelve_state is None
+                else FeatureTwelveState(
+                    encoding=three_di_record.twelve_state,
+                    length=len(three_di_record.twelve_state),
+                )
             ),
         )
 
@@ -197,7 +212,7 @@ def convert_pipeline_result_to_unified(pipeline_result):
 
     # Create the unified result with schema version for compatibility tracking
     unified_result = UnifiedPipelineResult(
-        schema_version=SCHEMA_VERSION,  # v2.0.0 for new unified format
+        schema_version=SCHEMA_VERSION,
         input_id=result.input_id,
         input_dna_length=result.input_dna_length,
         dna_entropy_global=result.entropy.dna_entropy_global,
@@ -237,7 +252,7 @@ def write_json(data: Any, output_path: Union[str, Path], indent: int = 2) -> Non
       - entropy.orf_nt_entropy[id] → features[id].entropy.dna_entropy
 
     NEW FORMAT adds:
-      - schema_version: "2.0.0" (for compatibility tracking)
+      - schema_version: "2.1.0" (for compatibility tracking)
       - features: dict (replaces orfs, proteins, three_dis lists)
       - Hierarchical organization (location, dna, protein, three_di, metadata, entropy)
 
@@ -320,6 +335,18 @@ def read_json(input_path: Union[str, Path]) -> Any:
 
     with open_func(input_path, mode, encoding="utf-8") as f:
         data = json.load(f)
+
+    # Schema 2.0 and older predate the optional 12-state representation.
+    records = data if isinstance(data, list) else [data]
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        for feature in record.get("features", {}).values():
+            feature.setdefault("twelve_state", None)
+            feature.setdefault("entropy", {}).setdefault("twelve_state_entropy", None)
+        for structural_record in record.get("three_dis", []):
+            structural_record.setdefault("twelve_state", None)
+        record.get("entropy", {}).setdefault("twelve_state_entropy", None)
 
     logger.info("Successfully read JSON file: %s", input_path)
     return data

@@ -61,17 +61,31 @@ However, for typical use cases with ORF features, XGBoost will likely outperform
 
 ## Features Used for Prediction
 
-The classifier uses the following 12 features extracted from JSON output:
+New classifiers use the following 14 features extracted from JSON output. The
+original 12 features retain their order so older saved classifiers remain usable.
 
-### Entropy Features (3)
+### Entropy Features (4)
 - `dna_entropy`: Shannon entropy of nucleotide sequence
 - `protein_entropy`: Shannon entropy of amino acid sequence  
 - `three_di_entropy`: Shannon entropy of 3Di structural encoding
+- `twelve_state_entropy`: Shannon entropy of the 12-state encoding
 
-### Length Features (3)
+### Length Features (4)
 - `dna_length`: Length of nucleotide sequence
 - `protein_length`: Length of amino acid sequence
 - `three_di_length`: Length of 3Di encoding
+- `twelve_state_length`: Length of the 12-state encoding
+
+When a legacy model or older JSON file has no 12-state data, both new features
+are represented as `numpy.nan`, never zero. XGBoost preserves missing values;
+the neural-network backend applies a training-set median imputation. A classifier
+saved with the legacy 12-feature schema continues to receive exactly those 12
+features, without reordering.
+
+If an entire neural-network training column is unavailable, the persisted
+imputer uses an explicit `0.0` fallback and emits one warning. Missing values in
+the extracted data remain `numpy.nan`; the fallback is model preprocessing
+metadata rather than a serialized biological measurement.
 
 ### Position Features (2)
 - `start`: Start position in genome

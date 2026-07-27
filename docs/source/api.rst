@@ -351,7 +351,7 @@ Translation
 
    # Initialize encoder
    encoder = ModernProstThreeDiEncoder(
-       model_name="gbouras13/modernprost-base",
+       model_name="gbouras13/modernprost-50M",
        device="auto"  # Auto-detect CUDA/MPS/CPU
    )
 
@@ -456,7 +456,7 @@ Complete Pipeline
        output_json=Path("results.json"),
        table_id=11,
        min_aa_len=30,
-       model_name="gbouras13/modernprost-base",
+       model_name="gbouras13/modernprost-50M",
        device="auto",
        compute_entropy=True
    )
@@ -582,9 +582,11 @@ ThreeDiRecord
 
    @dataclass
    class ThreeDiRecord:
+       protein: ProteinRecord
        orf_id: str
        three_di: str           # 3Di token sequence
-       method: Literal["prostt5_aa2fold"]
+       twelve_state: str | None # 12-state tokens; None for legacy models
+       method: str
        model_name: str
        inference_device: str   # "cuda", "mps", or "cpu"
 
@@ -599,6 +601,7 @@ EntropyReport
        orf_nt_entropy: dict[str, float]     # orf_id → entropy
        protein_aa_entropy: dict[str, float]
        three_di_entropy: dict[str, float]
+       twelve_state_entropy: dict[str, float] | None
        alphabet_sizes: dict[str, int]
 
 Type Hints

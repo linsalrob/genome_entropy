@@ -32,7 +32,7 @@ def entropy_command(
 ) -> None:
     """Calculate Shannon entropy at all representation levels.
 
-    Computes entropy for DNA, ORF nucleotides, proteins, and 3Di tokens.
+    Computes entropy for DNA, ORF nucleotides, proteins, 3Di, and 12-state tokens.
     """
     try:
         from ...entropy.shannon import calculate_entropies_for_sequences, EntropyReport
@@ -40,6 +40,14 @@ def entropy_command(
         from ...orf.types import OrfRecord
         from ...translate.translator import ProteinRecord
         from ...encode3di.prostt5 import ThreeDiRecord
+        from ...config import (
+            AA_ALPHABET,
+            DNA_ALPHABET,
+            THREEDDI_ALPHABET,
+            TWELVE_STATE_ALPHABET,
+            THREEDDI_ALPHABET_SIZE,
+            TWELVE_STATE_ALPHABET_SIZE,
+        )
 
         typer.echo(f"Reading 3Di records from: {input}")
         three_di_data = read_json(input)
@@ -60,6 +68,7 @@ def entropy_command(
                     method=td["method"],
                     model_name=td["model_name"],
                     inference_device=td["inference_device"],
+                    twelve_state=td.get("twelve_state"),
                 )
                 three_dis.append(three_di)
         else:
@@ -77,15 +86,29 @@ def entropy_command(
             td.protein.orf.orf_id: td.protein.aa_sequence for td in three_dis
         }
         three_di_seqs = {td.protein.orf.orf_id: td.three_di for td in three_dis}
+        twelve_state_seqs = {
+            td.protein.orf.orf_id: td.twelve_state
+            for td in three_dis
+            if td.twelve_state is not None
+        }
 
         orf_nt_entropy = calculate_entropies_for_sequences(
-            orf_nt_seqs, normalize=normalize
+            orf_nt_seqs, alphabet=DNA_ALPHABET, normalize=normalize
         )
         protein_aa_entropy = calculate_entropies_for_sequences(
-            protein_aa_seqs, normalize=normalize
+            protein_aa_seqs, alphabet=AA_ALPHABET, normalize=normalize
         )
         three_di_entropy = calculate_entropies_for_sequences(
-            three_di_seqs, normalize=normalize
+            three_di_seqs, alphabet=THREEDDI_ALPHABET, normalize=normalize
+        )
+        twelve_state_entropy = (
+            calculate_entropies_for_sequences(
+                twelve_state_seqs,
+                alphabet=TWELVE_STATE_ALPHABET,
+                normalize=normalize,
+            )
+            if twelve_state_seqs
+            else None
         )
 
         # Create report
@@ -94,7 +117,13 @@ def entropy_command(
             orf_nt_entropy=orf_nt_entropy,
             protein_aa_entropy=protein_aa_entropy,
             three_di_entropy=three_di_entropy,
-            alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
+            alphabet_sizes={
+                "dna": 4,
+                "protein": 20,
+                "three_di": THREEDDI_ALPHABET_SIZE,
+                "twelve_state": TWELVE_STATE_ALPHABET_SIZE,
+            },
+            twelve_state_entropy=twelve_state_entropy,
         )
 
         typer.echo(f"  Calculated entropy for {len(orf_nt_entropy)} sequence(s)")

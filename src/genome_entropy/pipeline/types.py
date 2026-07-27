@@ -79,6 +79,14 @@ class FeatureThreeDi:
 
 
 @dataclass
+class FeatureTwelveState:
+    """Optional 12-state structural encoding for a feature."""
+
+    encoding: str
+    length: int
+
+
+@dataclass
 class FeatureMetadata:
     """Metadata about a feature.
 
@@ -110,6 +118,7 @@ class FeatureEntropy:
     dna_entropy: float
     protein_entropy: float
     three_di_entropy: float
+    twelve_state_entropy: float | None = None
 
 
 @dataclass
@@ -138,6 +147,7 @@ class UnifiedFeature:
     three_di: FeatureThreeDi
     metadata: FeatureMetadata
     entropy: FeatureEntropy
+    twelve_state: FeatureTwelveState | None = None
 
 
 @dataclass
