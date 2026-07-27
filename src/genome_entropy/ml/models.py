@@ -421,6 +421,7 @@ class NeuralNetModel(BaseModel):
         self.learning_rate = learning_rate
         self.epochs = epochs
         self.batch_size = batch_size
+        self.imputation_values: Optional[np.ndarray] = None
 
         # Auto-detect device
         if device is None:
@@ -477,6 +478,19 @@ class NeuralNetModel(BaseModel):
         Returns:
             Dictionary with training metrics
         """
+        # Neural networks cannot consume NaN directly. Preserve NaN in extracted
+        # feature matrices, then fit and retain a column-median imputer here.
+        with np.errstate(all="ignore"):
+            self.imputation_values = np.nanmedian(X, axis=0)
+        if np.isnan(self.imputation_values).any():
+            logger.warning(
+                "Some classifier feature columns contain no observed values; "
+                "the neural-network imputer will use its explicit 0.0 fallback "
+                "for those all-missing columns."
+            )
+        self.imputation_values = np.nan_to_num(self.imputation_values, nan=0.0)
+        X = np.where(np.isnan(X), self.imputation_values, X)
+
         # Build model
         self.model = self._build_model().to(self.device)
 
@@ -568,6 +582,8 @@ class NeuralNetModel(BaseModel):
         if self.model is None:
             raise RuntimeError("Model not trained")
 
+        if self.imputation_values is not None:
+            X = np.where(np.isnan(X), self.imputation_values, X)
         self.model.eval()
         with self.torch.no_grad():
             X_t = self.torch.tensor(X, dtype=self.torch.float32).to(self.device)
@@ -588,6 +604,8 @@ class NeuralNetModel(BaseModel):
         if self.model is None:
             raise RuntimeError("Model not trained")
 
+        if self.imputation_values is not None:
+            X = np.where(np.isnan(X), self.imputation_values, X)
         self.model.eval()
         with self.torch.no_grad():
             X_t = self.torch.tensor(X, dtype=self.torch.float32).to(self.device)
@@ -661,6 +679,7 @@ class NeuralNetModel(BaseModel):
                 "learning_rate": self.learning_rate,
                 "epochs": self.epochs,
                 "batch_size": self.batch_size,
+                "imputation_values": self.imputation_values,
             },
             path,
         )
@@ -684,6 +703,7 @@ class NeuralNetModel(BaseModel):
         self.learning_rate = checkpoint.get("learning_rate", 0.001)
         self.epochs = checkpoint.get("epochs", 100)
         self.batch_size = checkpoint.get("batch_size", 32)
+        self.imputation_values = checkpoint.get("imputation_values")
 
         # Build and load model
         self.model = self._build_model().to(self.device)

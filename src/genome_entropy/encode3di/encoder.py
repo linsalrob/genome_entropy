@@ -15,7 +15,7 @@ from ..config import (
     CPU_DEVICE,
     CUDA_DEVICE,
     DEFAULT_ENCODING_SIZE,
-    DEFAULT_PROSTT5_MODEL,
+    PROSTT5_FP16_MODEL,
     MPS_DEVICE,
 )
 from ..errors import DeviceError, ModelError
@@ -36,7 +36,7 @@ class ProstT5ThreeDiEncoder:
 
     def __init__(
         self,
-        model_name: str = DEFAULT_PROSTT5_MODEL,
+        model_name: str = PROSTT5_FP16_MODEL,
         device: Optional[str] = None,
     ):
         """Initialize the ProstT5 encoder.
@@ -399,6 +399,7 @@ class ProstT5ThreeDiEncoder:
                 method="prostt5_aa2fold",
                 model_name=self.model_name,
                 inference_device=self.device,
+                twelve_state=None,
             )
             records.append(record)
 

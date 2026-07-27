@@ -9,7 +9,10 @@ from ..config import (
     DEFAULT_MIN_AA_LENGTH,
     DEFAULT_PROSTT5_MODEL,
     DEFAULT_ENCODING_SIZE,
-    MODERNPROST_MODELS,
+    THREEDDI_ALPHABET_SIZE,
+    TWELVE_STATE_ALPHABET_SIZE,
+    get_model_capabilities,
+    resolve_model_name,
 )
 from ..encode3di.prostt5 import ProstT5ThreeDiEncoder, ThreeDiRecord
 from ..encode3di.modernprost import ModernProstThreeDiEncoder
@@ -113,6 +116,8 @@ def run_pipeline(
         logger.info("GenBank file: %s", genbank_file)
     logger.info("Genetic code table: %d", table_id)
     logger.info("Minimum AA length: %d", min_aa_len)
+    model_name = resolve_model_name(model_name)
+    capabilities = get_model_capabilities(model_name, warn=False)
     logger.info("Model: %s", model_name)
     logger.info("Compute entropy: %s", compute_entropy)
     if use_multi_gpu:
@@ -151,7 +156,7 @@ def run_pipeline(
         logger.info("Initializing 3Di encoder (model will be loaded on first use)...")
 
         # Select encoder based on model name
-        if model_name in MODERNPROST_MODELS:
+        if capabilities.family.startswith("modernprost"):
             encoder = ModernProstThreeDiEncoder(model_name=model_name, device=device)
             encoder_class = ModernProstThreeDiEncoder
         else:
@@ -215,6 +220,7 @@ def run_pipeline(
                     protein_aa_entropy={},
                     three_di_entropy={},
                     alphabet_sizes={},
+                    twelve_state_entropy=None,
                 )
                 results.append(
                     PipelineResult(
@@ -254,7 +260,7 @@ def run_pipeline(
                 gpu_ids=gpu_ids,
                 multi_gpu_encoder=multi_gpu_encoder,
             )
-            logger.info("Encoded %d 3Di sequence(s)", len(three_dis))
+            logger.info("Encoded %d structural-state sequence(s)", len(three_dis))
 
             # Step 5: Calculate entropy
             if compute_entropy:
@@ -271,6 +277,7 @@ def run_pipeline(
                     protein_aa_entropy={},
                     three_di_entropy={},
                     alphabet_sizes={},
+                    twelve_state_entropy=None,
                 )
 
             # Create result
@@ -336,11 +343,23 @@ def calculate_pipeline_entropy(
     three_di_sequences = {td.protein.orf.orf_id: td.three_di for td in three_dis}
     three_di_entropy = calculate_entropies_for_sequences(three_di_sequences)
 
+    twelve_state_sequences = {
+        td.protein.orf.orf_id: td.twelve_state
+        for td in three_dis
+        if td.twelve_state is not None
+    }
+    twelve_state_entropy = (
+        calculate_entropies_for_sequences(twelve_state_sequences)
+        if twelve_state_sequences
+        else None
+    )
+
     # Alphabet sizes
     alphabet_sizes = {
         "dna": 4,
         "protein": 20,
-        "three_di": 20,
+        "three_di": THREEDDI_ALPHABET_SIZE,
+        "twelve_state": TWELVE_STATE_ALPHABET_SIZE,
     }
 
     logger.debug("Entropy calculation complete")
@@ -351,4 +370,5 @@ def calculate_pipeline_entropy(
         protein_aa_entropy=protein_aa_entropy,
         three_di_entropy=three_di_entropy,
         alphabet_sizes=alphabet_sizes,
+        twelve_state_entropy=twelve_state_entropy,
     )

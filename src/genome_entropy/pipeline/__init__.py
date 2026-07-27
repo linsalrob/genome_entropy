@@ -7,6 +7,7 @@ from .types import (
     FeatureDNA,
     FeatureProtein,
     FeatureThreeDi,
+    FeatureTwelveState,
     FeatureMetadata,
     FeatureEntropy,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "FeatureDNA",
     "FeatureProtein",
     "FeatureThreeDi",
+    "FeatureTwelveState",
     "FeatureMetadata",
     "FeatureEntropy",
 ]

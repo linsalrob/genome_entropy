@@ -3,7 +3,7 @@
 # Export main classes and functions
 from .encoder import ProstT5ThreeDiEncoder
 from .modernprost import ModernProstThreeDiEncoder
-from .types import IndexedSeq, ThreeDiRecord
+from .types import IndexedSeq, StructuralEncoding, ThreeDiRecord
 from .token_estimator import (
     estimate_token_size,
     generate_random_protein,
@@ -14,6 +14,7 @@ __all__ = [
     "ProstT5ThreeDiEncoder",
     "ModernProstThreeDiEncoder",
     "ThreeDiRecord",
+    "StructuralEncoding",
     "IndexedSeq",
     "estimate_token_size",
     "generate_random_protein",

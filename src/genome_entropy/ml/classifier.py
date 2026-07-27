@@ -15,6 +15,25 @@ from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 
+LEGACY_FEATURE_NAMES = [
+    "dna_entropy",
+    "protein_entropy",
+    "three_di_entropy",
+    "dna_length",
+    "protein_length",
+    "three_di_length",
+    "start",
+    "end",
+    "strand_plus",
+    "frame",
+    "has_start_codon",
+    "has_stop_codon",
+]
+FEATURE_NAMES = LEGACY_FEATURE_NAMES + [
+    "twelve_state_entropy",
+    "twelve_state_length",
+]
+
 
 def load_json_data(json_dir: Path) -> List[List[Dict[str, Any]]]:
     """Load all JSON files from a directory.
@@ -162,20 +181,7 @@ def extract_features(
     features_list = []
     labels_list = []
     metadata_list = [] if return_metadata else None
-    feature_names = [
-        "dna_entropy",
-        "protein_entropy",
-        "three_di_entropy",
-        "dna_length",
-        "protein_length",
-        "three_di_length",
-        "start",
-        "end",
-        "strand_plus",  # 1 if +, 0 if -
-        "frame",
-        "has_start_codon",
-        "has_stop_codon",
-    ]
+    feature_names = FEATURE_NAMES.copy()
 
     orf_count = 0
     for jd in json_data:
@@ -201,6 +207,17 @@ def extract_features(
                             float(feature["location"]["frame"]),
                             1.0 if feature["metadata"]["has_start_codon"] else 0.0,
                             1.0 if feature["metadata"]["has_stop_codon"] else 0.0,
+                            (
+                                np.nan
+                                if feature["entropy"].get("twelve_state_entropy")
+                                is None
+                                else feature["entropy"]["twelve_state_entropy"]
+                            ),
+                            (
+                                np.nan
+                                if feature.get("twelve_state") is None
+                                else feature["twelve_state"]["length"]
+                            ),
                         ]
 
                         # Extract label
@@ -238,6 +255,7 @@ def extract_features(
                 orf_nt_entropy = entropy.get("orf_nt_entropy", {})
                 protein_aa_entropy = entropy.get("protein_aa_entropy", {})
                 three_di_entropy = entropy.get("three_di_entropy", {})
+                twelve_state_entropy = entropy.get("twelve_state_entropy")
 
                 # Get proteins and three_dis by orf_id
                 proteins = {p["orf"]["orf_id"]: p for p in data.get("proteins", [])}
@@ -268,6 +286,16 @@ def extract_features(
                             float(orf["frame"]),
                             1.0 if orf["has_start_codon"] else 0.0,
                             1.0 if orf["has_stop_codon"] else 0.0,
+                            (
+                                np.nan
+                                if twelve_state_entropy is None
+                                else twelve_state_entropy.get(orf_id, np.nan)
+                            ),
+                            (
+                                np.nan
+                                if three_di.get("twelve_state") is None
+                                else len(three_di["twelve_state"])
+                            ),
                         ]
 
                         label = 1 if orf.get("in_genbank", False) else 0
@@ -433,7 +461,7 @@ class GenbankClassifier:
         if not self.is_trained:
             raise RuntimeError("Model not trained. Call fit() first.")
 
-        return self.model.predict(X)
+        return self.model.predict(self._align_feature_width(X))
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Predict class probabilities.
@@ -447,7 +475,7 @@ class GenbankClassifier:
         if not self.is_trained:
             raise RuntimeError("Model not trained. Call fit() first.")
 
-        return self.model.predict_proba(X)
+        return self.model.predict_proba(self._align_feature_width(X))
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, float]:
         """Evaluate the model on test data.
@@ -462,7 +490,29 @@ class GenbankClassifier:
         if not self.is_trained:
             raise RuntimeError("Model not trained. Call fit() first.")
 
-        return self.model.evaluate(X, y)
+        return self.model.evaluate(self._align_feature_width(X), y)
+
+    def _align_feature_width(self, X: np.ndarray) -> np.ndarray:
+        """Retain compatibility with saved 12-feature classifiers."""
+        model = self.model
+        if model is None:
+            raise RuntimeError("Model not initialized")
+        if self.model_type == "xgboost":
+            expected = model.model.num_features()
+        else:
+            expected = model.input_dim
+        if X.shape[1] == expected:
+            return X
+        if expected == len(LEGACY_FEATURE_NAMES) and X.shape[1] == len(FEATURE_NAMES):
+            logger.warning(
+                "Loaded classifier uses the legacy feature schema; ignoring the "
+                "appended 12-state features for this model."
+            )
+            return X[:, :expected]
+        raise ValueError(
+            f"Classifier expects {expected} features but input has {X.shape[1]}; "
+            "the saved feature schema is incompatible"
+        )
 
     def get_feature_importance(self) -> Optional[Dict[str, float]]:
         """Get feature importance scores.
@@ -491,6 +541,8 @@ class GenbankClassifier:
             raise RuntimeError("Model not trained. Call fit() first.")
 
         self.model.save(path)
+        feature_path = Path(path).with_suffix(Path(path).suffix + ".features.json")
+        feature_path.write_text(json.dumps(self.feature_names or []), encoding="utf-8")
         logger.info(f"Model saved to {path}")
 
     def load(self, path: Path) -> None:
@@ -513,5 +565,19 @@ class GenbankClassifier:
             raise ValueError(f"Unknown model_type: {self.model_type}")
 
         self.model.load(path)
+        feature_path = Path(path).with_suffix(Path(path).suffix + ".features.json")
+        if feature_path.exists():
+            self.feature_names = json.loads(feature_path.read_text(encoding="utf-8"))
+        else:
+            expected = (
+                self.model.model.num_features()
+                if self.model_type == "xgboost"
+                else self.model.input_dim
+            )
+            self.feature_names = (
+                LEGACY_FEATURE_NAMES.copy()
+                if expected == len(LEGACY_FEATURE_NAMES)
+                else None
+            )
         self.is_trained = True
         logger.info(f"Model loaded from {path}")

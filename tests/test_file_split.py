@@ -231,7 +231,7 @@ def test_train_with_file_split(temp_json_dir_for_split):
         # Check training parameters
         assert result["training_parameters"]["model_type"] == "xgboost"
         assert result["training_parameters"]["random_seed"] == 42
-        assert result["training_parameters"]["n_features"] == 12
+        assert result["training_parameters"]["n_features"] == 14
 
         # Check metrics exist
         assert "accuracy" in result["test_metrics"]

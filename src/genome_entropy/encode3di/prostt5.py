@@ -6,10 +6,11 @@ that have been moved to separate modules for better organization.
 
 # For backward compatibility, re-export from new modules
 from .encoder import ProstT5ThreeDiEncoder
-from .types import IndexedSeq, ThreeDiRecord
+from .types import IndexedSeq, StructuralEncoding, ThreeDiRecord
 
 __all__ = [
     "ProstT5ThreeDiEncoder",
     "ThreeDiRecord",
+    "StructuralEncoding",
     "IndexedSeq",
 ]

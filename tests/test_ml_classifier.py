@@ -141,9 +141,7 @@ def test_load_multi_record_json_file(sample_json_unified, tmp_path):
     assert all(len(group) == 1 for group in data)
 
 
-def test_split_multi_record_json_keeps_records_together(
-    sample_json_unified, tmp_path
-):
+def test_split_multi_record_json_keeps_records_together(sample_json_unified, tmp_path):
     """Record-level splitting never divides one record's ORFs across sets."""
     records = []
     for i in range(10):
@@ -155,9 +153,7 @@ def test_split_multi_record_json_keeps_records_together(
     json_file.write_text(json.dumps(records))
     data = load_json_file(json_file)
 
-    train_data, test_data = split_json_records(
-        data, test_split=0.2, random_seed=123
-    )
+    train_data, test_data = split_json_records(data, test_split=0.2, random_seed=123)
     train_ids = {group[0]["input_id"] for group in train_data}
     test_ids = {group[0]["input_id"] for group in test_data}
 
@@ -186,9 +182,7 @@ def test_featureless_records_are_removed_before_record_split(
     json_file.write_text(json.dumps([empty_record, *usable_records]))
 
     data = filter_json_records_with_features(load_json_file(json_file))
-    train_data, test_data = split_json_records(
-        data, test_split=0.5, random_seed=42
-    )
+    train_data, test_data = split_json_records(data, test_split=0.5, random_seed=42)
 
     assert len(data) == 2
     assert len(train_data) == 1
@@ -234,11 +228,15 @@ def test_extract_features_unified_format(sample_json_unified):
 
     # Should have 2 ORFs
     assert X.shape[0] == 2
-    # Should have 12 features
-    assert X.shape[1] == 12
+    # Existing features remain ordered first; 12-state features are appended.
+    assert X.shape[1] == 14
 
     # Check feature names
-    assert len(feature_names) == 12
+    assert len(feature_names) == 14
+    assert "twelve_state_entropy" in feature_names
+    assert "twelve_state_length" in feature_names
+    assert np.isnan(X[0, feature_names.index("twelve_state_entropy")])
+    assert np.isnan(X[0, feature_names.index("twelve_state_length")])
     assert "dna_entropy" in feature_names
     assert "protein_entropy" in feature_names
     assert "three_di_entropy" in feature_names
@@ -338,7 +336,9 @@ def test_extract_features_old_format():
     X, y, feature_names, _ = extract_features([[old_format_data]])
 
     assert X.shape[0] == 1
-    assert X.shape[1] == 12
+    assert X.shape[1] == 14
+    assert np.isnan(X[0, feature_names.index("twelve_state_entropy")])
+    assert np.isnan(X[0, feature_names.index("twelve_state_length")])
     assert y[0] == 1
 
 

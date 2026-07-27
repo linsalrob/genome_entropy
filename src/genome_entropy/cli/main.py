@@ -16,7 +16,7 @@ from ..logging_config import configure_logging
 if typer:
     app = typer.Typer(
         name="genome_entropy",
-        help="DNA to 3Di pipeline: Convert DNA sequences to ORFs, proteins, and 3Di structural tokens with entropy analysis.",
+        help="Convert DNA to proteins and structural-state encodings with entropy analysis.",
         add_completion=False,
     )
 
@@ -38,7 +38,7 @@ if typer:
             help="Path to log file (default: log to STDOUT)",
         ),
     ) -> None:
-        """DNA to 3Di pipeline with entropy analysis."""
+        """DNA-to-structural-state pipeline with entropy analysis."""
         if version:
             typer.echo(f"genome_entropy version {__version__}")
             raise typer.Exit()

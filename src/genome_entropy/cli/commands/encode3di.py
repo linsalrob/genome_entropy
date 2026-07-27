@@ -9,6 +9,8 @@ try:
 except ImportError:
     typer = None
 
+from ...config import DEFAULT_PROSTT5_MODEL, supported_models_help
+
 
 def encode3di_command(
     input: Path = typer.Option(
@@ -23,13 +25,13 @@ def encode3di_command(
         ...,
         "--output",
         "-o",
-        help="Output JSON file with 3Di records",
+        help="Output JSON file with structural-state records",
     ),
     model: str = typer.Option(
-        "gbouras13/modernprost-base",
+        DEFAULT_PROSTT5_MODEL,
         "--model",
         "-m",
-        help="Model name (gbouras13/modernprost-base, gbouras13/modernprost-profiles, Rostlab/ProstT5, or Rostlab/ProstT5_fp16)",
+        help=supported_models_help(),
     ),
     device: Optional[str] = typer.Option(
         None,
@@ -55,18 +57,20 @@ def encode3di_command(
         "If not specified, auto-discovers available GPUs.",
     ),
 ) -> None:
-    """Encode proteins to 3Di structural tokens.
+    """Encode proteins into structural-state sequences.
 
-    Uses ProstT5 or ModernProst models to predict 3Di structural alphabet tokens
-    directly from amino acid sequences.
+    New ModernProst models produce both 3Di and 12-state encodings; legacy
+    ModernProst and ProstT5 models produce only 3Di.
 
     Input formats:
     - FASTA file: Protein sequences in FASTA format (.fasta, .fa, .faa)
     - JSON file: Protein records in JSON format (output from translate or fasta-to-protein)
 
     Available models:
-    - gbouras13/modernprost-base (default, newer base model, fastest)
-    - gbouras13/modernprost-profiles (newer model with profile support)
+    - gbouras13/modernprost-50M (default; 3Di and 12-state)
+    - gbouras13/modernprost (larger; 3Di and 12-state)
+    - gbouras13/modernprost-base-deprecated (legacy 3Di only)
+    - gbouras13/modernprost-profiles-deprecated (legacy 3Di only)
     - Rostlab/ProstT5 (original ProstT5 model, full precision)
     - Rostlab/ProstT5_fp16 (original ProstT5 model, half precision)
 
@@ -75,7 +79,7 @@ def encode3di_command(
     specify --gpu-ids to select specific GPUs.
     """
     try:
-        from ...config import MODERNPROST_MODELS
+        from ...config import get_model_capabilities, resolve_model_name
         from ...encode3di.prostt5 import ProstT5ThreeDiEncoder
         from ...encode3di.modernprost import ModernProstThreeDiEncoder
         from ...io.jsonio import read_json, write_json
@@ -94,16 +98,16 @@ def encode3di_command(
                 raise typer.Exit(2)
 
         typer.echo(f"Reading proteins from: {input}")
-        
+
         # Detect input format based on file extension
         input_str = str(input).lower()
-        is_fasta = input_str.endswith(('.fasta', '.fa', '.faa'))
-        
+        is_fasta = input_str.endswith((".fasta", ".fa", ".faa"))
+
         if is_fasta:
             # Read FASTA file and convert to ProteinRecord objects
             typer.echo("  Detected FASTA format")
             sequences = read_fasta(input)
-            
+
             # Convert to ProteinRecord objects (similar to fasta_to_protein)
             proteins = []
             for seq_id, aa_sequence in sequences.items():
@@ -123,7 +127,7 @@ def encode3di_command(
                     has_stop_codon=False,
                     in_genbank=False,
                 )
-                
+
                 protein = ProteinRecord(
                     orf=orf,
                     aa_sequence=aa_sequence,
@@ -134,7 +138,7 @@ def encode3di_command(
             # Read JSON file (original behavior)
             typer.echo("  Detected JSON format")
             protein_data = read_json(input)
-            
+
             # Reconstruct ProteinRecord objects
             if isinstance(protein_data, list):
                 proteins = []
@@ -153,7 +157,9 @@ def encode3di_command(
 
         # Select encoder based on model name
         typer.echo(f"\nInitializing encoder (model: {model})...")
-        if model in MODERNPROST_MODELS:
+        model = resolve_model_name(model)
+        capabilities = get_model_capabilities(model, warn=False)
+        if capabilities.family.startswith("modernprost"):
             encoder = ModernProstThreeDiEncoder(model_name=model, device=device)
         else:
             encoder = ProstT5ThreeDiEncoder(model_name=model, device=device)
@@ -167,7 +173,7 @@ def encode3di_command(
         else:
             typer.echo(f"  Using device: {encoder.device}")
 
-        typer.echo(f"\nEncoding to 3Di tokens...")
+        typer.echo("\nEncoding structural-state tokens...")
         three_dis = encoder.encode_proteins(
             proteins,
             encoding_size,
@@ -179,7 +185,8 @@ def encode3di_command(
         typer.echo(f"\nWriting results to: {output}")
         write_json(three_dis, output)
 
-        typer.echo("✓ 3Di encoding complete!")
+        # Keep the established completion text for scripts that inspect stdout.
+        typer.echo("✓ 3Di encoding complete! Structural-state output written.")
 
     except Exception as e:
         typer.echo(f"Error: {e}", err=True)

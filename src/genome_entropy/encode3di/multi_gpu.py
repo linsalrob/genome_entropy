@@ -88,7 +88,7 @@ class MultiGPUEncoder:
         self,
         encoder_idx: int,
         batch: List[IndexedSeq],
-    ) -> Tuple[List[int], List[str]]:
+    ) -> Tuple[List[int], List[Any]]:
         """Encode a single batch on a specific GPU asynchronously.
 
         Args:
@@ -125,7 +125,7 @@ class MultiGPUEncoder:
         self,
         batches: List[List[IndexedSeq]],
         total_sequences: int,
-    ) -> List[str]:
+    ) -> List[Any]:
         """Encode all batches across multiple GPUs asynchronously.
 
         Args:
@@ -138,7 +138,7 @@ class MultiGPUEncoder:
         Raises:
             EncodingError: If encoding fails
         """
-        three_di_sequences: List[str] = [None] * total_sequences  # type: ignore[list-item]
+        encodings: List[Any | None] = [None] * total_sequences
 
         t0 = time.perf_counter()
         total_batches = len(batches)
@@ -150,13 +150,6 @@ class MultiGPUEncoder:
             len(self.encoders),
         )
 
-        # Create a shared queue for all batches
-        batch_queue: asyncio.Queue[Tuple[int, List[IndexedSeq]]] = asyncio.Queue()
-
-        # Enqueue all batches with their indices
-        for batch_idx, batch in enumerate(batches):
-            await batch_queue.put((batch_idx, batch))
-
         # Track completed batches and errors
         completed = 0
         completed_lock = asyncio.Lock()
@@ -166,16 +159,10 @@ class MultiGPUEncoder:
             """Worker coroutine that processes batches for a specific GPU."""
             nonlocal completed, first_error
 
-            while True:
-                try:
-                    # Get next batch from queue (non-blocking check)
-                    batch_idx, batch = await asyncio.wait_for(
-                        batch_queue.get(), timeout=0.1
-                    )
-                except asyncio.TimeoutError:
-                    # Queue is empty, exit worker
-                    break
-
+            # Assign batches round-robin so each device has one worker and a
+            # fast device cannot consume work intended for every other device.
+            for batch_idx in range(gpu_idx, total_batches, len(self.encoders)):
+                batch = batches[batch_idx]
                 try:
                     # Encode the batch on this GPU
                     batch_idxs, batch_results = await self.encode_batch_async(
@@ -184,7 +171,7 @@ class MultiGPUEncoder:
 
                     # Store results in original order
                     for bi, br in zip(batch_idxs, batch_results):
-                        three_di_sequences[bi] = br
+                        encodings[bi] = br
 
                     # Update progress
                     async with completed_lock:
@@ -202,9 +189,6 @@ class MultiGPUEncoder:
                             eta_remaining,
                         )
 
-                    # Mark task as done
-                    batch_queue.task_done()
-
                 except Exception as e:
                     # Store first error and stop processing
                     if first_error is None:
@@ -216,7 +200,6 @@ class MultiGPUEncoder:
                             e,
                             exc_info=True,
                         )
-                    batch_queue.task_done()
                     break
 
         # Create one worker per GPU
@@ -244,7 +227,7 @@ class MultiGPUEncoder:
             ) from first_error
 
         # Check all sequences encoded
-        missing = [i for i, v in enumerate(three_di_sequences) if v is None]
+        missing = [i for i, value in enumerate(encodings) if value is None]
         if missing:
             raise RuntimeError(
                 f"Missing encodings for {len(missing)} sequences "
@@ -259,7 +242,7 @@ class MultiGPUEncoder:
             total_sequences / elapsed_total if elapsed_total > 0 else 0,
         )
 
-        return three_di_sequences
+        return encodings
 
     def encode_multi_gpu(
         self,
@@ -267,7 +250,7 @@ class MultiGPUEncoder:
         token_budget_batches_fn: Callable[[List[str], int], Iterator[Any]],
         encoding_size: int,
         skip_model_loading: bool = False,
-    ) -> List[str]:
+    ) -> List[Any]:
         """Encode sequences using multiple GPUs.
 
         This is a synchronous wrapper around the async encoding method.
@@ -311,7 +294,7 @@ class MultiGPUEncoder:
         self,
         batches: List[List[IndexedSeq]],
         total_sequences: int,
-    ) -> List[str]:
+    ) -> List[Any]:
         """Fallback to sequential single-GPU encoding.
 
         Args:
@@ -321,7 +304,7 @@ class MultiGPUEncoder:
         Returns:
             List of encoded 3Di sequences in original input order
         """
-        three_di_sequences: List[str] = [None] * total_sequences  # type: ignore[list-item]
+        encodings: List[Any | None] = [None] * total_sequences
         encoder = self.encoders[0]
 
         logger.info(
@@ -338,7 +321,7 @@ class MultiGPUEncoder:
             results = encoder._encode_batch(batch_seqs)
 
             for bi, br in zip(batch_idxs, results):
-                three_di_sequences[bi] = br
+                encodings[bi] = br
 
             elapsed = time.perf_counter() - t0
             avg_time = elapsed / batch_idx
@@ -353,8 +336,8 @@ class MultiGPUEncoder:
             )
 
         # Check all sequences encoded
-        missing = [i for i, v in enumerate(three_di_sequences) if v is None]
+        missing = [i for i, value in enumerate(encodings) if value is None]
         if missing:
             raise RuntimeError(f"Missing encodings for {len(missing)} sequences")
 
-        return three_di_sequences
+        return encodings

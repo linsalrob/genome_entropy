@@ -27,6 +27,7 @@ class EntropyReport:
     protein_aa_entropy: Dict[str, float]
     three_di_entropy: Dict[str, float]
     alphabet_sizes: Dict[str, int]
+    twelve_state_entropy: Dict[str, float] | None = None
 
 
 def shannon_entropy(

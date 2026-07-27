@@ -3,7 +3,7 @@
 import math
 import re
 import time
-from typing import Any, Callable, Iterator, List, Tuple
+from typing import Any, Callable, Iterator, List, Tuple, TypeVar
 
 try:
     import torch
@@ -14,6 +14,7 @@ from ..errors import EncodingError
 from ..logging_config import get_logger
 
 logger = get_logger(__name__)
+EncodingT = TypeVar("EncodingT")
 
 
 def preprocess_sequences(aa_sequences: List[str]) -> List[str]:
@@ -63,10 +64,10 @@ def get_memory_info() -> Tuple[float, float]:
 
 def process_batches(
     batches_iter: Iterator[Any],
-    encode_batch_fn: Callable[[List[str]], List[str]],
+    encode_batch_fn: Callable[[List[str]], List[EncodingT]],
     total_sequences: int,
     total_batches: int,
-) -> List[str]:
+) -> List[EncodingT]:
     """Process batches of sequences and return results in original order.
 
     Args:
@@ -82,7 +83,7 @@ def process_batches(
         EncodingError: If encoding fails
         RuntimeError: If some sequences were not encoded
     """
-    three_di_sequences: List[str] = [None] * total_sequences  # type: ignore[list-item]
+    encodings: List[EncodingT | None] = [None] * total_sequences
 
     processed_sequences = 0
     t0 = time.perf_counter()
@@ -135,7 +136,7 @@ def process_batches(
 
             # Reorder results to match original input order
             for bi, br in zip(batch_idxs, batch_results):
-                three_di_sequences[bi] = br
+                encodings[bi] = br
 
             # Update timing
             batch_elapsed = time.perf_counter() - batch_start
@@ -149,22 +150,22 @@ def process_batches(
         raise EncodingError(f"Failed to encode sequences: {e}") from e
 
     # Check all sequences encoded
-    missing = [i for i, v in enumerate(three_di_sequences) if v is None]
+    missing = [i for i, value in enumerate(encodings) if value is None]
     if missing:
         raise RuntimeError(
             f"Missing encodings for {len(missing)} sequences "
             f"(e.g., indices {missing[:10]})"
         )
 
-    return three_di_sequences
+    return [value for value in encodings if value is not None]
 
 
 def encode(
     aa_sequences: List[str],
-    encode_batch_fn: Callable[[List[str]], List[str]],
+    encode_batch_fn: Callable[[List[str]], List[EncodingT]],
     token_budget_batches_fn: Callable[[List[str], int], Iterator[Any]],
     encoding_size: int,
-) -> List[str]:
+) -> List[EncodingT]:
     """Encode amino acid sequences to 3Di tokens.
 
     This is a standalone encoding function that orchestrates the encoding pipeline.

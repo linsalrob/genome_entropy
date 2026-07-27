@@ -84,13 +84,15 @@ def test_config_has_modernprost_models() -> None:
     """Test that config defines ModernProst model constants."""
     from genome_entropy.config import (
         MODERNPROST_BASE_MODEL,
+        MODERNPROST_BASE_DEPRECATED_MODEL,
         MODERNPROST_PROFILES_MODEL,
+        MODERNPROST_PROFILES_DEPRECATED_MODEL,
         MODERNPROST_MODELS,
     )
 
     # Check that constants are defined
-    assert MODERNPROST_BASE_MODEL == "gbouras13/modernprost-base"
-    assert MODERNPROST_PROFILES_MODEL == "gbouras13/modernprost-profiles"
+    assert MODERNPROST_BASE_MODEL == MODERNPROST_BASE_DEPRECATED_MODEL
+    assert MODERNPROST_PROFILES_MODEL == MODERNPROST_PROFILES_DEPRECATED_MODEL
     assert isinstance(MODERNPROST_MODELS, set)
     assert MODERNPROST_BASE_MODEL in MODERNPROST_MODELS
     assert MODERNPROST_PROFILES_MODEL in MODERNPROST_MODELS
@@ -115,7 +117,7 @@ def test_modernprost_encoder_instantiation() -> None:
     try:
         # Test that encoder can be instantiated (without loading model)
         encoder = ModernProstThreeDiEncoder(
-            model_name="gbouras13/modernprost-base", device="cpu"
+            model_name="gbouras13/modernprost-base-deprecated", device="cpu"
         )
 
         # Verify encoder has expected attributes
@@ -124,7 +126,7 @@ def test_modernprost_encoder_instantiation() -> None:
         assert hasattr(encoder, "model")
         assert hasattr(encoder, "tokenizer")
         assert encoder.device == "cpu"
-        assert encoder.model_name == "gbouras13/modernprost-base"
+        assert encoder.model_name == "gbouras13/modernprost-base-deprecated"
     except Exception:
         pytest.skip("Cannot instantiate encoder without dependencies")
 
