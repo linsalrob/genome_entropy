@@ -46,7 +46,7 @@ The documentation includes:
 - 🔄 **Translation**: Convert ORFs to protein sequences with support for all NCBI genetic code tables
 - 🏗️ **Structural-state encoding**: Predict 3Di and, with multitask ModernProst models, 12-state tokens directly from protein sequences
   - ModernProst 50M (`gbouras13/modernprost-50M`) - Default lightweight multitask model
-  - ModernProst 1B (`gbouras13/modernprost`) - Larger multitask model
+  - ModernProst 1B (`gbouras13/modernprost-base`) - Larger multitask model
   - Deprecated ModernProst models - Legacy 3Di-only models
   - ProstT5 (Rostlab/ProstT5) - Original model, full precision
   - ProstT5 fp16 (Rostlab/ProstT5_fp16) - Original model, half precision
@@ -113,7 +113,7 @@ genome_entropy run --input input.fasta --output results.json
 
 # Larger approximately 1B-parameter multitask model
 genome_entropy run --input input.fasta --output results.json \
-    --model gbouras13/modernprost
+    --model gbouras13/modernprost-base
 
 # Deprecated legacy 3Di-only model
 genome_entropy run --input input.fasta --output results.json \
@@ -129,7 +129,7 @@ genome_entropy run --input input.fasta --output results.json \
 | Model | Parameters | 3Di | 12-state | Status |
 |-------|-----------:|----:|---------:|--------|
 | `gbouras13/modernprost-50M` | approximately 50M | yes | yes | default |
-| `gbouras13/modernprost` | approximately 1B | yes | yes | supported |
+| `gbouras13/modernprost-base` | approximately 1B | yes | yes | supported |
 | `gbouras13/modernprost-base-deprecated` | legacy | yes | no | deprecated |
 | `gbouras13/modernprost-profiles-deprecated` | legacy | yes | no | deprecated |
 | `Rostlab/ProstT5` | legacy | yes | no | supported |
@@ -284,7 +284,7 @@ genome_entropy run \
 - `--min-aa`: Minimum protein length in amino acids (default: 30)
 - `--model, -m`: Model name (default: `gbouras13/modernprost-50M`)
   - `gbouras13/modernprost-50M` - Lightweight 3Di + 12-state model
-  - `gbouras13/modernprost` - Approximately 1B-parameter 3Di + 12-state model
+  - `gbouras13/modernprost-base` - Approximately 1B-parameter 3Di + 12-state model
   - `gbouras13/modernprost-base-deprecated` - Deprecated legacy 3Di-only model
   - `gbouras13/modernprost-profiles-deprecated` - Deprecated legacy profile-capable 3Di-only model
   - `Rostlab/ProstT5` - Original ProstT5 model
@@ -368,7 +368,7 @@ genome_entropy download
 
 # Download ModernProst models
 genome_entropy download --model gbouras13/modernprost-50M
-genome_entropy download --model gbouras13/modernprost
+genome_entropy download --model gbouras13/modernprost-base
 genome_entropy download --model gbouras13/modernprost-base-deprecated
 genome_entropy download --model gbouras13/modernprost-profiles-deprecated
 ```

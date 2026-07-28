@@ -133,6 +133,7 @@ def make_encoder(monkeypatch, model_name, logits):
 
 def test_model_registry_and_default() -> None:
     assert DEFAULT_PROSTT5_MODEL == MODERNPROST_50M_MODEL
+    assert MODERNPROST_1B_MODEL == "gbouras13/modernprost-base"
     assert get_model_capabilities(MODERNPROST_1B_MODEL).supports_12st
     for name in (
         MODERNPROST_BASE_DEPRECATED_MODEL,
@@ -145,11 +146,11 @@ def test_model_registry_and_default() -> None:
         assert not MODEL_REGISTRY[name].supports_12st
 
 
-def test_old_modernprost_aliases_resolve_with_warning() -> None:
+def test_old_profiles_alias_resolves_with_warning() -> None:
     with pytest.warns(FutureWarning, match="was renamed"):
         assert (
-            resolve_model_name("gbouras13/modernprost-base")
-            == MODERNPROST_BASE_DEPRECATED_MODEL
+            resolve_model_name("gbouras13/modernprost-profiles")
+            == MODERNPROST_PROFILES_DEPRECATED_MODEL
         )
 
 

@@ -84,14 +84,14 @@ def test_config_has_modernprost_models() -> None:
     """Test that config defines ModernProst model constants."""
     from genome_entropy.config import (
         MODERNPROST_BASE_MODEL,
-        MODERNPROST_BASE_DEPRECATED_MODEL,
+        MODERNPROST_1B_MODEL,
         MODERNPROST_PROFILES_MODEL,
         MODERNPROST_PROFILES_DEPRECATED_MODEL,
         MODERNPROST_MODELS,
     )
 
     # Check that constants are defined
-    assert MODERNPROST_BASE_MODEL == MODERNPROST_BASE_DEPRECATED_MODEL
+    assert MODERNPROST_BASE_MODEL == MODERNPROST_1B_MODEL
     assert MODERNPROST_PROFILES_MODEL == MODERNPROST_PROFILES_DEPRECATED_MODEL
     assert isinstance(MODERNPROST_MODELS, set)
     assert MODERNPROST_BASE_MODEL in MODERNPROST_MODELS

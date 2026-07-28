@@ -68,7 +68,7 @@ def encode3di_command(
 
     Available models:
     - gbouras13/modernprost-50M (default; 3Di and 12-state)
-    - gbouras13/modernprost (larger; 3Di and 12-state)
+    - gbouras13/modernprost-base (larger; 3Di and 12-state)
     - gbouras13/modernprost-base-deprecated (legacy 3Di only)
     - gbouras13/modernprost-profiles-deprecated (legacy 3Di only)
     - Rostlab/ProstT5 (original ProstT5 model, full precision)

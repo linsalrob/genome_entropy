@@ -10,11 +10,12 @@ DEFAULT_MIN_NT_LENGTH = 90
 DEFAULT_MIN_AA_LENGTH = 30
 
 MODERNPROST_50M_MODEL = "gbouras13/modernprost-50M"
-MODERNPROST_1B_MODEL = "gbouras13/modernprost"
+MODERNPROST_1B_MODEL = "gbouras13/modernprost-base"
 MODERNPROST_BASE_DEPRECATED_MODEL = "gbouras13/modernprost-base-deprecated"
 MODERNPROST_PROFILES_DEPRECATED_MODEL = "gbouras13/modernprost-profiles-deprecated"
-# Backward-compatible constant imports now point at the renamed repositories.
-MODERNPROST_BASE_MODEL = MODERNPROST_BASE_DEPRECATED_MODEL
+# Backward-compatible constant imports use the current base model and the
+# renamed legacy profiles repository respectively.
+MODERNPROST_BASE_MODEL = MODERNPROST_1B_MODEL
 MODERNPROST_PROFILES_MODEL = MODERNPROST_PROFILES_DEPRECATED_MODEL
 PROSTT5_MODEL = "Rostlab/ProstT5"
 PROSTT5_FP16_MODEL = "Rostlab/ProstT5_fp16"
@@ -84,7 +85,6 @@ MODEL_REGISTRY: Dict[str, ModelCapabilities] = {
 }
 
 MODEL_ALIASES = {
-    "gbouras13/modernprost-base": MODERNPROST_BASE_DEPRECATED_MODEL,
     "gbouras13/modernprost-profiles": MODERNPROST_PROFILES_DEPRECATED_MODEL,
 }
 
