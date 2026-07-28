@@ -31,7 +31,6 @@ def test_model_selection_logic() -> None:
             ProstT5ThreeDiEncoder,
         )
         from genome_entropy.config import (
-            MODERNPROST_BASE_DEPRECATED_MODEL,
             MODERNPROST_MODELS,
             MODERNPROST_PROFILES_DEPRECATED_MODEL,
         )
@@ -53,12 +52,11 @@ def test_model_selection_logic() -> None:
         assert isinstance(encoder_prostt5, ProstT5ThreeDiEncoder)
         assert not isinstance(encoder_prostt5, ModernProstThreeDiEncoder)
 
-        # ModernProst base encoder
-        with pytest.warns(FutureWarning):
-            encoder_modernprost_base = ModernProstThreeDiEncoder(
-                model_name=modernprost_base, device="cpu"
-            )
-        assert encoder_modernprost_base.model_name == MODERNPROST_BASE_DEPRECATED_MODEL
+        # ModernProst base encoder is the current 1B multitask model.
+        encoder_modernprost_base = ModernProstThreeDiEncoder(
+            model_name=modernprost_base, device="cpu"
+        )
+        assert encoder_modernprost_base.model_name == modernprost_base
         assert isinstance(encoder_modernprost_base, ModernProstThreeDiEncoder)
         assert not isinstance(encoder_modernprost_base, ProstT5ThreeDiEncoder)
 

@@ -76,7 +76,7 @@ Run the complete pipeline from DNA to 3Di with entropy analysis.
    Default: gbouras13/modernprost-50M
 
    Supported models include the multitask ``gbouras13/modernprost-50M`` and
-   ``gbouras13/modernprost`` models, both deprecated ModernProst repositories,
+   ``gbouras13/modernprost-base`` models, both deprecated ModernProst repositories,
    and both ProstT5 repositories.
 
 ``--device, -d TEXT``
@@ -238,7 +238,7 @@ both 3Di and 12-state encodings; legacy models produce only 3Di.
    Default: gbouras13/modernprost-50M
 
    Supported models include ``gbouras13/modernprost-50M``,
-   ``gbouras13/modernprost``, the two ``-deprecated`` ModernProst repositories,
+   ``gbouras13/modernprost-base``, the two ``-deprecated`` ModernProst repositories,
    ``Rostlab/ProstT5``, and ``Rostlab/ProstT5_fp16``.
 
 ``--device, -d TEXT``
