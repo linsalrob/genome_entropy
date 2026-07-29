@@ -88,7 +88,7 @@ The generic formula is `raw_entropy / math.log2(alphabet_size)`, using theoretic
 - [Machine-learning guide](https://genome-entropy.readthedocs.io/en/latest/ml.html)
 - [NVIDIA and ROCm SLURM notes](slurm/README.md)
 
-This project is alpha software (`0.1.15` in `pyproject.toml`). Report reproducible bugs through the issue tracker and include the package version, command, platform, accelerator, and relevant log output without credentials or sensitive sequence data.
+This project is alpha software. Report reproducible bugs through the issue tracker and include the package version, command, platform, accelerator, and relevant log output without credentials or sensitive sequence data.
 
 ## Citation and attribution
 
