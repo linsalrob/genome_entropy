@@ -84,17 +84,27 @@ When GenBank annotations are supplied, CDS features are extracted with Biopython
 and compared to called ORFs on the same parent sequence and strand. The current
 matcher:
 
-* compares strand-aware biological stop coordinates (``end`` on ``+`` and
-  ``start`` on ``-``), allowing an absolute difference of at most three bases;
+* requires equal strand-aware biological stop coordinates (``end`` on ``+`` and
+  ``start`` on ``-`` after converting Biopython coordinates);
 * strips terminal ``*`` symbols from both translations;
 * ignores the first amino acid before sequence comparison, accommodating start
   codon differences;
-* accepts equal C-terminal suffixes and truncated C-terminal subset matches when
-  the shorter compared sequence is at least 10 amino acids.
+* accepts compatible C-terminal suffixes and truncated C-terminal subset
+  matches;
+* treats ``X`` as an unknown residue compatible with any aligned amino-acid
+  symbol, while all other unequal pairs remain mismatches. ``B``, ``Z``, and
+  ``J`` are not treated as wildcards, and internal ``*`` symbols are invalid.
 
 ``in_genbank=True`` therefore means this heuristic matched an annotated CDS. It
 does not require exact full-length identity and does not establish biological
 function. Missing GenBank annotation input leaves the field false.
+
+CDS matching uses the supplied ``/translation`` qualifier. CDS features without
+that qualifier cannot currently match. Compound and origin-spanning locations
+are parsed by Biopython, but origin-spanning biological stop coordinates are not
+yet handled specially. Partial markers, ``codon_start``, translation exceptions,
+pseudogenes, and frameshifts are not reinterpreted by the matcher; their effect
+must already be represented in the supplied translation and location.
 
 .. _raw-and-normalised-entropy:
 

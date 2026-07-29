@@ -165,6 +165,41 @@ def test_protein_record_ambiguous_codons() -> None:
     assert protein.aa_length == 4
 
 
+@pytest.mark.parametrize(
+    ("codon", "expected_residue"),
+    [
+        ("AAN", "X"),
+        ("ATH", "I"),
+        ("GCN", "A"),
+        ("TTY", "F"),
+        ("NNN", "X"),
+    ],
+)
+def test_translate_orf_uses_iupac_ambiguity_semantics(
+    codon: str,
+    expected_residue: str,
+) -> None:
+    """Ambiguous codons resolve only when every expansion has one meaning."""
+    nucleotide_sequence = "ATG" + codon + "GGGTAA"
+    orf = OrfRecord(
+        parent_id="seq1",
+        orf_id=f"orf_{codon}",
+        start=1,
+        end=len(nucleotide_sequence),
+        strand="+",
+        frame=1,
+        nt_sequence=nucleotide_sequence,
+        aa_sequence="M" + expected_residue + "G*",
+        table_id=11,
+        has_start_codon=True,
+        has_stop_codon=True,
+    )
+
+    protein = translate_orf(orf, table_id=11)
+
+    assert protein.aa_sequence == "M" + expected_residue + "G"
+
+
 def test_translate_orf_warns_and_uses_translation_on_mismatch(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

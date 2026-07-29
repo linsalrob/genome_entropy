@@ -8,6 +8,8 @@ import pytest
 
 from genome_entropy.io.genbank import (
     GenBankCDS,
+    amino_acids_are_compatible,
+    compatible_c_terminal_suffix,
     extract_cds_features,
     match_orf_to_genbank_cds,
     orf_matches_genbank_cds,
@@ -167,10 +169,63 @@ def test_orf_matches_genbank_cds_valid_c_terminal_matches(
 @pytest.mark.parametrize(
     ("orf_sequence", "cds_sequence"),
     [
-        ("MABCDEFGHIJK", "MABCDEFGHIJX"),
+        ("MABCDEFGHIJK", "MABXDEFGHIJK"),
+        ("MABXDEFGHIJK", "MABCDEFGHIJK"),
         ("MABCDEFGHIJK", "MABCXEFGHIJK"),
+        ("MABCDEFGHIJK", "MAXCDXFGHIXK"),
+    ],
+)
+def test_orf_matches_genbank_cds_accepts_aligned_x_residues(
+    orf_sequence: str,
+    cds_sequence: str,
+) -> None:
+    """An aligned X is compatible in either sequence, including repeatedly."""
+    assert orf_matches_genbank_cds(make_orf(orf_sequence), make_cds(cds_sequence))
+
+
+@pytest.mark.parametrize(
+    ("residue_a", "residue_b", "expected"),
+    [
+        ("A", "A", True),
+        ("X", "K", True),
+        ("K", "X", True),
+        ("X", "X", True),
+        ("B", "B", True),
+        ("B", "D", False),
+        ("Z", "Q", False),
+        ("J", "L", False),
+        ("U", "C", False),
+        ("O", "K", False),
+        ("*", "X", False),
+    ],
+)
+def test_amino_acids_are_compatible(
+    residue_a: str,
+    residue_b: str,
+    expected: bool,
+) -> None:
+    """Only X acts as a wildcard; other ambiguity symbols stay specific."""
+    assert amino_acids_are_compatible(residue_a, residue_b) is expected
+
+
+def test_compatible_c_terminal_suffix_remains_anchored() -> None:
+    """Compatibility does not enable internal, prefix, or indel matching."""
+    assert compatible_c_terminal_suffix("CDEFX", "ABCDEFK")
+    assert not compatible_c_terminal_suffix("ABCDE", "ABCDEXK")
+    assert not compatible_c_terminal_suffix("ABDE", "ABCDEFG")
+
+
+@pytest.mark.parametrize(
+    ("orf_sequence", "cds_sequence"),
+    [
+        ("MABCDEFGHIJK", "MABCDEFGHIJY"),
+        ("MABCDEFGHIJK", "MABCYEFGHIJK"),
         ("MABCDEFGHIJK", "XEFGHIJ"),
         ("MABCDEFGHIJK", "MABCDE"),
+        ("MABCDEFGHIJK", "MABCDEFGHIJ"),
+        ("MABCDEFGHIJK", "MABCDXEFGHIJK"),
+        ("MABCDEFGHIJK", "MABCXFGHIJK"),
+        ("MABC*DEFGHIJK", "MABCDEFGHIJK"),
     ],
 )
 def test_orf_matches_genbank_cds_rejects_non_terminal_matches(
@@ -220,6 +275,27 @@ def test_orf_matches_genbank_cds_uses_reverse_strand_low_coordinate() -> None:
         orf,
         make_cds("MABCDEFGHIJK", start=150, end=250, strand="-"),
     )
+
+
+def test_mf580763_ambiguous_residue_regression() -> None:
+    """MF580763 orf5 matches CDS 0014 despite its K/X ambiguity."""
+    shared_suffix = "MQIWIHDKSMRKVCALNNEIPGMLPYSNSQWHPYLEY"
+    orf_suffix = shared_suffix + "STFDFTIPKIVNGKLHDDLKYINDQMHVSFGGAKSVEWYLRN"
+    cds_suffix = shared_suffix + "STFDFTIPKIVNGKLHDDLKYINDQMHVSFGGAXSVEWYLRN"
+    orf5 = make_orf(
+        "NFLEGAFCL" + orf_suffix,
+        parent_id="MF580763",
+        start=14920,
+        end=18216,
+    )
+    cds_0014 = make_cds(
+        cds_suffix,
+        parent_id="MF580763",
+        start=14946,
+        end=18216,
+    )
+
+    assert orf_matches_genbank_cds(orf5, cds_0014)
 
 
 @pytest.mark.parametrize(

@@ -87,3 +87,11 @@ it does not prove the ORF is non-coding. Conversely, ``True`` is a heuristic
 annotation match, not a functional assignment. ML predictions learn this label
 and inherit its biases. Use genome- or file-level splits to estimate transfer to
 unseen records and read :doc:`ml` before reporting results.
+
+The GenBank heuristic requires the same parent, strand, and biological stop,
+then compares C-terminal suffixes after ignoring each protein's first residue.
+An aligned ``X`` is compatible with a specific residue, but unrelated mismatches
+and internal or N-terminal-only similarity remain disallowed. For nucleotide
+translation, multiply-resolvable IUPAC codons such as ``AAN`` and ``NNN`` become
+``X``; ambiguities with one translation, such as ``GCN`` (alanine), retain that
+specific amino acid.
