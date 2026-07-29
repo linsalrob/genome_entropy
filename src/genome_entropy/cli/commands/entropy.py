@@ -23,12 +23,6 @@ def entropy_command(
         "-o",
         help="Output JSON file with entropy report",
     ),
-    normalize: bool = typer.Option(
-        False,
-        "--normalize",
-        "-n",
-        help="Normalize entropy by alphabet size",
-    ),
 ) -> None:
     """Calculate Shannon entropy at all representation levels.
 
@@ -41,10 +35,6 @@ def entropy_command(
         from ...translate.translator import ProteinRecord
         from ...encode3di.prostt5 import ThreeDiRecord
         from ...config import (
-            AA_ALPHABET,
-            DNA_ALPHABET,
-            THREEDDI_ALPHABET,
-            TWELVE_STATE_ALPHABET,
             THREEDDI_ALPHABET_SIZE,
             TWELVE_STATE_ALPHABET_SIZE,
         )
@@ -76,7 +66,7 @@ def entropy_command(
 
         typer.echo(f"  Loaded {len(three_dis)} 3Di record(s)")
 
-        typer.echo(f"\nCalculating entropy...")
+        typer.echo("\nCalculating entropy...")
 
         # Calculate entropies at different levels
         orf_nt_seqs = {
@@ -92,21 +82,11 @@ def entropy_command(
             if td.twelve_state is not None
         }
 
-        orf_nt_entropy = calculate_entropies_for_sequences(
-            orf_nt_seqs, alphabet=DNA_ALPHABET, normalize=normalize
-        )
-        protein_aa_entropy = calculate_entropies_for_sequences(
-            protein_aa_seqs, alphabet=AA_ALPHABET, normalize=normalize
-        )
-        three_di_entropy = calculate_entropies_for_sequences(
-            three_di_seqs, alphabet=THREEDDI_ALPHABET, normalize=normalize
-        )
+        orf_nt_entropy = calculate_entropies_for_sequences(orf_nt_seqs)
+        protein_aa_entropy = calculate_entropies_for_sequences(protein_aa_seqs)
+        three_di_entropy = calculate_entropies_for_sequences(three_di_seqs)
         twelve_state_entropy = (
-            calculate_entropies_for_sequences(
-                twelve_state_seqs,
-                alphabet=TWELVE_STATE_ALPHABET,
-                normalize=normalize,
-            )
+            calculate_entropies_for_sequences(twelve_state_seqs)
             if twelve_state_seqs
             else None
         )

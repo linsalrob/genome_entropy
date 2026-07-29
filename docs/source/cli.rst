@@ -337,11 +337,6 @@ Calculate Shannon entropy at all representation levels.
 ``--output, -o PATH``
    Output JSON file with entropy report
 
-**Optional Options:**
-
-``--normalize``
-   Normalize entropy by alphabet size (scale to [0, 1])
-
 **Examples:**
 
 .. code-block:: bash
@@ -349,11 +344,9 @@ Calculate Shannon entropy at all representation levels.
    # Calculate entropy
    genome_entropy entropy --input 3di.json --output entropy.json
 
-   # Calculate normalized entropy
-   genome_entropy entropy \
-       --input 3di.json \
-       --output entropy.json \
-       --normalize
+The command writes raw Shannon entropy. Use the normalisation helpers described
+in the user guide during downstream analysis; normalised entropy is not written
+to standard JSON.
 
 download
 ^^^^^^^^
@@ -658,7 +651,7 @@ Step-by-Step Analysis
        --device cuda
 
    # Step 4: Calculate entropy
-   genome_entropy entropy --input 3di.json --output entropy.json --normalize
+   genome_entropy entropy --input 3di.json --output entropy.json
 
 Optimizing Performance
 ^^^^^^^^^^^^^^^^^^^^^^

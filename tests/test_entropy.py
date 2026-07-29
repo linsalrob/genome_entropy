@@ -8,8 +8,35 @@ from genome_entropy.entropy.shannon import (
     EntropyReport,
     calculate_entropies_for_sequences,
     calculate_sequence_entropy,
+    normalise_dna_entropy,
+    normalise_entropy,
+    normalise_protein_entropy,
+    normalise_three_di_entropy,
+    normalise_twelve_state_entropy,
     shannon_entropy,
 )
+
+
+def test_normalise_entropy() -> None:
+    """Raw entropy is normalised using the theoretical alphabet size."""
+    assert normalise_entropy(1.0, 4) == pytest.approx(0.5)
+    assert normalise_entropy(math.log2(12), 12) == pytest.approx(1.0)
+    assert normalise_entropy(None, 20) is None
+
+
+@pytest.mark.parametrize("alphabet_size", [1, 0, -1])
+def test_normalise_entropy_rejects_invalid_alphabet_size(alphabet_size: int) -> None:
+    with pytest.raises(ValueError, match="greater than 1"):
+        normalise_entropy(1.0, alphabet_size)
+
+
+def test_representation_normalisation_wrappers() -> None:
+    """Representation wrappers use fixed theoretical alphabet sizes."""
+    assert normalise_dna_entropy(2.0) == pytest.approx(1.0)
+    assert normalise_protein_entropy(math.log2(20)) == pytest.approx(1.0)
+    assert normalise_three_di_entropy(math.log2(20)) == pytest.approx(1.0)
+    assert normalise_twelve_state_entropy(math.log2(12)) == pytest.approx(1.0)
+    assert normalise_twelve_state_entropy(None) is None
 
 
 def test_shannon_entropy_empty_string() -> None:

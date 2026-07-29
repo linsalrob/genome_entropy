@@ -166,20 +166,51 @@ Examples:
    # Intermediate
    "AAAACCCC" → H = 1.0 bits
 
-Normalized Entropy
+Normalised Entropy
 ^^^^^^^^^^^^^^^^^^
 
-Normalized entropy scales values to [0, 1] by dividing by the maximum possible entropy:
+Raw entropy is the value calculated and stored by ``genome_entropy``. Normalised
+entropy is completely derived from raw entropy and scales it by the maximum
+possible entropy of the theoretical alphabet:
 
 .. code-block:: text
 
    H_norm = H / log₂(|alphabet|)
 
-This allows fair comparison across different alphabets:
+Use these theoretical alphabet sizes in downstream analyses:
 
 * DNA: 4 symbols (max entropy = 2.0)
-* Protein: 20 symbols (max entropy ≈ 4.32)
-* 3Di: 20 symbols (max entropy ≈ 4.32)
+* Protein: 20 symbols (max entropy ≈ 4.3219)
+* 3Di: 20 symbols (max entropy ≈ 4.3219)
+* 12-state: 12 symbols (max entropy ≈ 3.5850)
+
+Standard JSON contains only raw entropy. Storing both forms would be redundant
+and could allow them to become inconsistent. Calculate normalised values only
+when a downstream analysis needs them:
+
+.. code-block:: python
+
+   from genome_entropy.entropy import (
+       normalise_dna_entropy,
+       normalise_protein_entropy,
+       normalise_three_di_entropy,
+       normalise_twelve_state_entropy,
+   )
+
+   dna_normalised = normalise_dna_entropy(feature["entropy"]["dna_entropy"])
+   protein_normalised = normalise_protein_entropy(
+       feature["entropy"]["protein_entropy"]
+   )
+   three_di_normalised = normalise_three_di_entropy(
+       feature["entropy"]["three_di_entropy"]
+   )
+   twelve_state_normalised = normalise_twelve_state_entropy(
+       feature["entropy"]["twelve_state_entropy"]
+   )
+
+The generic ``normalise_entropy(raw_entropy, alphabet_size)`` helper is also
+available. All helpers preserve ``None`` for missing values. They are not called
+automatically for ORFs and their results are not serialised.
 
 Entropy in Biology
 ^^^^^^^^^^^^^^^^^^

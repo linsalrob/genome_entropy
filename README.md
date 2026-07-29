@@ -355,8 +355,12 @@ also read protein FASTA files (`.fasta`, `.fa`, `.faa`) directly. Add
 Compute Shannon entropy at all representation levels:
 
 ```bash
-genome_entropy entropy --input 3di.json --output entropy.json --normalize
+genome_entropy entropy --input 3di.json --output entropy.json
 ```
+
+Entropy output is always raw Shannon entropy. Normalise it downstream when
+needed with the helpers in `genome_entropy.entropy`; normalised values are
+derived data and are not stored in standard JSON.
 
 ### `genome_entropy download` - Pre-download Models
 
