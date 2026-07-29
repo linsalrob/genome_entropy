@@ -17,7 +17,7 @@ from ...ml.classifier import (
 
 logger = get_logger(__name__)
 
-app = typer.Typer(help="Train ML classifier to predict GenBank annotations")
+app = typer.Typer(help="Train or apply a classifier for the in_genbank label")
 
 
 @app.command("train")
@@ -36,7 +36,7 @@ def train_classifier(
     split_dir: Optional[Path] = typer.Option(
         None,
         "--split-dir",
-        help="Directory to split 80/20 into train/test sets for file-based cross-validation",
+        help="Directory to split 80/20 by file into training and test sets",
     ),
     output: Path = typer.Option(
         ..., "--output", "-o", help="Path to save the trained model"
@@ -51,7 +51,7 @@ def train_classifier(
         None,
         "--device",
         "-d",
-        help="Device for training: 'cuda', 'cpu', or None for auto-detect",
+        help="Training device: 'cuda' or 'cpu'; omit for auto-detection",
     ),
     validation_split: float = typer.Option(
         0.2, "--validation-split", "-v", help="Fraction of data to use for validation"
@@ -71,82 +71,17 @@ def train_classifier(
         42, "--random-seed", help="Random seed for reproducible train/test split"
     ),
 ) -> None:
-    """Train a machine learning classifier to predict GenBank annotations.
-    
-    This command trains a model to predict whether an ORF was annotated in the
-    original GenBank file (in_genbank: True/False) based on sequence features
-    including entropy values, length, position, and other characteristics.
-    
-    THREE MODES OF OPERATION:
-    -----------------------
-    
-    1. **Single-file mode** (--json): Splits top-level records into training and
-       test sets while keeping all ORFs from each record together.
+    """Train a classifier for whether an ORF matched a GenBank CDS.
 
-    2. **Standard mode** (--json-dir): Uses all files in directory with random
-       sample-level train/test split.
-       
-    3. **File-based split mode** (--split-dir): Randomly splits files 80/20 into
-       training and test sets, trains on training files, evaluates on test files.
-       Outputs detailed JSON report with file lists and results.
-    
-    MODEL JUSTIFICATION:
-    --------------------
-    
-    The default model is XGBoost (Gradient Boosted Trees) because:
-    
-    1. **Excellent performance on tabular data**: XGBoost consistently achieves
-       state-of-the-art results on structured/tabular datasets like ORF features.
-    
-    2. **Handles mixed feature types**: Our features include continuous (entropy,
-       length), categorical (strand, frame), and boolean (has_start/stop_codon)
-       variables. XGBoost handles these naturally without extensive preprocessing.
-    
-    3. **Built-in GPU support**: Matches the requirement "we are already working
-       on GPUs" - XGBoost can leverage GPU acceleration for faster training.
-    
-    4. **Feature importance**: Provides interpretability by showing which features
-       are most predictive of GenBank annotations (e.g., are entropy values or
-       structural features more important?).
-    
-    5. **Robust and fast**: Less prone to overfitting than neural networks on
-       small-to-medium datasets, trains quickly, and doesn't require extensive
-       hyperparameter tuning to get good results.
-    
-    6. **Handles imbalanced data**: GenBank annotations are often imbalanced
-       (more non-annotated ORFs than annotated ones). XGBoost handles this well.
-    
-    ALTERNATIVE: Neural Network
-    ----------------------------
-    
-    The neural_net option is also available, which uses PyTorch for:
-    - GPU acceleration via PyTorch's CUDA support
-    - Modeling complex non-linear relationships
-    - Flexibility in architecture
-    
-    However, it generally performs worse than XGBoost on this type of structured
-    data unless you have a very large dataset (10k+ samples) and can tune it well.
-    
-    USAGE EXAMPLES:
-    ---------------
-    
-    Basic usage with XGBoost (recommended):
-        genome_entropy ml train --json-dir results/ --output model.ubj
+    Exactly one input mode is required. ``--json`` splits top-level records and
+    keeps each record's ORFs together. ``--json-dir`` performs an ORF-sample
+    split. ``--split-dir`` uses a fixed 80/20 split by file and can write a
+    detailed JSON report. The default ``xgboost`` model uses gradient-boosted
+    trees; ``neural_net`` selects the PyTorch alternative.
 
-    Train from one multi-record JSON file:
-        genome_entropy ml train --json results.json --output model.ubj
-    
-    File-based train/test split with detailed JSON report:
-        genome_entropy ml train --split-dir results/ --output model.ubj \\
-            --json-output detailed_results.json
-    
-    Use neural network with GPU:
-        genome_entropy ml train --json-dir results/ --output model.pt \\
-            --model-type neural_net --device cuda
-    
-    Custom validation split:
-        genome_entropy ml train --json-dir results/ --output model.ubj \\
-            --validation-split 0.3 --test-split 0.15
+    The outer split seed does not guarantee completely deterministic model
+    training. A positive probability estimates the ``in_genbank`` label and is
+    not biological proof or a functional annotation.
     """
     logger.info("=" * 60)
     logger.info("GenBank ORF Classification - Model Training")
@@ -182,10 +117,10 @@ def train_classifier(
     # Log model choice justification
     logger.info(f"Model type: {model_type}")
     if model_type == "xgboost":
-        logger.info("Using XGBoost (Gradient Boosted Trees) - recommended for:")
+        logger.info("Using XGBoost gradient-boosted trees:")
         logger.info("  ✓ Excellent performance on structured/tabular data")
         logger.info("  ✓ Handles mixed feature types naturally")
-        logger.info("  ✓ Built-in GPU support for acceleration")
+        logger.info("  ✓ Optional CUDA support when provided by the XGBoost build")
         logger.info("  ✓ Provides feature importance for interpretability")
         logger.info("  ✓ Robust to overfitting, fast training")
     else:

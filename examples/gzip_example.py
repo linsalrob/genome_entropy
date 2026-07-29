@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Example demonstrating automatic gzip support for all file types.
+"""Example demonstrating automatic gzip support in FASTA and JSON I/O.
 
 This example shows how to use gzipped files with genome_entropy I/O functions.
 The library automatically detects gzipped files by their .gz extension and
@@ -95,25 +95,25 @@ def main():
         # Read both formats
         data_plain = read_json(plain_json)
         data_gzipped = read_json(gzipped_json)
-        print(f"   Read JSON data from plain file")
-        print(f"   Read JSON data from gzipped file")
+        print("   Read JSON data from plain file")
+        print("   Read JSON data from gzipped file")
         assert data_plain == data_gzipped, "Data should match!"
         print("   ✓ Content matches perfectly")
         print()
 
         print("3. Usage in Pipelines")
         print("-" * 70)
-        print("   The gzip support works automatically in all CLI commands:")
+        print("   FASTA and JSON I/O detect gzip from the .gz suffix:")
         print()
         print("   # Input files - automatically detect .gz")
-        print("   $ dna23di orf --input sequences.fasta.gz --output orfs.json")
+        print("   $ genome_entropy orf --input sequences.fasta.gz --output orfs.json")
         print()
         print("   # Output files - automatically compress if .gz")
-        print("   $ dna23di orf --input sequences.fasta --output orfs.json.gz")
+        print("   $ genome_entropy orf --input sequences.fasta --output orfs.json.gz")
         print()
         print("   # Mix and match as needed")
         print(
-            "   $ dna23di run --input sequences.fasta.gz --output results.json.gz"
+            "   $ genome_entropy run --input sequences.fasta.gz --output results.json.gz"
         )
         print()
 
@@ -121,7 +121,7 @@ def main():
         print("-" * 70)
         print("   ✓ Transparent: No code changes needed")
         print("   ✓ Space efficient: 40-90% size reduction")
-        print("   ✓ All file types: FASTA, JSON, GenBank, etc.")
+        print("   ✓ FASTA and JSON read/write; gzip GenBank input is also supported")
         print("   ✓ Backward compatible: Plain files still work")
         print()
 

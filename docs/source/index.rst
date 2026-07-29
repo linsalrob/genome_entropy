@@ -1,64 +1,25 @@
-genome_entropy Documentation
-============================
+genome_entropy
+==============
 
-.. image:: https://github.com/linsalrob/genome_entropy/workflows/Python%20CI/badge.svg
-   :target: https://github.com/linsalrob/genome_entropy/actions
-   :alt: Python CI
+``genome_entropy`` is a bioinformatics pipeline for measuring information
+content across representations derived from genomic DNA:
 
-.. image:: https://img.shields.io/badge/python-3.10+-blue.svg
-   :target: https://www.python.org/downloads/
-   :alt: Python 3.10+
+.. code-block:: text
 
-.. image:: https://img.shields.io/badge/License-MIT-yellow.svg
-   :target: https://opensource.org/licenses/MIT
-   :alt: MIT License
+   DNA → ORFs → proteins → 3Di + optional 12-state structural encodings → entropy
 
-Welcome to the documentation for **genome_entropy**, a complete bioinformatics pipeline that converts DNA sequences → ORFs → proteins → 3Di structural tokens, computing Shannon entropy at each representation level.
+Current multitask ModernProst models emit both 3Di and 12-state (``12st``)
+encodings. Legacy ModernProst and ProstT5 models emit 3Di only. Raw Shannon
+entropy is calculated for available representations; normalised entropy is a
+downstream derived value and is not stored in standard JSON.
 
-Overview
---------
+The pipeline calls the external ``get_orfs`` program for six-frame ORF discovery,
+uses ``pygenetic-code`` for translation, and supports FASTA or GenBank input.
+GenBank matching marks whether a called ORF corresponds to an annotated CDS; it
+does not assign biological function.
 
-**genome_entropy** enables researchers to:
-
-* Extract Open Reading Frames (ORFs) from DNA sequences
-* Translate ORFs to protein sequences using customizable genetic codes
-* Predict structural alphabet tokens (3Di) directly from sequences using ModernProst or ProstT5
-* Calculate and compare Shannon entropy at DNA, ORF, protein, and 3Di levels
-* Train ML classifiers that predict GenBank annotations from ORF-level features
-* Process data efficiently with GPU acceleration (CUDA, MPS, CPU, or multiple GPUs)
-
-Key Features
-------------
-
-🧬 **ORF Finding**
-   Extract Open Reading Frames from DNA sequences using customizable genetic codes
-
-🔄 **Translation**
-   Convert ORFs to protein sequences with support for all NCBI genetic code tables
-
-🏗️ **3Di Encoding**
-   Predict structural alphabet tokens directly from sequences using ModernProst or ProstT5
-
-📊 **Entropy Analysis**
-   Calculate Shannon entropy at DNA, ORF, protein, and 3Di levels
-
-🤖 **ML Classifier**
-   Train XGBoost or neural-network models to predict GenBank annotations
-
-⚡ **GPU Acceleration**
-   Auto-detect and use CUDA, MPS (Apple Silicon), CPU, or multiple GPUs
-
-🚀 **Multi-GPU Support**
-   Parallelize 3Di encoding across available GPUs
-
-🔧 **Modular CLI**
-   Run complete pipeline or individual steps
-
-📝 **Comprehensive Logging**
-   Configurable log levels and output to file or STDOUT
-
-Getting Started
----------------
+Start here
+----------
 
 .. toctree::
    :maxdepth: 2
@@ -66,6 +27,10 @@ Getting Started
    installation
    quickstart
    user_guide
+   models
+   data_formats
+   ml
+   hpc
 
 Reference
 ---------
@@ -86,22 +51,16 @@ Development
    development
    changelog
 
-Citation
---------
+Project status and support
+--------------------------
 
-If you use this software, please cite:
+The package is alpha software. The source repository, issue tracker, and
+licence are available at https://github.com/linsalrob/genome_entropy. Include
+the package version and accelerator details in bug reports, and do not publish
+credentials or sensitive sequence data.
 
-* **ProstT5**: Heinzinger et al. (2023), "ProstT5: Bilingual Language Model for Protein Sequence and Structure"
-* **get_orfs**: https://github.com/linsalrob/get_orfs
-* **pygenetic-code**: https://github.com/linsalrob/genetic_codes
-
-License
+Indices
 -------
-
-MIT License - see `LICENSE <https://github.com/linsalrob/genome_entropy/blob/main/LICENSE>`_ file for details.
-
-Indices and tables
-==================
 
 * :ref:`genindex`
 * :ref:`modindex`

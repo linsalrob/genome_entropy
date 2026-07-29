@@ -1,19 +1,14 @@
-# NVIDIA GPU Slurm Scripts for Genome Entropy Analyses
+# NVIDIA SLURM templates
 
-This repository contains Slurm scripts for running genome entropy analyses on high-performance computing clusters that use the NVIDIA GPUs. 
+These scripts are examples for a SLURM cluster with NVIDIA GPUs, Conda, and a `genome_entropy` environment. They are not portable defaults. Before submission, customise the partition, account (if required), wall time, memory, GPU count, environment initialisation, model cache, and input/output paths.
 
-## Current scripts, and how to get started with `genome_entropy`
+- `pip_install.slurm` installs the repository with development, documentation, and ML extras. Confirm the site's recommended CUDA-enabled PyTorch installation first.
+- `download.slurm` caches the default `gbouras13/modernprost-50M` model and requires outbound internet unless already cached.
+- `estimate_tokens.slurm` benchmarks a synthetic encoding budget on allocated hardware.
+- `pipeline.slurm` runs GenBank input with the 50M model.
+- `encoder.slurm` accepts protein JSON and writes structural-state JSON; multitask models include 3Di and 12-state.
+- `pytest.slurm` runs the test suite in a GPU allocation; ordinary unit tests do not require a GPU.
 
-These are the main four scripts that you need to run `genome_entropy`:
+The example requests two GPUs in several scripts even when the command is single-device. Reduce resource requests or add `--multi-gpu` as appropriate. Quote all user-supplied paths when adapting the templates. Monitor NVIDIA devices with the site-supported `nvidia-smi` command.
 
-1. `pip_install.slurm`: This script installs the required Python packages and dependencies for running the genome entropy pipeline. You should run this first to set up your environment.
-2. `download.slurm`: Use this script to download the appropriate [ProstT5 models](https://huggingface.co/Rostlab/ProstT5) from huggingface.
-3. `estimate_tokens.slurm`: This script estimates the maximum number of amino-acids that your GPU can process into 3Di tokens at once. This is largely dependent on the memory of your GPU and the size of the ProstT5 model you are using (becuase that is also loaded onto the GPU). Its an empirical way of measuring the memory requirements, basically we try and bunch and see what crashes!
-4. `pipeline.slurm`: This is the main pipeline script that runs the entire genome entropy analysis, from encoding sequences to calculating entropy scores. If you give this a genbank file or fasta file as input, it will run the full pipeline and output JSON results.
-
-### Optional scripts
-
-These are optional scripts that run specific parts of the genome entropy pipeline, and you can run them to test individual components.
-
-a. `encoder.slurm`: This script encodes your input protein sequences into 3Di tokens using the ProstT5 model.
-
+See the [HPC guide](../../docs/source/hpc.rst) for cache, visibility, multi-GPU, and safety details.

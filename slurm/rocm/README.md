@@ -1,13 +1,14 @@
-# AMD GPU Slurm Scripts for Genome Entropy Analyses
+# AMD ROCm SLURM templates
 
-This repository contains Slurm scripts for running genome entropy analyses on high-performance computing clusters that use the AMD GPUs and has ROCm installed.
+These Pawsey-oriented scripts assume SLURM, a `rocm/<version>` environment module, project variables such as `PAWSEY_PROJECT`, and a writable shared scratch filesystem. They must be customised for other clusters.
 
-## Current scripts, and how to get started with `genome_entropy`
+- `install.slurm` creates a virtual environment and attempts to select PyTorch wheels matching the loaded ROCm major/minor release. Verify the discovered wheel channel against current PyTorch guidance before use; the script may delete and recreate its exact configured virtual-environment directory.
+- `download.slurm` caches the default `gbouras13/modernprost-50M` model and requires internet unless cached.
+- `estimate_tokens.slurm` runs real synthetic inference on the allocated AMD GPUs.
+- `pipeline.slurm` runs the complete pipeline in multi-GPU mode for GenBank alone or FASTA plus GenBank.
 
-These are the main four scripts that you need to run `genome_entropy`:
+PyTorch exposes ROCm accelerators through `torch.cuda`, so `--device cuda` and `cuda:N` are expected. This does not give XGBoost an AMD GPU backend. Use CPU XGBoost unless the local build is independently verified.
 
-1. `install.slurm`: This script loads the rocm module, and then installs the appropriate and required Python packages and dependencies for running the genome entropy pipeline. You should run this first to set up your environment. It should choose the most appropriate rocm/torch version based on your cluster setup.
-2. `download.slurm`: Use this script to download the appropriate [ProstT5 models](https://huggingface.co/Rostlab/ProstT5) from huggingface.
-3. `estimate_tokens.slurm`: This script estimates the maximum number of amino-acids that your GPU can process into 3Di tokens at once. This is largely dependent on the memory of your GPU and the size of the ProstT5 model you are using (becuase that is also loaded onto the GPU). Its an empirical way of measuring the memory requirements, basically we try and bunch and see what crashes!
-4. `pipeline.slurm`: This is the main pipeline script that runs the entire genome entropy analysis, from encoding sequences to calculating entropy scores. If you give this a genbank file or fasta file as input, it will run the full pipeline and output JSON results.
+Use site-supported AMD monitoring tools such as `amd-smi monitor` or `rocm-smi`; do not use `nvidia-smi`. Review the hard-coded account, partition, ROCm module, virtual-environment location, eight-GPU requests, encoding budget, and wall time before submission. The untracked `rank_missing_orfs.slurm` workflow is site-local and is not part of the supported package interface.
 
+See the [HPC guide](../../docs/source/hpc.rst) for general guidance.

@@ -13,7 +13,7 @@ def entropy_command(
         ...,
         "--input",
         "-i",
-        help="Input JSON file with 3Di records",
+        help="Input JSON file with structural-state records",
         exists=True,
         dir_okay=False,
     ),

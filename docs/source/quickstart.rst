@@ -1,233 +1,73 @@
-Quick Start Guide
-=================
-
-This guide will help you get started with **genome_entropy** in minutes.
+Quick start
+===========
 
 Prerequisites
 -------------
 
-* genome_entropy installed (see :doc:`installation`)
-* get_orfs binary available in PATH
-* Sample FASTA file with DNA sequences
+Install the package and external ``get_orfs`` executable as described in
+:doc:`installation`. The first encoder invocation downloads a model unless it
+is already cached.
 
-Basic Usage
------------
-
-Complete Pipeline
-^^^^^^^^^^^^^^^^^
-
-Run the entire pipeline from DNA to 3Di with a single command:
-
-.. code-block:: bash
-
-   genome_entropy run --input examples/example_small.fasta --output results.json
-
-This command will:
-
-1. Find all ORFs in the input DNA sequences
-2. Translate ORFs to protein sequences
-3. Encode proteins to 3Di structural tokens using ProstT5
-4. Calculate Shannon entropy at all levels
-5. Save results to JSON
-
-Step-by-Step Pipeline
-^^^^^^^^^^^^^^^^^^^^^^
-
-Alternatively, run each step individually:
-
-.. code-block:: bash
-
-   # Step 1: Find ORFs
-   genome_entropy orf --input input.fasta --output orfs.json
-
-   # Step 2: Translate ORFs to proteins
-   genome_entropy translate --input orfs.json --output proteins.json
-
-   # Step 3: Encode proteins to 3Di
-   genome_entropy encode3di --input proteins.json --output 3di.json
-
-   # Step 4: Calculate entropy
-   genome_entropy entropy --input 3di.json --output entropy.json
-
-Example Output
---------------
-
-Results are saved in JSON format:
-
-.. code-block:: json
-
-   [
-     {
-       "input_id": "seq1",
-       "input_dna_length": 1500,
-       "orfs": [
-         {
-           "parent_id": "seq1",
-           "orf_id": "seq1_orf_1",
-           "start": 0,
-           "end": 300,
-           "strand": "+",
-           "frame": 0,
-           "nt_sequence": "ATGGCA...",
-           "aa_sequence": "MA...",
-           "table_id": 11,
-           "has_start_codon": true,
-           "has_stop_codon": true
-         }
-       ],
-       "proteins": [...],
-       "three_dis": [
-         {
-           "orf_id": "seq1_orf_1",
-           "three_di": "AAABBBCCC...",
-           "method": "prostt5_aa2fold",
-           "model_name": "Rostlab/ProstT5_fp16"
-         }
-       ],
-       "entropy": {
-         "dna_entropy_global": 1.95,
-         "orf_nt_entropy": {"seq1_orf_1": 1.85},
-         "protein_aa_entropy": {"seq1_orf_1": 3.12},
-         "three_di_entropy": {"seq1_orf_1": 2.89},
-         "alphabet_sizes": {
-           "dna": 4,
-           "protein": 20,
-           "three_di": 20
-         }
-       }
-     }
-   ]
-
-Common Use Cases
-----------------
-
-Use GPU for Faster Processing
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-   genome_entropy run --input data.fasta --output results.json --device cuda
-
-Use Different Genetic Code
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-   # Standard genetic code (Table 1)
-   genome_entropy run --input data.fasta --output results.json --table 1
-
-   # Bacterial code (Table 11, default)
-   genome_entropy run --input data.fasta --output results.json --table 11
-
-Filter Short ORFs
-^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-   # Only keep proteins >= 50 amino acids
-   genome_entropy run --input data.fasta --output results.json --min-aa 50
-
-Enable Debug Logging
-^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: bash
-
-   genome_entropy --log-level DEBUG run --input data.fasta --output results.json
-
-Log to File
-^^^^^^^^^^^
-
-.. code-block:: bash
-
-   genome_entropy --log-file pipeline.log run --input data.fasta --output results.json
-
-Pre-download Models
-^^^^^^^^^^^^^^^^^^^
-
-Download models before running the pipeline:
-
-.. code-block:: bash
-
-   genome_entropy download --model Rostlab/ProstT5_fp16
-
-Estimate Optimal Token Size
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Find the best encoding size for your GPU:
-
-.. code-block:: bash
-
-   genome_entropy estimate-tokens --device cuda
-
-Input File Format
+Complete pipeline
 -----------------
 
-DNA sequences should be in FASTA format:
+.. code-block:: bash
 
-.. code-block:: text
+   genome_entropy run --input genome.fasta --output results.json
 
-   >sequence1 Description of sequence 1
-   ATGGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGC
-   TAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT
-   >sequence2 Description of sequence 2
-   ATGGGGCCCTTTAAAGGGCCCTTTAAAGGGCCCTTTAAAGGG
-   CCCTTTAAAGGGCCCTTTAAAGGGCCCTTTAAA
+The default ``gbouras13/modernprost-50M`` model predicts 3Di and 12-state
+encodings. The JSON contains raw entropy and uses unified schema 2.1.0.
 
-Tips for Large Datasets
------------------------
-
-1. **Use GPU**: Encoding is much faster on GPU
-2. **Adjust batch size**: Increase for faster processing, decrease if OOM errors
-3. **Filter short ORFs**: Use ``--min-aa`` to exclude short proteins
-4. **Log to file**: Use ``--log-file`` to track progress
-5. **Estimate tokens first**: Use ``estimate-tokens`` to find optimal encoding size
-6. **Combine all the sequences into one file**: Use a single FASTA file or GenBank for all sequences because we only need to load the model onto the GPU once, and then reuse it for all sequences. This is much faster than loading the model for each sequence.
-
-Example Workflow
-----------------
-
-Complete workflow for analyzing bacterial genomes:
+GenBank input enables CDS matching:
 
 .. code-block:: bash
 
-   # 1. Pre-download the model
-   genome_entropy download --model Rostlab/ProstT5_fp16
+   genome_entropy run --genbank genome.gbk.gz --output results.json
 
-   # 2. Estimate optimal token size for your GPU
-   genome_entropy estimate-tokens --device cuda
+Supplying both ``--input`` and ``--genbank`` uses sequences from FASTA and CDS
+annotations from GenBank. IDs must correspond for useful matching.
 
-   # 3. Run the pipeline with bacterial genetic code
-   genome_entropy --log-file analysis.log run \
-       --input bacterial_genome.fasta \
-       --output results.json \
-       --table 11 \
-       --min-aa 30 \
-       --device cuda
+Step-by-step workflow
+---------------------
 
-   # 4. Check the log file for any issues
-   cat analysis.log
+.. code-block:: bash
 
-Performance Benchmarks
-----------------------
+   genome_entropy orf --input genome.fasta --output orfs.json
+   genome_entropy translate --input orfs.json --output proteins.json
+   genome_entropy encode3di --input proteins.json --output structures.json
+   genome_entropy entropy --input structures.json --output entropy.json
 
-Approximate processing times on different hardware:
+The standalone entropy report cannot reconstruct whole-contig entropy and writes
+``dna_entropy_global`` as ``0.0``. Prefer ``run`` when the unified complete
+record is required.
 
-+---------------------+---------------+---------------+
-| Hardware            | 100 sequences | 1000 sequences|
-+=====================+===============+===============+
-| CPU (8 cores)       | ~5 minutes    | ~50 minutes   |
-+---------------------+---------------+---------------+
-| NVIDIA RTX 3090     | ~1 minute     | ~10 minutes   |
-+---------------------+---------------+---------------+
-| Apple M1 Max (MPS)  | ~2 minutes    | ~20 minutes   |
-+---------------------+---------------+---------------+
+Protein-only workflow
+---------------------
 
-*Note: Times are approximate and depend on sequence length and system load.*
+.. code-block:: bash
 
-Next Steps
+   genome_entropy fasta-to-protein --input proteins.faa --output proteins.json
+   genome_entropy encode3di --input proteins.faa --output structures.json
+
+``encode3di`` accepts protein FASTA directly, so conversion is only needed when
+an intermediate protein-record JSON is useful.
+
+Model and device selection
+--------------------------
+
+.. code-block:: bash
+
+   genome_entropy run --input genome.fasta --output results.json \
+       --model gbouras13/modernprost-base --device cuda
+   genome_entropy encode3di --input proteins.faa --output structures.json \
+       --multi-gpu --gpu-ids 0,1 --encoding-size 8000
+
+Use the 50M default for ordinary examples; the larger model needs more memory.
+Estimate a safe token budget on the target hardware with ``estimate-tokens``.
+
+Next steps
 ----------
 
-* Learn about all CLI commands: :doc:`cli`
-* Understand the pipeline in detail: :doc:`user_guide`
-* Use the Python API: :doc:`api`
-* Optimize token estimation: :doc:`token_estimation`
+Read :doc:`models` for encoder details, :doc:`data_formats` for schemas and
+normalised entropy, :doc:`cli` for every option, and :doc:`ml` before training
+or interpreting a classifier.

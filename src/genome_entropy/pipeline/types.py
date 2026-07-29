@@ -21,8 +21,8 @@ class FeatureLocation:
     """Genomic location of a feature (ORF).
 
     Attributes:
-        start: 0-based start position (inclusive)
-        end: 0-based end position (exclusive)
+        start: One-based inclusive coordinate from ``get_orfs``
+        end: One-based inclusive coordinate from ``get_orfs``
         strand: Strand orientation ('+' or '-')
         frame: Reading frame (0, 1, 2, or 3)
     """
@@ -80,7 +80,7 @@ class FeatureThreeDi:
 
 @dataclass
 class FeatureTwelveState:
-    """Optional 12-state structural encoding for a feature."""
+    """Twelve-state encoding, serialised as deterministic symbols ``A``--``L``."""
 
     encoding: str
     length: int
@@ -93,9 +93,9 @@ class FeatureMetadata:
     Attributes:
         parent_id: ID of the parent DNA sequence
         table_id: NCBI genetic code table ID used
-        has_start_codon: Whether the ORF has a start codon
-        has_stop_codon: Whether the ORF has a stop codon
-        in_genbank: Whether this ORF matches a CDS annotated in GenBank
+        has_start_codon: Whether the source amino-acid string contains ``M``
+        has_stop_codon: Whether the source amino-acid string contains ``*``
+        in_genbank: Whether the C-terminal GenBank CDS heuristic matched
     """
 
     parent_id: str
@@ -113,6 +113,7 @@ class FeatureEntropy:
         dna_entropy: Shannon entropy of nucleotide sequence
         protein_entropy: Shannon entropy of amino acid sequence
         three_di_entropy: Shannon entropy of 3Di encoding
+        twelve_state_entropy: Shannon entropy of 12-state encoding, or ``None``
     """
 
     dna_entropy: float
@@ -138,6 +139,7 @@ class UnifiedFeature:
         three_di: 3Di structural encoding
         metadata: Additional metadata
         entropy: Entropy values at all representation levels
+        twelve_state: Optional 12-state encoding; ``None`` for 3Di-only models
     """
 
     orf_id: str
@@ -152,7 +154,7 @@ class UnifiedFeature:
 
 @dataclass
 class UnifiedPipelineResult:
-    """Result of running the complete DNA to 3Di pipeline (unified format).
+    """Unified DNA-to-structural-state pipeline result.
 
     This is the new format that eliminates redundancy by using a single
     dictionary of features keyed by orf_id, instead of separate parallel

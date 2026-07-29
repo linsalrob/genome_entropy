@@ -6,7 +6,7 @@ that can be used for predicting GenBank annotations.
 
 import pickle
 from pathlib import Path
-from typing import Dict, Optional, Tuple, Any
+from typing import Any, Dict, Optional
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -59,15 +59,10 @@ class BaseModel(ABC):
 class XGBoostModel(BaseModel):
     """XGBoost gradient boosted tree classifier.
 
-    Recommended model for this task because:
-    1. Excellent performance on tabular data
-    2. Handles mixed feature types well
-    3. Built-in GPU support for acceleration
-    4. Provides feature importance for interpretability
-    5. Robust to overfitting with proper parameters
-    6. Fast training and inference
-
-    This model automatically uses GPU if available, falling back to CPU.
+    Uses :func:`xgboost.train` with binary logistic output and histogram trees;
+    it is not an ``XGBRFClassifier`` random forest. GPU training requires a
+    CUDA-enabled XGBoost build. Auto-detection uses PyTorch visibility and can
+    therefore select ``cuda`` even when XGBoost lacks a compatible backend.
     """
 
     def __init__(
@@ -81,7 +76,9 @@ class XGBoostModel(BaseModel):
         """Initialize XGBoost model.
 
         Args:
-            device: Device to use ("cuda", "cpu", or None for auto-detect)
+            device: ``"cuda"``, ``"cpu"``, or ``None`` for PyTorch-based
+                auto-detection. Pass ``"cpu"`` when XGBoost GPU support is not
+                independently available.
             n_estimators: Number of boosting rounds
             max_depth: Maximum tree depth
             learning_rate: Learning rate (eta)
@@ -288,10 +285,11 @@ class XGBoostModel(BaseModel):
         }
 
     def get_feature_importance(self) -> Optional[np.ndarray]:
-        """Get feature importance scores.
+        """Return normalised gain importance in feature-index order.
 
         Returns:
-            Array of importance scores
+            Array summing to one when any split has non-zero gain, or ``None``
+            before training. Importance is associative, not causal.
         """
         if self.model is None:
             return None

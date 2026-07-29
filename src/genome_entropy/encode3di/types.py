@@ -6,14 +6,15 @@ from ..translate.translator import ProteinRecord
 
 @dataclass
 class ThreeDiRecord:
-    """Represents a 3Di structural encoding of a protein.
+    """Structural-state encodings predicted for a protein.
 
     Attributes:
         protein: The ProteinRecord that was encoded
         three_di: The 3Di token sequence
-        method: Method used for encoding (always "prostt5_aa2fold")
-        model_name: Name of the ProstT5 model used
-        inference_device: Device used for inference ("cuda", "mps", or "cpu")
+        method: Encoder method identifier
+        model_name: Canonical model identifier used for inference
+        inference_device: Device string, such as ``cuda``, ``mps``, or ``cpu``
+        twelve_state: Optional 12-state sequence; ``None`` for 3Di-only models
     """
 
     protein: ProteinRecord

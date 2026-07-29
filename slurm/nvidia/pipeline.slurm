@@ -22,9 +22,7 @@ fi
 
 export TORCH_DISABLE_DYNAMO=1
 export TORCH_COMPILE_DISABLE=0
-# genome_entropy run -g $1 -o $2 --multi-gpu --model gbouras13/modernprost-base
-genome_entropy run -g $1 -o $2 --model gbouras13/modernprost-base
-
+genome_entropy run -g "$1" -o "$2" --model gbouras13/modernprost-50M
 
 
 

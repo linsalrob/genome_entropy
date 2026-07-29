@@ -11,16 +11,16 @@ class OrfRecord:
     Attributes:
         parent_id: ID of the parent DNA sequence
         orf_id: Unique identifier for this ORF
-        start: 0-based start position (inclusive)
-        end: 0-based end position (exclusive)
+        start: One-based inclusive coordinate from ``get_orfs`` output
+        end: One-based inclusive coordinate from ``get_orfs`` output
         strand: Strand orientation ('+' or '-')
-        frame: Reading frame (0, 1, or 2)
+        frame: Absolute reading-frame number (0, 1, 2, or 3)
         nt_sequence: Nucleotide sequence of the ORF
         aa_sequence: Amino acid sequence of the ORF
         table_id: NCBI genetic code table ID used
-        has_start_codon: Whether the ORF has a start codon
-        has_stop_codon: Whether the ORF has a stop codon
-        in_genbank: Whether this ORF matches a CDS annotated in GenBank
+        has_start_codon: Whether the source amino-acid string contains ``M``
+        has_stop_codon: Whether the source amino-acid string contains ``*``
+        in_genbank: Whether the C-terminal GenBank CDS heuristic matched this ORF
     """
 
     parent_id: str
