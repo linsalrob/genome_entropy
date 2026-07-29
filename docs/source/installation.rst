@@ -5,7 +5,7 @@ Requirements
 ------------
 
 ``genome_entropy`` requires Python 3.10 or newer. CI tests Python 3.10, 3.11,
-and 3.12. Version 0.1.15 declares these runtime minimums:
+and 3.12. This version declares these runtime minimums:
 
 * PyTorch 2.0
 * Transformers 5.14.1
