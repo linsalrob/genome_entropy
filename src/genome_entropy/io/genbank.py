@@ -12,6 +12,8 @@ from ..orf.types import OrfRecord
 
 logger = get_logger(__name__)
 
+VALID_AMINO_ACIDS = frozenset("ACDEFGHIKLMNPQRSTVWYBJZUOX")
+
 
 @dataclass
 class GenBankCDS:
@@ -158,12 +160,47 @@ def extract_cds_features(genbank_path: Union[str, Path]) -> List[GenBankCDS]:
     return cds_features
 
 
+def normalise_protein_sequence(sequence: str) -> str:
+    """Normalise a protein for GenBank matching.
+
+    Whitespace is removed, residues are upper-cased, and one terminal stop
+    marker is stripped. An internal stop marker makes the sequence invalid for
+    matching and is represented by an empty result.
+    """
+    normalised = "".join(sequence.split()).upper().removesuffix("*")
+    return "" if "*" in normalised else normalised
+
+
+def amino_acids_are_compatible(residue_a: str, residue_b: str) -> bool:
+    """Return whether two aligned protein residues are compatible.
+
+    Equal valid residues match. ``X`` is an unknown-residue wildcard, but the
+    more specific ambiguity symbols ``B``, ``Z``, and ``J`` are not themselves
+    wildcards. ``U`` and ``O`` are also treated as specific residues.
+    """
+    if residue_a not in VALID_AMINO_ACIDS or residue_b not in VALID_AMINO_ACIDS:
+        return False
+    return residue_a == residue_b or residue_a == "X" or residue_b == "X"
+
+
+def compatible_c_terminal_suffix(shorter: str, longer: str) -> bool:
+    """Return whether ``shorter`` compatibly aligns to the end of ``longer``."""
+    if not shorter or len(shorter) > len(longer):
+        return False
+
+    longer_tail = longer[-len(shorter) :]
+    return all(
+        amino_acids_are_compatible(shorter_residue, longer_residue)
+        for shorter_residue, longer_residue in zip(shorter, longer_tail)
+    )
+
+
 def orf_matches_genbank_cds(orf: OrfRecord, cds: GenBankCDS) -> bool:
-    """Match proteins by their strand-aware stop and exact C-terminal sequence.
+    """Match proteins by strand-aware stop and compatible C-terminal sequence.
 
     C-terminal matching recognises partial CDS translations and alternative
-    initiation residues without treating internal or N-terminal similarity as
-    evidence that two proteins are the same.
+    initiation residues. ``X`` is compatible with any valid amino-acid symbol
+    at an aligned position; all other unequal residues remain mismatches.
     """
     if orf.parent_id != cds.parent_id or orf.strand != cds.strand:
         return False
@@ -176,12 +213,8 @@ def orf_matches_genbank_cds(orf: OrfRecord, cds: GenBankCDS) -> bool:
     if orf_stop != cds_stop:
         return False
 
-    def normalise(sequence: str) -> str:
-        normalised = "".join(sequence.split()).upper()
-        return normalised.removesuffix("*")
-
-    orf_c_terminal = normalise(orf.aa_sequence)[1:]
-    cds_c_terminal = normalise(cds.protein_sequence)[1:]
+    orf_c_terminal = normalise_protein_sequence(orf.aa_sequence)[1:]
+    cds_c_terminal = normalise_protein_sequence(cds.protein_sequence)[1:]
     if not orf_c_terminal or not cds_c_terminal:
         return False
 
@@ -189,7 +222,27 @@ def orf_matches_genbank_cds(orf: OrfRecord, cds: GenBankCDS) -> bool:
         (orf_c_terminal, cds_c_terminal),
         key=len,
     )
-    return longer.endswith(shorter)
+    matches = compatible_c_terminal_suffix(shorter, longer)
+    if not matches and len(shorter) <= len(longer):
+        longer_tail = longer[-len(shorter) :]
+        for position, (shorter_residue, longer_residue) in enumerate(
+            zip(shorter, longer_tail),
+            start=1,
+        ):
+            if not amino_acids_are_compatible(shorter_residue, longer_residue):
+                logger.debug(
+                    "ORF %s and CDS at %s:%d-%d share a stop coordinate but "
+                    "differ at aligned residue %d: %s versus %s",
+                    orf.orf_id,
+                    cds.parent_id,
+                    cds.start,
+                    cds.end,
+                    position,
+                    shorter_residue,
+                    longer_residue,
+                )
+                break
+    return matches
 
 
 def match_orf_to_genbank_cds(

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List
 
 import PyGeneticCode
+from Bio.Seq import Seq
 
 from ..config import DEFAULT_GENETIC_CODE_TABLE
 from ..errors import TranslationError
@@ -41,8 +42,10 @@ def translate_orf(
 ) -> ProteinRecord:
     """Translate an ORF to a protein sequence.
 
-    Uses the pygenetic-code library for translation with NCBI genetic codes.
-    Ambiguous codons (containing N or other IUPAC codes) are translated to 'X'.
+    Uses pygenetic-code for unambiguous DNA and Biopython for sequences that
+    contain IUPAC ambiguity codes. This prevents a multiply-resolvable codon
+    such as ``AAN`` or ``NNN`` from being assigned an arbitrary amino acid while
+    preserving specific translations for resolvable codons such as ``GCN``.
 
     Args:
         orf: OrfRecord to translate
@@ -64,25 +67,34 @@ def translate_orf(
 
     try:
 
-        # Translate sequence
-        aa_sequence = PyGeneticCode.translate(orf.nt_sequence, table_id)
+        # pygenetic-code 0.20 can resolve some ambiguous codons arbitrarily
+        # (for example AAN and NNN as lysine). Biopython implements the IUPAC
+        # semantics needed when ambiguity codes are present.
+        nucleotide_sequence = orf.nt_sequence.upper()
+        if set(nucleotide_sequence) <= set("ACGT"):
+            aa_sequence = PyGeneticCode.translate(nucleotide_sequence, table_id)
+        else:
+            aa_sequence = str(Seq(nucleotide_sequence).translate(table=table_id))
 
         if aa_sequence != orf.aa_sequence:
-            warning_message = f"""
-            Translated amino acid sequence is not the same as read from the file:
-            Provided:
-            {orf.aa_sequence}
-            Translated:
-            {aa_sequence}
-            DNA sequence:
-            {orf.nt_sequence}
-            Location:
-            Start: {orf.start} Stop: {orf.end} Frame: {orf.frame} Strand: {orf.strand}
-            """
+            first_difference = next(
+                (
+                    index
+                    for index, (provided, translated) in enumerate(
+                        zip(orf.aa_sequence, aa_sequence),
+                        start=1,
+                    )
+                    if provided != translated
+                ),
+                min(len(orf.aa_sequence), len(aa_sequence)) + 1,
+            )
             logger.warning(
-                "Translation mismatch for ORF %s; using translated sequence.%s",
+                "Translation mismatch for ORF %s; using translated sequence "
+                "(provided length=%d, translated length=%d, first difference=%d)",
                 orf.orf_id,
-                warning_message,
+                len(orf.aa_sequence),
+                len(aa_sequence),
+                first_difference,
             )
 
         # Remove stop codon (*) if present at the end

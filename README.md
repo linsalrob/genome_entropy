@@ -42,7 +42,7 @@ genome_entropy download --model gbouras13/modernprost-50M
 # DNA FASTA to unified JSON
 genome_entropy run --input genome.fasta --output results.json
 
-# GenBank input also assigns in_genbank by C-terminal CDS matching
+# GenBank matching accepts aligned ambiguous X residues in C-terminal suffixes
 genome_entropy run --genbank genome.gbk.gz --output results.json
 
 # Protein FASTA directly to structural-state records
