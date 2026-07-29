@@ -48,13 +48,13 @@ def download_command(
     test_data: bool = typer.Option(
         False,
         "--test-data",
-        help="Download test datasets",
+        help="Reserved option; test-data download is not implemented",
     ),
 ) -> None:
-    """Pre-download models and optional test datasets.
+    """Pre-download a supported encoder model into the Hugging Face cache.
 
     Downloads ProstT5 or ModernProst models from HuggingFace to local cache.
-    Optionally downloads small reference datasets for testing.
+    ``--test-data`` is currently reserved and does not download a dataset.
     """
     try:
         from transformers import AutoModel, AutoTokenizer

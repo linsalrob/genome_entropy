@@ -25,7 +25,8 @@ Provides an interactive counterpart to the `genome_entropy ml` commands. It:
 1. Reads a single `.json` or `.json.gz` pipeline output containing multiple
    top-level sequence records.
 2. Uses the package's production JSON loader and feature extractor, so the
-   notebook sees the same twelve ORF features as the command-line workflow.
+   notebook sees the same 14 ORF features as the command-line workflow,
+   including nullable 12-state entropy and length.
 3. Removes records with no usable ORFs before splitting. Empty records are a
    normal pipeline outcome when an input sequence has no ORFs passing the
    configured thresholds.
@@ -45,7 +46,8 @@ Provides an interactive counterpart to the `genome_entropy ml` commands. It:
 9. Optionally saves the trained forest in XGBoost's JSON model format.
 
 Edit the configuration cell before running the notebook. At minimum, set
-`JSON_PATH` to the consolidated pipeline output. The file must contain at least
+`JSON_PATH` to an existing consolidated pipeline output; no such generated file
+is committed with the repository. The file must contain at least
 two top-level records with usable ORFs so one or more records can be held out
 for testing.
 

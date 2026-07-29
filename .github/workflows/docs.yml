@@ -36,8 +36,7 @@ jobs:
 
       - name: Build documentation
         run: |
-          cd docs
-          make html
+          python -m sphinx -W --keep-going -b html docs/source docs/build/html
 
       - name: Check documentation build
         run: |

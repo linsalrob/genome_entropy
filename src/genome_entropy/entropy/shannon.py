@@ -69,6 +69,7 @@ class EntropyReport:
         protein_aa_entropy: Dictionary mapping ORF IDs to their amino acid entropy
         three_di_entropy: Dictionary mapping ORF IDs to their 3Di token entropy
         alphabet_sizes: Dictionary with alphabet sizes for each representation
+        twelve_state_entropy: Optional mapping of ORF IDs to 12-state entropy
     """
 
     dna_entropy_global: float
@@ -90,7 +91,9 @@ def shannon_entropy(
     Args:
         sequence: String to calculate entropy for
         alphabet: Optional set of symbols in the alphabet for normalization
-        normalize: If True, normalize entropy by max possible entropy (log₂|alphabet|)
+        normalize: Legacy explicit in-memory normalisation switch. Standard
+            pipeline output never enables it; prefer ``normalise_entropy`` for
+            downstream analysis.
 
     Returns:
         Shannon entropy value (bits)
@@ -102,8 +105,6 @@ def shannon_entropy(
         0.0
         >>> shannon_entropy("ACGT")
         2.0
-        >>> shannon_entropy("ACGT", normalize=True, alphabet=set("ACGT"))
-        1.0
     """
     if not sequence:
         return 0.0
@@ -139,11 +140,11 @@ def calculate_sequence_entropy(
 
     Args:
         sequence: Biological sequence (DNA, protein, 3Di tokens)
-        alphabet: Optional alphabet for normalization
-        normalize: Whether to normalize by alphabet size
+        alphabet: Optional alphabet for the legacy normalisation switch
+        normalize: Legacy explicit normalisation switch; standard output is raw
 
     Returns:
-        Shannon entropy in bits (or normalized to [0, 1])
+        Shannon entropy in bits, or a legacy explicitly normalised value
     """
     # Convert to uppercase for consistency
     sequence = sequence.upper()

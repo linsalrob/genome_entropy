@@ -36,51 +36,19 @@ def to_json_dict(obj: Any) -> Any:
 
 
 def convert_pipeline_result_to_unified(pipeline_result):
-    """Convert PipelineResult to UnifiedPipelineResult format.
+    """Convert pipeline results to schema-versioned unified records.
 
-    This function transforms the old redundant format (separate orfs, proteins,
-    three_dis lists) into the new unified format where each feature appears
-    exactly once with all its related data organized hierarchically.
-
-    OLD FORMAT PROBLEM:
-    -------------------
-    The old format had three parallel lists:
-    - orfs: [ORF1, ORF2, ...]
-    - proteins: [{orf: ORF1, aa_seq: ...}, {orf: ORF2, aa_seq: ...}, ...]
-    - three_dis: [{protein: {orf: ORF1, ...}, 3di: ...}, ...]
-
-    This caused:
-    1. ORF data duplicated 3 times (in orfs, inside proteins, inside three_dis)
-    2. Protein data duplicated 2 times (in proteins, inside three_dis)
-    3. ~2-3x larger files due to redundancy
-    4. Risk of inconsistency if data differs between copies
-
-    NEW UNIFIED FORMAT:
-    -------------------
-    Single features dictionary with hierarchical organization:
-    - features: {
-        "orf_1": {
-          location: {start, end, strand, frame},
-          dna: {sequence, length},
-          protein: {sequence, length},
-          three_di: {encoding, length, method, model, device},
-          metadata: {parent_id, table_id, has_start, has_stop, in_genbank},
-          entropy: {dna_entropy, protein_entropy, three_di_entropy}
-        }
-      }
-
-    Benefits:
-    1. Each piece of information stored exactly once
-    2. 40-50% smaller file sizes
-    3. Direct O(1) access by orf_id
-    4. Clear hierarchical organization matching biological concepts
-    5. Single source of truth - no inconsistency possible
+    Each ORF becomes one feature containing its location, DNA, protein, 3Di,
+    optional 12-state representation, metadata, and raw entropy values. This
+    removes the duplicated objects used by the legacy parallel-list format.
 
     Args:
-        pipeline_result: PipelineResult object or list of PipelineResult objects
+        pipeline_result: A :class:`~genome_entropy.pipeline.runner.PipelineResult`
+            or a list of pipeline results.
 
     Returns:
-        UnifiedPipelineResult object or list of UnifiedPipelineResult objects
+        A :class:`~genome_entropy.pipeline.types.UnifiedPipelineResult`, or a
+        list of unified results when the input is a list.
     """
     # Import here to avoid circular imports
     from ..pipeline.types import (

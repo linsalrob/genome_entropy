@@ -3,7 +3,7 @@
 
 set -e  # Exit on error
 
-echo "=== DNA to 3Di Pipeline Example ==="
+echo "=== DNA to structural-state entropy pipeline example ==="
 echo ""
 
 # Check if genome_entropy is installed
@@ -17,7 +17,7 @@ mkdir -p output
 
 echo "Step 1: Running complete pipeline..."
 genome_entropy run \
-    --input examples/example_small.fasta \
+    --input example_data/JQ995537.fna \
     --output output/results.json \
     --table 11 \
     --min-aa 10
@@ -29,12 +29,12 @@ echo ""
 echo "You can also run individual steps:"
 echo ""
 echo "# Extract ORFs"
-echo "genome_entropy orf --input examples/example_small.fasta --output output/orfs.json"
+echo "genome_entropy orf --input example_data/JQ995537.fna --output output/orfs.json"
 echo ""
 echo "# Translate to proteins"
 echo "genome_entropy translate --input output/orfs.json --output output/proteins.json"
 echo ""
-echo "# Encode to 3Di"
+echo "# Encode to 3Di and, with multitask ModernProst, 12-state"
 echo "genome_entropy encode3di --input output/proteins.json --output output/3di.json"
 echo ""
 echo "# Calculate entropy"

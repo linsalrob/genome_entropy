@@ -1,78 +1,32 @@
 Changelog
 =========
 
-All notable changes to this project will be documented in this file.
+Unreleased
+----------
 
-[0.1.0] - 2026-01-19
---------------------
+Documentation
+^^^^^^^^^^^^^
 
-Initial release of genome_entropy.
+* Audited repository documentation, public docstrings, CLI help, examples, and
+  HPC templates against the current implementation.
+* Reconciled model identifiers with the live George Bouras Hugging Face
+  namespace and documented current multitask versus deprecated 3Di-only models.
+* Documented 3Di and nullable 12-state output consistently, including the
+  deterministic ``A``--``L`` serialisation.
+* Replaced automatic-normalisation guidance with raw JSON entropy and explicit
+  downstream normalisation helpers.
+* Corrected coordinate, GenBank matching, ML splitting, missing-value,
+  probability, device, and persistence descriptions.
+* Corrected the Read the Docs project name and aligned Python/tool version
+  claims with package metadata and CI.
+* Made Sphinx warnings fatal in documentation CI and documented the local
+  warnings-as-errors build command.
 
-Added
-^^^^^
+0.1.0 — 19 January 2026
+-----------------------
 
-* Complete pipeline: DNA → ORF → Protein → 3Di → Entropy
-* ORF finding using external get_orfs binary
-* Protein translation with all NCBI genetic code tables
-* 3Di encoding via ProstT5 model
-* Shannon entropy calculation at all levels
-* Modular CLI with individual commands:
-  
-  * ``genome_entropy run`` - Complete pipeline
-  * ``genome_entropy orf`` - Find ORFs
-  * ``genome_entropy translate`` - Translate to proteins
-  * ``genome_entropy encode3di`` - Encode to 3Di
-  * ``genome_entropy entropy`` - Calculate entropy
-  * ``genome_entropy download`` - Pre-download models
-  * ``genome_entropy estimate-tokens`` - Estimate optimal encoding size
-
-* GPU acceleration support:
-  
-  * CUDA (NVIDIA GPUs)
-  * MPS (Apple Silicon)
-  * CPU fallback
-
-* Comprehensive logging system:
-  
-  * Configurable log levels
-  * File or STDOUT output
-  * Progress tracking
-
-* Token size estimation for optimal GPU utilization
-* Batch processing for efficient encoding
-* JSON I/O for structured data
-* FASTA reading and writing
-* Complete test suite with unit and integration tests
-* Comprehensive documentation
-* Example data and scripts
-
-Features
-^^^^^^^^
-
-* Auto-detection of best available device (CUDA/MPS/CPU)
-* Graceful fallback on GPU memory errors
-* Support for all NCBI genetic code tables
-* Customizable ORF length filtering
-* Normalized and non-normalized entropy
-* Type hints throughout codebase
-* Google-style docstrings
-
-Known Limitations
-^^^^^^^^^^^^^^^^^
-
-* Requires external get_orfs binary
-* ProstT5 model is large (~2GB)
-* 3Di encoding is memory-intensive
-* Integration tests not run in CI
-
-[Unreleased]
-------------
-
-Planned features for future releases:
-
-* Additional encoder models
-* Parallel processing for large datasets
-* Streaming mode for very large files
-* Additional entropy metrics
-* Web interface
-* Pre-built binaries for get_orfs
+Initial release with ORF discovery, translation, ProstT5 3Di encoding, raw
+Shannon entropy, modular CLI commands, JSON I/O, logging, batching, and device
+selection. Later releases added the unified schema, GenBank matching, ML,
+multi-GPU operation, and ModernProst/12-state support; those intermediate
+historical entries were not recorded in this file.

@@ -258,7 +258,7 @@ class ProstT5ThreeDiEncoder:
             ) + 1  # Note: len(<AA2fold>) == 9 so this accounts for that tag
             try:
                 ids.attention_mask[idx, mask_position] = 0
-            except Exception as e:
+            except Exception:
                 err_msg = f"Tried to mask at {mask_position} but attention is only {len(ids.attention_mask[idx])}"
                 logger.exception(err_msg)
 
@@ -296,15 +296,16 @@ class ProstT5ThreeDiEncoder:
         Args:
             aa_sequences: List of amino acid sequences.
                 note: Amino acid sequences are expected to be upper-case,
-                      while 3Di-sequences need to be lower-case.
+                while 3Di sequences need to be lower-case.
             encoding_size: Maximum size (approx. amino acids) to encode per gpu
             use_multi_gpu: If True, use multi-GPU parallel encoding when available
             gpu_ids: Optional list of GPU IDs to use for multi-GPU encoding.
-                    If None and use_multi_gpu=True, auto-discover available GPUs.
+                If None and use_multi_gpu=True, auto-discover available GPUs.
             multi_gpu_encoder: Optional pre-initialized MultiGPUEncoder instance.
-                    If provided, this encoder will be reused instead of creating
-                    a new one. This is important for efficiency when processing
-                    multiple sequences.
+                If provided, this encoder will be reused instead of creating
+                a new one. This is important for efficiency when processing
+                multiple sequences.
+
         Returns:
             List of 3Di token sequences (one per input sequence)
 

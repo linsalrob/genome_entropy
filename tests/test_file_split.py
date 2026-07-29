@@ -311,7 +311,7 @@ def test_train_with_file_split_feature_importance(temp_json_dir_for_split):
 
         # XGBoost should provide feature importance
         assert "feature_importance" in result
-        assert len(result["feature_importance"]) == 12
+        assert len(result["feature_importance"]) == 14
 
         # Check that all expected features are present
         expected_features = [

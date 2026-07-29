@@ -108,7 +108,7 @@ def run_command(
     - Provide both --input and --genbank to use FASTA sequences with GenBank annotations
     - At least one of --input or --genbank must be provided
 
-    Multi-GPU encoding can significantly speed up 3Di encoding by distributing
+    Multi-GPU encoding can speed up structural-state encoding by distributing
     batches across multiple GPUs. Use --multi-gpu to enable, and optionally
     specify --gpu-ids to select specific GPUs.
     """

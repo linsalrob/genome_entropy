@@ -1,490 +1,89 @@
-User Guide
+User guide
 ==========
 
-This guide provides a comprehensive overview of the **genome_entropy** pipeline, explaining concepts, data flow, and best practices.
-
-Pipeline Overview
+Pipeline concepts
 -----------------
 
-The **genome_entropy** pipeline transforms DNA sequences through multiple representation levels, computing Shannon entropy at each stage:
-
-.. code-block:: text
-
-   DNA (FASTA)
-       ↓
-   [ORF Finding]
-       ↓
-   ORFs (nucleotides) → Entropy₁
-       ↓
-   [Translation]
-       ↓
-   Proteins (amino acids) → Entropy₂
-       ↓
-   [3Di Encoding via ProstT5]
-       ↓
-   3Di Tokens (structural) → Entropy₃
-       ↓
-   [Entropy Analysis]
-       ↓
-   Complete Entropy Report
-
-This multi-level analysis enables comparison of information content across different biological sequence representations.
-
-Understanding ORFs
-------------------
-
-What is an ORF?
-^^^^^^^^^^^^^^^
-
-An **Open Reading Frame (ORF)** is a sequence of DNA between a start codon (typically ATG) and a stop codon (TAA, TAG, or TGA), representing a potential protein-coding region.
-
-Reading Frames
-^^^^^^^^^^^^^^
-
-DNA has **six possible reading frames**:
-
-* **Three forward frames** (starting at positions 0, 1, 2)
-* **Three reverse frames** (reverse complement, starting at positions 0, 1, 2)
-
-Example:
-
-.. code-block:: text
-
-   DNA:     ATGGCATAGCTAA
-   Frame 0: ATG GCA TAG CTA A
-   Frame 1: A TGG CAT AGC TAA
-   Frame 2: AT GGC ATA GCT AA
-
-ORF Properties
-^^^^^^^^^^^^^^
-
-Each ORF has the following properties:
-
-* **Position**: Start and end coordinates (0-based)
-* **Strand**: Forward (+) or reverse (-)
-* **Frame**: Which reading frame (0, 1, or 2)
-* **Codons**: Presence of start/stop codons
-* **Sequences**: Both nucleotide and amino acid sequences
-
-Genetic Code Tables
--------------------
-
-The pipeline uses NCBI genetic code tables for translation. Different organisms use different genetic codes:
-
-Common Tables
-^^^^^^^^^^^^^
-
-+--------+--------------------------------------------------+------------------+
-| Table  | Description                                      | Typical Use      |
-+========+==================================================+==================+
-| 1      | Standard genetic code                            | Eukaryotes       |
-+--------+--------------------------------------------------+------------------+
-| 11     | Bacterial, archaeal, plant plastid (default)     | Bacteria, Archaea|
-+--------+--------------------------------------------------+------------------+
-| 4      | Mold, protozoan, coelenterate mitochondrial      | Some protozoans  |
-+--------+--------------------------------------------------+------------------+
-| 2      | Vertebrate mitochondrial                         | Mitochondria     |
-+--------+--------------------------------------------------+------------------+
-| 5      | Invertebrate mitochondrial                       | Mitochondria     |
-+--------+--------------------------------------------------+------------------+
-
-Key Differences
-^^^^^^^^^^^^^^^
-
-The main differences between genetic codes involve stop codons and rare amino acids:
-
-* **Table 1**: UGA = Stop
-* **Table 11**: UGA = Stop (same as standard)
-* **Table 4**: UGA = Trp (not a stop!)
-
-**Important**: Always use the correct genetic code table for your organism.
-
-Understanding 3Di
------------------
-
-What is 3Di?
-^^^^^^^^^^^^
-
-**3Di** (3D-interactions) is a structural alphabet that represents local 3D protein backbone geometry using 20 discrete states. It was developed for the Foldseek structural search tool.
-
-Why 3Di?
-^^^^^^^^
-
-Traditional approaches require:
-1. Amino acid sequence
-2. Protein structure prediction (e.g., AlphaFold)
-3. Structure → 3Di conversion
-
-**ProstT5** enables direct sequence → 3Di prediction, skipping the expensive structure prediction step:
-
-.. code-block:: text
-
-   Traditional:  AA → AlphaFold → PDB → Foldseek → 3Di
-   ProstT5:      AA → ProstT5 → 3Di
-
-Benefits:
-
-* Much faster (no structure prediction)
-* Lower computational requirements
-* Enables large-scale structural analysis
-
-3Di Alphabet
-^^^^^^^^^^^^
-
-The 3Di alphabet has 20 symbols (like amino acids) representing different structural states. Each symbol encodes local backbone geometry.
-
-Shannon Entropy
----------------
-
-What is Entropy?
-^^^^^^^^^^^^^^^^
-
-**Shannon entropy** measures the information content or complexity of a sequence:
-
-.. code-block:: text
-
-   H = -Σ(p_i × log₂(p_i))
-
-where p_i is the frequency of symbol i.
-
-Interpretation
-^^^^^^^^^^^^^^
-
-* **High entropy**: More complex, diverse, unpredictable
-* **Low entropy**: More repetitive, simple, predictable
-
-Examples:
-
-.. code-block:: python
-
-   # Maximum entropy (all symbols equally likely)
-   "ACGTACGT" → H ≈ 2.0 bits
-
-   # Minimum entropy (one symbol only)
-   "AAAAAAAA" → H = 0.0 bits
-
-   # Intermediate
-   "AAAACCCC" → H = 1.0 bits
-
-Normalised Entropy
-^^^^^^^^^^^^^^^^^^
-
-Raw entropy is the value calculated and stored by ``genome_entropy``. Normalised
-entropy is completely derived from raw entropy and scales it by the maximum
-possible entropy of the theoretical alphabet:
-
-.. code-block:: text
-
-   H_norm = H / log₂(|alphabet|)
-
-Use these theoretical alphabet sizes in downstream analyses:
-
-* DNA: 4 symbols (max entropy = 2.0)
-* Protein: 20 symbols (max entropy ≈ 4.3219)
-* 3Di: 20 symbols (max entropy ≈ 4.3219)
-* 12-state: 12 symbols (max entropy ≈ 3.5850)
-
-Standard JSON contains only raw entropy. Storing both forms would be redundant
-and could allow them to become inconsistent. Calculate normalised values only
-when a downstream analysis needs them:
-
-.. code-block:: python
-
-   from genome_entropy.entropy import (
-       normalise_dna_entropy,
-       normalise_protein_entropy,
-       normalise_three_di_entropy,
-       normalise_twelve_state_entropy,
-   )
-
-   dna_normalised = normalise_dna_entropy(feature["entropy"]["dna_entropy"])
-   protein_normalised = normalise_protein_entropy(
-       feature["entropy"]["protein_entropy"]
-   )
-   three_di_normalised = normalise_three_di_entropy(
-       feature["entropy"]["three_di_entropy"]
-   )
-   twelve_state_normalised = normalise_twelve_state_entropy(
-       feature["entropy"]["twelve_state_entropy"]
-   )
-
-The generic ``normalise_entropy(raw_entropy, alphabet_size)`` helper is also
-available. All helpers preserve ``None`` for missing values. They are not called
-automatically for ORFs and their results are not serialised.
-
-Entropy in Biology
-^^^^^^^^^^^^^^^^^^
-
-Biological applications:
-
-* **Low-complexity regions**: Entropy < 2.0 indicates repetitive sequences
-* **Sequence quality**: High entropy suggests good diversity
-* **Structural complexity**: Compare protein vs. 3Di entropy
-* **Functional sites**: Often have distinct entropy patterns
-
-Data Flow
----------
-
-Step 1: Input (FASTA)
-^^^^^^^^^^^^^^^^^^^^^
-
-.. code-block:: text
-
-   >sequence1
-   ATGGCTAGCTAGCTAGCTAG...
-   >sequence2
-   ATGGGCCCTTTTAAA...
-
-Step 2: ORF Finding
-^^^^^^^^^^^^^^^^^^^
-
-Extract all potential coding regions:
-
-.. code-block:: json
-
-   {
-     "parent_id": "sequence1",
-     "orf_id": "sequence1_orf_1",
-     "start": 0,
-     "end": 300,
-     "strand": "+",
-     "frame": 0,
-     "nt_sequence": "ATGGCTAGC...",
-     "aa_sequence": "MAS...",
-     "has_start_codon": true,
-     "has_stop_codon": true
-   }
-
-Step 3: Translation
-^^^^^^^^^^^^^^^^^^^
-
-Convert nucleotides to amino acids:
-
-.. code-block:: text
-
-   Nucleotides: ATGGCTAGC → ATG GCT AGC
-   Amino acids:             → M   A   S
-
-Step 4: 3Di Encoding
-^^^^^^^^^^^^^^^^^^^^
-
-Predict structural tokens using ProstT5:
-
-.. code-block:: json
-
-   {
-     "orf_id": "sequence1_orf_1",
-     "three_di": "AAABBBCCCDDD...",
-     "method": "prostt5_aa2fold",
-     "model_name": "Rostlab/ProstT5_fp16",
-     "inference_device": "cuda"
-   }
-
-Step 5: Entropy Calculation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Compute entropy at all levels:
-
-.. code-block:: json
-
-   {
-     "dna_entropy_global": 1.95,
-     "orf_nt_entropy": {
-       "sequence1_orf_1": 1.85,
-       "sequence1_orf_2": 1.90
-     },
-     "protein_aa_entropy": {
-       "sequence1_orf_1": 3.12,
-       "sequence1_orf_2": 3.25
-     },
-     "three_di_entropy": {
-       "sequence1_orf_1": 2.89,
-       "sequence1_orf_2": 2.95
-     },
-     "alphabet_sizes": {
-       "dna": 4,
-       "protein": 20,
-       "three_di": 20
-     }
-   }
-
-Performance Considerations
+``genome_entropy`` connects several distinct operations:
+
+#. **ORF discovery** calls candidate coding regions in six reading frames using
+   ``get_orfs``. This is gene calling, not functional annotation.
+#. **Translation** uses the selected NCBI genetic code (table 11 by default).
+#. **Structural-state prediction** converts protein sequence into 3Di and,
+   with multitask ModernProst, a 12-state encoding.
+#. **Entropy calculation** measures observed symbol diversity at each available
+   representation.
+#. **GenBank matching**, when annotations are supplied, assigns ``in_genbank``
+   through a strand- and C-terminus-aware heuristic.
+
+ORFs and genetic codes
+----------------------
+
+``--min-nt`` controls the minimum nucleotide length for ``orf``; ``run`` exposes
+the equivalent ``--min-aa`` and multiplies it by three. Table 11 is the bacterial,
+archaeal, and plant-plastid code. Select a different table only when appropriate
+for the source organism.
+
+Coordinates and start/stop flags follow the exact implementation conventions in
+:doc:`data_formats`; do not reinterpret them as BED coordinates.
+
+Structural-state encodings
 --------------------------
 
-GPU vs CPU
-^^^^^^^^^^
+3Di is a 20-state structural alphabet introduced by Foldseek. It describes
+local tertiary interactions inferred here from protein sequence; it is not a
+set of atomic coordinates and does not replace full structure prediction.
 
-ProstT5 encoding is the bottleneck:
+The multitask ModernProst head also emits 12 classes serialised as ``A`` through
+``L``. Legacy encoders expose missing 12-state values as ``None``/JSON ``null``.
+See :doc:`models` for model selection, provenance, and security.
 
-* **CPU**: Slow but works everywhere
-* **CUDA**: 10-50× faster with NVIDIA GPU
-* **MPS**: 5-20× faster on Apple Silicon
-
-Memory Management
-^^^^^^^^^^^^^^^^^
-
-GPU memory is limited. Key parameters:
-
-* **batch_size**: Number of sequences processed simultaneously
-* **encoding_size**: Total amino acids per batch
-
-If you get "CUDA out of memory":
-
-1. Reduce ``batch_size``
-2. Reduce ``encoding_size``
-3. Use ``--device cpu``
-
-Token Size Estimation
-^^^^^^^^^^^^^^^^^^^^^
-
-Use ``estimate-tokens`` to find optimal settings:
-
-.. code-block:: bash
-
-   genome_entropy estimate-tokens --device cuda
-
-This tests different encoding sizes and recommends the best value for your GPU.
-
-Best Practices
---------------
-
-Choosing Parameters
-^^^^^^^^^^^^^^^^^^^
-
-**Genetic code table:**
-
-* Use table 11 for bacteria and archaea (default)
-* Use table 1 for eukaryotes
-* Check NCBI documentation for unusual organisms
-
-**Minimum length:**
-
-* Default 30 AA filters very short ORFs
-* Increase to 50-100 AA for higher confidence
-* Decrease to 10-20 AA for viral genomes
-
-**Device selection:**
-
-* Use ``auto`` to automatically detect best device (recommended)
-* Use ``cuda`` to force GPU (fails if not available)
-* Use ``cpu`` for maximum compatibility
-
-Logging
-^^^^^^^
-
-Enable debug logging for troubleshooting:
-
-.. code-block:: bash
-
-   genome_entropy --log-level DEBUG --log-file debug.log run --input data.fasta --output results.json
-
-Log files help diagnose:
-
-* Model loading issues
-* Memory problems
-* Processing bottlenecks
-* Unexpected results
-
-Large Datasets
-^^^^^^^^^^^^^^
-
-For processing many sequences:
-
-1. **Estimate tokens first**: Find optimal batch size
-2. **Use GPU**: Essential for large datasets
-3. **Filter short ORFs**: Use ``--min-aa 50`` or higher
-4. **Monitor memory**: Watch for OOM errors
-5. **Log to file**: Track progress
-6. **Split input**: Process in chunks if too large
-
-Quality Control
-^^^^^^^^^^^^^^^
-
-Check your results:
-
-* **ORF count**: Too many or too few might indicate issues
-* **Entropy values**: Should be within expected ranges
-* **3Di output**: Should be same length as protein input
-* **Log messages**: Look for warnings or errors
-
-Common Patterns
+Shannon entropy
 ---------------
 
-Entropy Comparisons
-^^^^^^^^^^^^^^^^^^^
-
-Typical entropy patterns:
+For observed symbol frequencies ``p_i``, raw Shannon entropy in bits is:
 
 .. code-block:: text
 
-   DNA entropy:    ~1.8-2.0 (max 2.0 for 4 symbols)
-   Protein entropy: ~3.0-4.0 (max 4.32 for 20 symbols)
-   3Di entropy:     ~2.5-3.5 (varies by structure)
+   H = -Σ p_i log₂(p_i)
 
-Observations:
+Zero describes a sequence containing one observed symbol. Larger values reflect
+more even use of more symbols, but do not by themselves establish sequence
+quality, function, or biological complexity. Short sequences cannot realise the
+theoretical maximum reliably, and comparisons across lengths or alphabets need
+caution.
 
-* Proteins usually have higher entropy than DNA (more symbols)
-* 3Di entropy reflects structural complexity
-* Low-complexity regions have entropy < 2.0
+Standard output stores raw entropy only. Normalised entropy divides by the
+theoretical maximum and should be derived downstream. The formula, alphabet
+sizes, helpers, and missing-value semantics are documented in
+:ref:`Raw and normalised entropy <raw-and-normalised-entropy>`.
 
-Structural Predictions
-^^^^^^^^^^^^^^^^^^^^^^
+Choosing an input workflow
+--------------------------
 
-3Di tokens enable:
+Use DNA FASTA when only sequence-derived features are required. Use GenBank when
+``in_genbank`` labels are required. Use protein FASTA with ``encode3di`` when ORF
+calling and nucleotide entropy are outside the analysis. Gzip support and each
+intermediate JSON format are listed in :doc:`data_formats`.
 
-* Fast structural searches (via Foldseek)
-* Structural alignment
-* Structure-based clustering
-* Fold recognition
+Performance and reproducibility
+-------------------------------
 
-Troubleshooting
----------------
+The encoding budget is an approximate sum of amino-acid lengths per batch, not
+a tokenizer token count guaranteed across models. Measure it on representative
+hardware. Pre-cache model artefacts for offline jobs and record package, model,
+PyTorch, Transformers, device, and parameter versions in an analysis provenance
+record.
 
-Common Issues
-^^^^^^^^^^^^^
+Multi-GPU mode parallelises batches across one encoder per visible accelerator.
+It does not split an individual sequence across devices. See :doc:`hpc` for
+scheduler and ROCm details.
 
-**ORF finding fails:**
+Interpretation limits
+---------------------
 
-* Check get_orfs binary is installed and in PATH
-* Verify input is valid FASTA format
-* Try different genetic code table
-
-**Translation errors:**
-
-* Ensure correct genetic code table
-* Check for ambiguous bases (N) in sequences
-
-**Encoding fails:**
-
-* Verify model downloaded: ``genome_entropy download``
-* Check GPU memory: Use ``--device cpu`` or reduce batch size
-* Update PyTorch/Transformers: ``pip install --upgrade torch transformers``
-
-**Out of memory:**
-
-* Reduce batch size: ``--batch-size 1``
-* Reduce encoding size: ``--encoding-size 2000``
-* Use CPU: ``--device cpu``
-* Process fewer sequences at once
-
-Performance Issues
-^^^^^^^^^^^^^^^^^^
-
-**Slow encoding:**
-
-* Use GPU if available
-* Increase batch size (if memory allows)
-* Use fp16 model: ``Rostlab/ProstT5_fp16``
-
-**Slow ORF finding:**
-
-* This is usually fast; check input file size
-* Consider filtering input sequences
-
-Next Steps
-----------
-
-* Try the :doc:`quickstart` examples
-* Read the :doc:`cli` reference
-* Explore the :doc:`api` for Python integration
-* Learn about :doc:`token_estimation` optimization
+``in_genbank=False`` means the current matching heuristic did not find a CDS;
+it does not prove the ORF is non-coding. Conversely, ``True`` is a heuristic
+annotation match, not a functional assignment. ML predictions learn this label
+and inherit its biases. Use genome- or file-level splits to estimate transfer to
+unseen records and read :doc:`ml` before reporting results.

@@ -2,45 +2,44 @@
 
 import os
 import sys
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version as package_version
 
 # Add source directory to path for autodoc
-sys.path.insert(0, os.path.abspath('../../src'))
+sys.path.insert(0, os.path.abspath("../../src"))
 
 # Project information
-project = 'genome_entropy'
-copyright = '2026, Rob Edwards'
-author = 'Rob Edwards'
+project = "genome_entropy"
+copyright = "2026, Rob Edwards"
+author = "Rob Edwards"
 
 # Get version from package metadata
 try:
-    release = version("genome_entropy")
-    version = release  # For short version, could use version.split('+')[0] to strip local part
+    release = package_version("genome_entropy")
+    version = release
 except PackageNotFoundError:
-    release = '0.0.0'
-    version = '0.0.0'
+    release = "0.0.0"
+    version = "0.0.0"
 
 # General configuration
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.githubpages',
-    'myst_parser',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.githubpages",
+    "myst_parser",
 ]
 
 # Autodoc settings
 autodoc_default_options = {
-    'members': True,
-    'member-order': 'bysource',
-    'special-members': '__init__',
-    'undoc-members': True,
-    'exclude-members': '__weakref__'
+    "members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+    "undoc-members": True,
+    "exclude-members": "__weakref__",
 }
-autodoc_typehints = 'description'
-autodoc_mock_imports = ['torch', 'transformers', 'pygenetic_code']
+autodoc_typehints = "description"
 
 # Napoleon settings (for Google/NumPy style docstrings)
 napoleon_google_docstring = True
@@ -51,7 +50,7 @@ napoleon_include_special_with_doc = True
 napoleon_use_admonition_for_examples = False
 napoleon_use_admonition_for_notes = False
 napoleon_use_admonition_for_references = False
-napoleon_use_ivar = False
+napoleon_use_ivar = True
 napoleon_use_param = True
 napoleon_use_rtype = True
 napoleon_preprocess_types = False
@@ -60,65 +59,63 @@ napoleon_attr_annotations = True
 
 # MyST parser settings (for Markdown support)
 myst_enable_extensions = [
-    'colon_fence',
-    'deflist',
-    'dollarmath',
-    'fieldlist',
-    'html_admonition',
-    'html_image',
-    'linkify',
-    'replacements',
-    'smartquotes',
-    'substitution',
-    'tasklist',
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "fieldlist",
+    "html_admonition",
+    "html_image",
+    "linkify",
+    "replacements",
+    "smartquotes",
+    "substitution",
+    "tasklist",
 ]
 
 # Source suffix
 source_suffix = {
-    '.rst': 'restructuredtext',
-    '.md': 'markdown',
+    ".rst": "restructuredtext",
+    ".md": "markdown",
 }
 
 # Master document
-master_doc = 'index'
+master_doc = "index"
 
 # Language
-language = 'en'
+language = "en"
 
 # List of patterns to exclude
 exclude_patterns = []
 
 # HTML output options
-html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_theme = "sphinx_rtd_theme"
 html_theme_options = {
-    'navigation_depth': 4,
-    'collapse_navigation': False,
-    'sticky_navigation': True,
-    'includehidden': True,
-    'titles_only': False,
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': True,
+    "navigation_depth": 4,
+    "collapse_navigation": False,
+    "sticky_navigation": True,
+    "includehidden": True,
+    "titles_only": False,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": True,
 }
 
 # Intersphinx mapping
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'torch': ('https://pytorch.org/docs/stable/', None),
+    "python": ("https://docs.python.org/3", None),
+    "torch": ("https://docs.pytorch.org/docs/stable/", None),
 }
 
 # Add any paths that contain custom static files (such as style sheets)
 html_css_files = []
 
 # Output file base name for HTML help builder
-htmlhelp_basename = 'genome_entropydoc'
+htmlhelp_basename = "genome_entropydoc"
 
 # GitHub link
 html_context = {
-    'display_github': True,
-    'github_user': 'linsalrob',
-    'github_repo': 'genome_entropy',
-    'github_version': 'main',
-    'conf_py_path': '/docs/source/',
+    "display_github": True,
+    "github_user": "linsalrob",
+    "github_repo": "genome_entropy",
+    "github_version": "main",
+    "conf_py_path": "/docs/source/",
 }

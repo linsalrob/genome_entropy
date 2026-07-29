@@ -26,15 +26,20 @@ def create_sample_data(output_dir: Path, n_files: int = 10) -> None:
 
     # Sample data in unified format
     sample_data = {
-        "schema_version": "2.0.0",
+        "schema_version": "2.1.0",
         "input_id": "sample_seq",
         "input_dna_length": 1000,
         "dna_entropy_global": 1.8,
-        "alphabet_sizes": {"dna": 4, "protein": 20, "three_di": 20},
+        "alphabet_sizes": {
+            "dna": 4,
+            "protein": 20,
+            "three_di": 20,
+            "twelve_state": 12,
+        },
         "features": {
             "orf_1": {
                 "orf_id": "orf_1",
-                "location": {"start": 0, "end": 300, "strand": "+", "frame": 0},
+                "location": {"start": 1, "end": 300, "strand": "+", "frame": 1},
                 "dna": {"nt_sequence": "ATG" * 100, "length": 300},
                 "protein": {"aa_sequence": "M" * 100, "length": 100},
                 "three_di": {
@@ -44,6 +49,7 @@ def create_sample_data(output_dir: Path, n_files: int = 10) -> None:
                     "model_name": "test_model",
                     "inference_device": "cpu",
                 },
+                "twelve_state": None,
                 "metadata": {
                     "parent_id": "sample_seq",
                     "table_id": 11,
@@ -55,11 +61,12 @@ def create_sample_data(output_dir: Path, n_files: int = 10) -> None:
                     "dna_entropy": 1.2,
                     "protein_entropy": 0.5,
                     "three_di_entropy": 0.3,
+                    "twelve_state_entropy": None,
                 },
             },
             "orf_2": {
                 "orf_id": "orf_2",
-                "location": {"start": 400, "end": 700, "strand": "-", "frame": 1},
+                "location": {"start": 401, "end": 700, "strand": "-", "frame": 1},
                 "dna": {"nt_sequence": "ATG" * 100, "length": 300},
                 "protein": {"aa_sequence": "K" * 100, "length": 100},
                 "three_di": {
@@ -69,6 +76,7 @@ def create_sample_data(output_dir: Path, n_files: int = 10) -> None:
                     "model_name": "test_model",
                     "inference_device": "cpu",
                 },
+                "twelve_state": None,
                 "metadata": {
                     "parent_id": "sample_seq",
                     "table_id": 11,
@@ -80,6 +88,7 @@ def create_sample_data(output_dir: Path, n_files: int = 10) -> None:
                     "dna_entropy": 1.5,
                     "protein_entropy": 0.8,
                     "three_di_entropy": 0.6,
+                    "twelve_state_entropy": None,
                 },
             },
         },
