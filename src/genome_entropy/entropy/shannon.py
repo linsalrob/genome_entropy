@@ -9,6 +9,55 @@ from ..logging_config import get_logger
 
 logger = get_logger(__name__)
 
+DNA_ALPHABET_SIZE = 4
+PROTEIN_ALPHABET_SIZE = 20
+THREE_DI_ALPHABET_SIZE = 20
+TWELVE_STATE_ALPHABET_SIZE = 12
+
+
+def normalise_entropy(entropy: float | None, alphabet_size: int) -> float | None:
+    """Normalise a raw Shannon entropy using its theoretical alphabet size.
+
+    This helper is intended for downstream analysis. Normalised values are
+    derived from raw entropy and are therefore not stored in standard output.
+
+    Args:
+        entropy: Raw Shannon entropy in bits, or ``None`` for missing data.
+        alphabet_size: The theoretical number of symbols in the representation.
+
+    Returns:
+        Entropy divided by ``log2(alphabet_size)``, or ``None`` when entropy is
+        ``None``.
+
+    Raises:
+        ValueError: If ``alphabet_size`` is not greater than one.
+    """
+    if entropy is None:
+        return None
+    if alphabet_size <= 1:
+        raise ValueError("alphabet_size must be greater than 1")
+    return entropy / math.log2(alphabet_size)
+
+
+def normalise_dna_entropy(entropy: float | None) -> float | None:
+    """Normalise raw DNA entropy using the theoretical four-symbol alphabet."""
+    return normalise_entropy(entropy, DNA_ALPHABET_SIZE)
+
+
+def normalise_protein_entropy(entropy: float | None) -> float | None:
+    """Normalise raw protein entropy using the theoretical 20-symbol alphabet."""
+    return normalise_entropy(entropy, PROTEIN_ALPHABET_SIZE)
+
+
+def normalise_three_di_entropy(entropy: float | None) -> float | None:
+    """Normalise raw 3Di entropy using the theoretical 20-symbol alphabet."""
+    return normalise_entropy(entropy, THREE_DI_ALPHABET_SIZE)
+
+
+def normalise_twelve_state_entropy(entropy: float | None) -> float | None:
+    """Normalise raw 12-state entropy using its theoretical alphabet."""
+    return normalise_entropy(entropy, TWELVE_STATE_ALPHABET_SIZE)
+
 
 @dataclass
 class EntropyReport:
