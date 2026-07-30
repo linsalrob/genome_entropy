@@ -2,7 +2,9 @@
 
 import os
 import sys
-from importlib.metadata import PackageNotFoundError, version as package_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
+from typing import Any
 
 # Add source directory to path for autodoc
 sys.path.insert(0, os.path.abspath("../../src"))
@@ -27,7 +29,6 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
-    "sphinx.ext.githubpages",
     "myst_parser",
 ]
 
@@ -85,7 +86,7 @@ master_doc = "index"
 language = "en"
 
 # List of patterns to exclude
-exclude_patterns = []
+exclude_patterns: list[str] = []
 
 # HTML output options
 html_theme = "sphinx_rtd_theme"
@@ -106,7 +107,7 @@ intersphinx_mapping = {
 }
 
 # Add any paths that contain custom static files (such as style sheets)
-html_css_files = []
+html_css_files: list[str] = []
 
 # Output file base name for HTML help builder
 htmlhelp_basename = "genome_entropydoc"
@@ -119,3 +120,21 @@ html_context = {
     "github_version": "main",
     "conf_py_path": "/docs/source/",
 }
+
+
+def configure_builder_specific_files(app: Any) -> None:
+    """Include GitHub Pages files only in browser-oriented HTML builds."""
+    # EPUB also has ``format == "html"``, so select concrete HTML builders.
+    if app.builder.name in {"html", "dirhtml", "singlehtml"}:
+        app.config.html_extra_path = [".nojekyll"]
+    else:
+        app.config.html_extra_path = []
+
+
+def setup(app: Any) -> dict[str, object]:
+    """Configure builder-specific documentation files."""
+    app.connect("builder-inited", configure_builder_specific_files)
+    return {
+        "parallel_read_safe": True,
+        "parallel_write_safe": True,
+    }

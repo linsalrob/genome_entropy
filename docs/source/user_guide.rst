@@ -43,9 +43,9 @@ Shannon entropy
 
 For observed symbol frequencies ``p_i``, raw Shannon entropy in bits is:
 
-.. code-block:: text
+.. math::
 
-   H = -Σ p_i log₂(p_i)
+   H = -\sum_i p_i \log_2(p_i)
 
 Zero describes a sequence containing one observed symbol. Larger values reflect
 more even use of more symbols, but do not by themselves establish sequence
