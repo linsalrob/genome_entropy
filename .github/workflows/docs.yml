@@ -34,21 +34,25 @@ jobs:
           pip install -e .
           pip install -e ".[docs]"
 
-      - name: Build documentation
+      - name: Build documentation with warnings as errors
         run: |
-          python -m sphinx -W --keep-going -b html docs/source docs/build/html
+          python -m sphinx -T -W --keep-going -b html -d docs/_build/doctrees-html docs/source docs/_build/html
+          python -m sphinx -T -W --keep-going -b epub -d docs/_build/doctrees-epub docs/source docs/_build/epub
+          python -m sphinx -T -W --keep-going -b latex -d docs/_build/doctrees-latex docs/source docs/_build/latex
 
       - name: Check documentation build
         run: |
-          ls -la docs/build/html/
-          test -f docs/build/html/index.html
+          ls -la docs/_build/html/
+          test -f docs/_build/html/index.html
+          test -f docs/_build/html/.nojekyll
+          test ! -e docs/_build/epub/.nojekyll
 
       # Optional: keep a build artifact for debugging / downloads from Actions UI
       - name: Upload documentation artifacts
         uses: actions/upload-artifact@v6
         with:
           name: documentation
-          path: docs/build/html/
+          path: docs/_build/html/
           retention-days: 30
 
       # Upload the Pages artifact (used by actions/deploy-pages)
@@ -60,7 +64,7 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/build/html
+          path: docs/_build/html
 
   deploy-pages:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

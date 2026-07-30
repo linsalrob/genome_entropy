@@ -85,8 +85,8 @@ def shannon_entropy(
 ) -> float:
     """Calculate Shannon entropy of a sequence.
 
-    Shannon entropy: H = -Σ(p_i × log₂(p_i))
-    where p_i is the frequency of symbol i.
+    Shannon entropy: :math:`H = -\\sum_i p_i \\log_2(p_i)`, where :math:`p_i` is
+    the frequency of symbol :math:`i`.
 
     Args:
         sequence: String to calculate entropy for
@@ -113,7 +113,7 @@ def shannon_entropy(
     counts = Counter(sequence)
     total = len(sequence)
 
-    # Calculate entropy: -Σ(p_i × log₂(p_i))
+    # Calculate entropy: -sum_i p_i * log2(p_i)
     entropy = 0.0
     for count in counts.values():
         if count > 0:
