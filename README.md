@@ -51,6 +51,23 @@ genome_entropy encode3di --input proteins.faa --output structures.json
 
 Run `genome_entropy --help` and `genome_entropy COMMAND --help` for the installed version's authoritative option list. Detailed examples are in the [quick-start guide](https://genome-entropy.readthedocs.io/en/latest/quickstart.html) and [CLI reference](https://genome-entropy.readthedocs.io/en/latest/cli.html).
 
+## Extract one GenBank record
+
+The dependency-free `bin/extract_genbank_locus` utility extracts one record
+from a large, uncompressed GenBank file. It matches the complete first token
+after `LOCUS`, writes from that `LOCUS` line through its terminating `//` line,
+and stops scanning immediately. Build it with a POSIX C compiler:
+
+```bash
+make -C bin
+bin/extract_genbank_locus INPUT.gbk LOCUS_ID OUTPUT.gbk
+```
+
+For example, `bin/extract_genbank_locus assemblies.gb NC_000913.3 ecoli.gb`
+matches `NC_000913.3` exactly; it will not match `NC_000913.30`. The output is
+created only after a complete matching record is found. Gzip input is not
+supported by this standalone utility; decompress it first.
+
 ## Supported encoders
 
 | Canonical model | Approximate size | 3Di | 12-state | Status |
