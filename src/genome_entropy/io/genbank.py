@@ -3,16 +3,57 @@
 import gzip
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqFeature import CompoundLocation, SeqFeature
+from Bio.SeqRecord import SeqRecord
 
+from ..config import DEFAULT_GENETIC_CODE_TABLE
 from ..logging_config import get_logger
 from ..orf.types import OrfRecord
 
 logger = get_logger(__name__)
 
 VALID_AMINO_ACIDS = frozenset("ACDEFGHIKLMNPQRSTVWYBJZUOX")
+MIN_CDS_OVERLAP_FRACTION = 0.90
+MIN_SHARED_AA_IDENTITY = 0.98
+
+
+@dataclass(frozen=True)
+class CodingInterval:
+    """A coding interval in zero-based, half-open genomic coordinates."""
+
+    start: int
+    end: int
+    strand: Literal["+", "-"]
+
+    def __post_init__(self) -> None:
+        if self.start < 0 or self.end <= self.start:
+            raise ValueError(f"Invalid coding interval: [{self.start}, {self.end})")
+        if self.strand not in ("+", "-"):
+            raise ValueError(f"Invalid coding strand: {self.strand}")
+
+    @property
+    def length(self) -> int:
+        """Return the genomic interval length in nucleotides."""
+        return self.end - self.start
+
+
+@dataclass(frozen=True)
+class CdsMatchResult:
+    """Diagnostics from one coordinate-anchored ORF/CDS comparison."""
+
+    matched: bool
+    overlap_nt: int = 0
+    overlap_fraction: float = 0.0
+    compared_aa: int = 0
+    compatible_aa: int = 0
+    wildcard_aa: int = 0
+    identity: float = 0.0
+    phase_compatible: bool = False
+    reason: str = ""
 
 
 @dataclass
@@ -25,13 +66,26 @@ class GenBankCDS:
         end: 0-based end position (exclusive)
         strand: Strand orientation ('+' or '-')
         protein_sequence: Translated protein sequence
+        record_length: Length of the parent sequence, needed to convert
+            reverse-complement ORF coordinates to genomic coordinates
+        feature_id: Stable CDS identifier used in diagnostics
+        translation_table: NCBI genetic code used by this CDS
+        codon_start: One-based offset of the first complete CDS codon
+        partial: Whether either Biopython location boundary is partial
+        skip_reason: Why this feature cannot safely be matched, if applicable
     """
 
     parent_id: str
     start: int
     end: int
-    strand: str
+    strand: Literal["+", "-"]
     protein_sequence: str
+    record_length: Optional[int] = None
+    feature_id: str = ""
+    translation_table: int = DEFAULT_GENETIC_CODE_TABLE
+    codon_start: int = 1
+    partial: bool = False
+    skip_reason: str = ""
 
 
 def read_genbank(genbank_path: Union[str, Path]) -> Dict[str, str]:
@@ -86,7 +140,73 @@ def read_genbank(genbank_path: Union[str, Path]) -> Dict[str, str]:
     return sequences
 
 
-def extract_cds_features(genbank_path: Union[str, Path]) -> List[GenBankCDS]:
+def _first_qualifier(qualifiers: Dict[str, List[str]], name: str) -> Optional[str]:
+    """Return the first non-empty value for a GenBank qualifier."""
+    values = qualifiers.get(name, [])
+    return values[0] if values else None
+
+
+def _translation_table(
+    qualifiers: Dict[str, List[str]],
+    record_default: Optional[int],
+    pipeline_default: int,
+) -> int:
+    """Resolve the CDS genetic code with increasingly broad fallbacks."""
+    value = _first_qualifier(qualifiers, "transl_table")
+    if value is not None:
+        try:
+            return int(value)
+        except ValueError:
+            logger.debug("Ignoring invalid CDS transl_table=%r", value)
+    return record_default or pipeline_default or DEFAULT_GENETIC_CODE_TABLE
+
+
+def _record_translation_table(record: SeqRecord) -> Optional[int]:
+    """Read a record-level translation table when one is explicitly present."""
+    annotations = getattr(record, "annotations", {})
+    value = annotations.get("transl_table")
+    if value is not None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            logger.debug("Ignoring invalid record transl_table=%r", value)
+
+    for feature in getattr(record, "features", []):
+        if feature.type != "source":
+            continue
+        source_value = _first_qualifier(feature.qualifiers, "transl_table")
+        if source_value is not None:
+            try:
+                return int(source_value)
+            except ValueError:
+                logger.debug("Ignoring invalid source transl_table=%r", source_value)
+    return None
+
+
+def _fallback_feature_translation(
+    feature: SeqFeature,
+    record_sequence: Seq,
+    codon_start: int,
+    translation_table: int,
+) -> str:
+    """Translate one CDS feature when its annotation omits ``/translation``."""
+    coding_sequence = feature.extract(record_sequence)
+    coding_sequence = coding_sequence[codon_start - 1 :]
+    complete_length = len(coding_sequence) - (len(coding_sequence) % 3)
+    if complete_length == 0:
+        return ""
+    return str(
+        coding_sequence[:complete_length].translate(
+            table=translation_table,
+            to_stop=False,
+        )
+    )
+
+
+def extract_cds_features(
+    genbank_path: Union[str, Path],
+    pipeline_table_id: int = DEFAULT_GENETIC_CODE_TABLE,
+) -> List[GenBankCDS]:
     """Extract CDS features from a GenBank file.
 
     Automatically detects and handles gzipped files (ending in .gz).
@@ -119,22 +239,79 @@ def extract_cds_features(genbank_path: Union[str, Path]) -> List[GenBankCDS]:
         with open_func(genbank_path, mode) as handle:
             for record in SeqIO.parse(handle, "genbank"):
                 seq_id = record.id
+                record_length = len(record)
+                record_table = _record_translation_table(record)
 
                 for feature in record.features:
                     if feature.type != "CDS":
                         continue
 
-                    # Get protein translation if available
-                    protein_seq = ""
-                    if "translation" in feature.qualifiers:
-                        protein_seq = feature.qualifiers["translation"][0]
+                    qualifiers = feature.qualifiers
+                    feature_id = (
+                        _first_qualifier(qualifiers, "protein_id")
+                        or _first_qualifier(qualifiers, "locus_tag")
+                        or _first_qualifier(qualifiers, "gene")
+                        or f"{seq_id}:{feature.location}"
+                    )
+                    try:
+                        codon_start = int(
+                            _first_qualifier(qualifiers, "codon_start") or "1"
+                        )
+                    except ValueError:
+                        codon_start = 1
+                    if codon_start not in (1, 2, 3):
+                        logger.debug(
+                            "Skipping CDS %s: invalid codon_start=%r",
+                            feature_id,
+                            _first_qualifier(qualifiers, "codon_start"),
+                        )
+                        continue
+                    translation_table = _translation_table(
+                        qualifiers,
+                        record_table,
+                        pipeline_table_id,
+                    )
 
-                    # Convert strand
-                    strand = "+" if feature.location.strand == 1 else "-"
+                    if isinstance(feature.location, CompoundLocation):
+                        logger.debug(
+                            "Skipping CDS %s: compound or origin-crossing location %s "
+                            "cannot be mapped to one contiguous ORF",
+                            feature_id,
+                            feature.location,
+                        )
+                        continue
+                    if feature.location.strand not in (1, -1):
+                        logger.debug(
+                            "Skipping CDS %s: location has no definite strand",
+                            feature_id,
+                        )
+                        continue
 
-                    # BioPython uses 0-based coordinates (inclusive start, exclusive end)
+                    strand: Literal["+", "-"] = (
+                        "+" if feature.location.strand == 1 else "-"
+                    )
                     start = int(feature.location.start)
                     end = int(feature.location.end)
+                    offset = codon_start - 1
+                    if strand == "+":
+                        start += offset
+                    else:
+                        end -= offset
+                    if end <= start:
+                        logger.debug(
+                            "Skipping CDS %s: codon_start leaves an empty interval",
+                            feature_id,
+                        )
+                        continue
+
+                    protein_seq = _first_qualifier(qualifiers, "translation")
+                    if protein_seq is None:
+                        protein_seq = _fallback_feature_translation(
+                            feature,
+                            record.seq,
+                            codon_start,
+                            translation_table,
+                        )
 
                     cds = GenBankCDS(
                         parent_id=seq_id,
@@ -142,15 +319,29 @@ def extract_cds_features(genbank_path: Union[str, Path]) -> List[GenBankCDS]:
                         end=end,
                         strand=strand,
                         protein_sequence=protein_seq,
+                        record_length=record_length,
+                        feature_id=feature_id,
+                        translation_table=translation_table,
+                        codon_start=codon_start,
+                        partial=(
+                            feature.location.start.__class__.__name__ != "ExactPosition"
+                            or feature.location.end.__class__.__name__
+                            != "ExactPosition"
+                        ),
                     )
                     cds_features.append(cds)
                     logger.debug(
-                        "Extracted CDS: %s %s:%d-%d (protein_len=%d)",
+                        "Extracted CDS %s: %s %s:%d-%d "
+                        "(protein_len=%d, table=%d, codon_start=%d, partial=%s)",
+                        feature_id,
                         seq_id,
                         strand,
                         start,
                         end,
                         len(protein_seq),
+                        translation_table,
+                        codon_start,
+                        cds.partial,
                     )
     except Exception as e:
         logger.error("Failed to extract CDS features: %s", e)
@@ -183,66 +374,238 @@ def amino_acids_are_compatible(residue_a: str, residue_b: str) -> bool:
     return residue_a == residue_b or residue_a == "X" or residue_b == "X"
 
 
-def compatible_c_terminal_suffix(shorter: str, longer: str) -> bool:
-    """Return whether ``shorter`` compatibly aligns to the end of ``longer``."""
-    if not shorter or len(shorter) > len(longer):
-        return False
+def normalise_orf_coordinates(
+    orf: OrfRecord,
+    record_length: Optional[int],
+) -> CodingInterval:
+    """Convert get_orfs one-based inclusive coordinates to genomic coordinates.
 
-    longer_tail = longer[-len(shorter) :]
-    return all(
-        amino_acids_are_compatible(shorter_residue, longer_residue)
-        for shorter_residue, longer_residue in zip(shorter, longer_tail)
+    Positive-strand coordinates index the source sequence. Negative-strand
+    coordinates index its reverse complement and therefore require the parent
+    record length to map them back to the genomic axis.
+    """
+    if orf.start < 1 or orf.end < orf.start:
+        raise ValueError(f"Invalid ORF coordinates: start={orf.start}, end={orf.end}")
+    if orf.strand == "+":
+        return CodingInterval(orf.start - 1, orf.end, "+")
+    if record_length is None:
+        raise ValueError("record length is required for a reverse-strand ORF")
+    if orf.end > record_length:
+        raise ValueError(f"ORF end {orf.end} exceeds record length {record_length}")
+    return CodingInterval(record_length - orf.end, record_length - orf.start + 1, "-")
+
+
+def normalise_genbank_coordinates(cds: GenBankCDS) -> CodingInterval:
+    """Return a CDS's already-normalised Biopython genomic interval."""
+    return CodingInterval(cds.start, cds.end, cds.strand)
+
+
+def coding_phase_is_compatible(
+    orf_interval: CodingInterval,
+    cds_interval: CodingInterval,
+) -> bool:
+    """Return whether biological translation starts share a codon phase."""
+    if orf_interval.strand != cds_interval.strand:
+        return False
+    if orf_interval.strand == "+":
+        difference = orf_interval.start - cds_interval.start
+    else:
+        difference = orf_interval.end - cds_interval.end
+    return difference % 3 == 0
+
+
+def calculate_interval_overlap(
+    first: CodingInterval,
+    second: CodingInterval,
+) -> tuple[int, float]:
+    """Return overlap length and its fraction of the shorter interval."""
+    overlap = max(0, min(first.end, second.end) - max(first.start, second.start))
+    fraction = overlap / min(first.length, second.length)
+    return overlap, fraction
+
+
+def _shared_protein_slices(
+    orf_interval: CodingInterval,
+    cds_interval: CodingInterval,
+) -> tuple[int, int, int]:
+    """Map the shared genomic codons to ORF/CDS protein offsets and a length."""
+    overlap_start = max(orf_interval.start, cds_interval.start)
+    overlap_end = min(orf_interval.end, cds_interval.end)
+    if overlap_end <= overlap_start:
+        return 0, 0, 0
+
+    if orf_interval.strand == "+":
+        shared_start = overlap_start
+        shared_codons = (overlap_end - shared_start) // 3
+        return (
+            (shared_start - orf_interval.start) // 3,
+            (shared_start - cds_interval.start) // 3,
+            shared_codons,
+        )
+
+    shared_end = overlap_end
+    shared_codons = (shared_end - overlap_start) // 3
+    return (
+        (orf_interval.end - shared_end) // 3,
+        (cds_interval.end - shared_end) // 3,
+        shared_codons,
+    )
+
+
+def compare_shared_translation(
+    orf_sequence: str,
+    cds_sequence: str,
+    orf_offset: int,
+    cds_offset: int,
+    shared_codons: int,
+) -> CdsMatchResult:
+    """Compare coordinate-aligned amino acids without gaps or local alignment."""
+    orf_protein = normalise_protein_sequence(orf_sequence)
+    cds_protein = normalise_protein_sequence(cds_sequence)
+    available = min(
+        shared_codons,
+        max(0, len(orf_protein) - orf_offset),
+        max(0, len(cds_protein) - cds_offset),
+    )
+    minimum_coverage = max(1, shared_codons - 1)
+    if available < minimum_coverage:
+        return CdsMatchResult(
+            False,
+            compared_aa=available,
+            reason=(
+                "translations do not cover all shared codons except a possible "
+                "terminal stop"
+            ),
+        )
+
+    compatible = 0
+    wildcards = 0
+    for orf_residue, cds_residue in zip(
+        orf_protein[orf_offset : orf_offset + available],
+        cds_protein[cds_offset : cds_offset + available],
+    ):
+        if amino_acids_are_compatible(orf_residue, cds_residue):
+            compatible += 1
+            if orf_residue == "X" or cds_residue == "X":
+                wildcards += 1
+    identity = compatible / available
+    return CdsMatchResult(
+        identity >= MIN_SHARED_AA_IDENTITY,
+        compared_aa=available,
+        compatible_aa=compatible,
+        wildcard_aa=wildcards,
+        identity=identity,
+        reason=(
+            "shared translation identity passed"
+            if identity >= MIN_SHARED_AA_IDENTITY
+            else "shared translation identity below threshold"
+        ),
+    )
+
+
+def evaluate_orf_genbank_cds_match(
+    orf: OrfRecord,
+    cds: GenBankCDS,
+) -> CdsMatchResult:
+    """Evaluate one genomic, strand, phase, overlap, and translation match."""
+    if orf.parent_id != cds.parent_id:
+        return CdsMatchResult(False, reason="different parent sequence")
+    if orf.strand != cds.strand:
+        return CdsMatchResult(False, reason="different strand")
+    if cds.skip_reason:
+        return CdsMatchResult(False, reason=cds.skip_reason)
+
+    try:
+        orf_interval = normalise_orf_coordinates(orf, cds.record_length)
+        cds_interval = normalise_genbank_coordinates(cds)
+    except ValueError as error:
+        return CdsMatchResult(False, reason=str(error))
+
+    phase_compatible = coding_phase_is_compatible(orf_interval, cds_interval)
+    overlap_nt, overlap_fraction = calculate_interval_overlap(
+        orf_interval,
+        cds_interval,
+    )
+    if not phase_compatible:
+        return CdsMatchResult(
+            False,
+            overlap_nt=overlap_nt,
+            overlap_fraction=overlap_fraction,
+            reason="different codon phase",
+        )
+    if overlap_fraction < MIN_CDS_OVERLAP_FRACTION:
+        return CdsMatchResult(
+            False,
+            overlap_nt=overlap_nt,
+            overlap_fraction=overlap_fraction,
+            phase_compatible=True,
+            reason="genomic overlap below threshold",
+        )
+
+    orf_offset, cds_offset, shared_codons = _shared_protein_slices(
+        orf_interval,
+        cds_interval,
+    )
+    translation_result = compare_shared_translation(
+        orf.aa_sequence,
+        cds.protein_sequence,
+        orf_offset,
+        cds_offset,
+        shared_codons,
+    )
+    return CdsMatchResult(
+        translation_result.matched,
+        overlap_nt=overlap_nt,
+        overlap_fraction=overlap_fraction,
+        compared_aa=translation_result.compared_aa,
+        compatible_aa=translation_result.compatible_aa,
+        wildcard_aa=translation_result.wildcard_aa,
+        identity=translation_result.identity,
+        phase_compatible=True,
+        reason=translation_result.reason,
+    )
+
+
+def _log_match_result(
+    orf: OrfRecord,
+    cds: GenBankCDS,
+    result: CdsMatchResult,
+) -> None:
+    """Emit structured debug diagnostics without logging sequence content."""
+    try:
+        orf_interval = normalise_orf_coordinates(orf, cds.record_length)
+        cds_interval = normalise_genbank_coordinates(cds)
+        coordinates = (
+            f"orf=[{orf_interval.start},{orf_interval.end}) "
+            f"cds=[{cds_interval.start},{cds_interval.end})"
+        )
+    except ValueError:
+        coordinates = "coordinates=invalid"
+    logger.debug(
+        "GenBank CDS match orf_id=%s cds_id=%s strand=%s %s phase=%s "
+        "overlap_nt=%d overlap_fraction=%.4f compared_aa=%d wildcard_aa=%d "
+        "identity=%.4f matched=%s reason=%s",
+        orf.orf_id,
+        cds.feature_id or "<unknown>",
+        orf.strand,
+        coordinates,
+        result.phase_compatible,
+        result.overlap_nt,
+        result.overlap_fraction,
+        result.compared_aa,
+        result.wildcard_aa,
+        result.identity,
+        result.matched,
+        result.reason,
     )
 
 
 def orf_matches_genbank_cds(orf: OrfRecord, cds: GenBankCDS) -> bool:
-    """Match proteins by strand-aware stop and compatible C-terminal sequence.
-
-    C-terminal matching recognises partial CDS translations and alternative
-    initiation residues. ``X`` is compatible with any valid amino-acid symbol
-    at an aligned position; all other unequal residues remain mismatches.
-    """
-    if orf.parent_id != cds.parent_id or orf.strand != cds.strand:
-        return False
-
-    # get_orfs reports one-based inclusive coordinates. Biopython reports
-    # zero-based, half-open locations, so only the reverse-strand low coordinate
-    # needs an offset when comparing biological translation termination sites.
-    orf_stop = orf.end if orf.strand == "+" else orf.start
-    cds_stop = cds.end if cds.strand == "+" else cds.start + 1
-    if orf_stop != cds_stop:
-        return False
-
-    orf_c_terminal = normalise_protein_sequence(orf.aa_sequence)[1:]
-    cds_c_terminal = normalise_protein_sequence(cds.protein_sequence)[1:]
-    if not orf_c_terminal or not cds_c_terminal:
-        return False
-
-    shorter, longer = sorted(
-        (orf_c_terminal, cds_c_terminal),
-        key=len,
-    )
-    matches = compatible_c_terminal_suffix(shorter, longer)
-    if not matches and len(shorter) <= len(longer):
-        longer_tail = longer[-len(shorter) :]
-        for position, (shorter_residue, longer_residue) in enumerate(
-            zip(shorter, longer_tail),
-            start=1,
-        ):
-            if not amino_acids_are_compatible(shorter_residue, longer_residue):
-                logger.debug(
-                    "ORF %s and CDS at %s:%d-%d share a stop coordinate but "
-                    "differ at aligned residue %d: %s versus %s",
-                    orf.orf_id,
-                    cds.parent_id,
-                    cds.start,
-                    cds.end,
-                    position,
-                    shorter_residue,
-                    longer_residue,
-                )
-                break
-    return matches
+    """Return whether an ORF and CDS represent the same coordinate-anchored gene."""
+    result = evaluate_orf_genbank_cds_match(orf, cds)
+    if orf.parent_id == cds.parent_id and orf.strand == cds.strand:
+        _log_match_result(orf, cds, result)
+    return result.matched
 
 
 def match_orf_to_genbank_cds(
@@ -253,8 +616,9 @@ def match_orf_to_genbank_cds(
     for cds in genbank_cds_list:
         if orf_matches_genbank_cds(orf, cds):
             logger.debug(
-                "ORF %s matches GenBank CDS at %s:%d-%d (%s)",
+                "ORF %s matches GenBank CDS %s at %s:%d-%d (%s)",
                 orf.orf_id,
+                cds.feature_id or "<unknown>",
                 cds.parent_id,
                 cds.start,
                 cds.end,

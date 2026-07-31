@@ -20,7 +20,8 @@ class OrfRecord:
         table_id: NCBI genetic code table ID used
         has_start_codon: Whether the source amino-acid string contains ``M``
         has_stop_codon: Whether the source amino-acid string contains ``*``
-        in_genbank: Whether the C-terminal GenBank CDS heuristic matched this ORF
+        in_genbank: Whether the coordinate-anchored GenBank CDS matcher matched
+            this ORF
     """
 
     parent_id: str

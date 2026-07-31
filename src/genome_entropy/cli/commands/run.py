@@ -71,7 +71,7 @@ def run_command(
         "-g",
         help="GenBank file with DNA sequences and CDS annotations. "
         "Can be used instead of --input to provide both sequences and annotations. "
-        "ORFs will be matched to GenBank CDS features by C-terminal sequence.",
+        "ORFs are matched to CDS features by genomic overlap, frame, and translation.",
         exists=True,
         dir_okay=False,
     ),

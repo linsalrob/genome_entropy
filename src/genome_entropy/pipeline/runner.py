@@ -138,7 +138,10 @@ def run_pipeline(
         if genbank_file:
             logger.info("Reading GenBank file...")
             sequences = read_genbank(genbank_file)
-            genbank_cds_list = extract_cds_features(genbank_file)
+            genbank_cds_list = extract_cds_features(
+                genbank_file,
+                pipeline_table_id=table_id,
+            )
             logger.info("Extracted %d CDS features from GenBank", len(genbank_cds_list))
 
             # If input_fasta is also provided, use it for sequences instead
