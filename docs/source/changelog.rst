@@ -4,6 +4,15 @@ Changelog
 Unreleased
 ----------
 
+Fixes
+^^^^^
+
+* Replaced stop-coordinate/C-terminal CDS matching with coordinate-normalised,
+  strand- and phase-aware genomic overlap plus aligned translation comparison.
+  Alternative starts, ambiguous ``X`` residues, small terminal differences,
+  CDS-specific translation tables, ``codon_start``, and missing translation
+  qualifiers are now handled without unrestricted local matching.
+
 Documentation
 ^^^^^^^^^^^^^
 
