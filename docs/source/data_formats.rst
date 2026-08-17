@@ -17,13 +17,13 @@ both (FASTA supplies sequences while GenBank supplies CDS annotations). GenBank
 Unified pipeline JSON
 ---------------------
 
-``run`` serialises schema ``2.1.0``. The top level is a list because one input
+``run`` serialises schema ``2.2.0``. The top level is a list because one input
 file can contain multiple sequence records. A compact representative record is:
 
 .. code-block:: json
 
    [{
-     "schema_version": "2.1.0",
+     "schema_version": "2.2.0",
      "input_id": "contig_1",
      "input_dna_length": 900,
      "dna_entropy_global": 1.97,
@@ -55,7 +55,8 @@ file can contain multiple sequence records. A compact representative record is:
            "dna_entropy": 1.8,
            "protein_entropy": 3.4,
            "three_di_entropy": 3.1,
-           "twelve_state_entropy": 2.7
+           "twelve_state_entropy": 2.7,
+           "three_di_twelve_state_mutual_information": 1.9
          }
        }
      }
@@ -152,6 +153,7 @@ Use theoretical sizes 4 for DNA, 20 for protein, 20 for 3Di, and 12 for
        normalise_protein_entropy,
        normalise_three_di_entropy,
        normalise_twelve_state_entropy,
+       mutual_information,
    )
 
    generic = normalise_entropy(raw_entropy, alphabet_size=20)
@@ -160,6 +162,24 @@ Use theoretical sizes 4 for DNA, 20 for protein, 20 for 3Di, and 12 for
 All helpers return ``None`` for missing entropy. The generic helper raises
 ``ValueError`` when a non-missing value is supplied with an alphabet size of one
 or less.
+
+Structural mutual information
+-----------------------------
+
+For dual-head ModernProst models, each residue has aligned 3Di and 12-state
+symbols. The output stores their empirical mutual information in raw bits:
+
+.. math::
+
+   I(X;Y) = \sum_x \sum_y p(x,y) \log_2\left(\frac{p(x,y)}{p(x)p(y)}\right)
+
+This measures how much information one structural-state encoding provides about
+the other across an ORF; it is not another entropy of either alphabet. No
+normalised mutual information is stored because several normalisations are
+reasonable. The intermediate 12 by 20 contingency table is not serialised;
+the aligned discrete argmax sequences already retain the underlying data.
+Legacy 3Di-only models write
+``three_di_twelve_state_mutual_information: null``.
 
 Intermediate and backward-compatible formats
 --------------------------------------------
@@ -173,6 +193,7 @@ sizes; its global DNA entropy is ``0.0`` because the original full contig is not
 available at that stage.
 
 The JSON writer converts in-memory legacy ``PipelineResult`` objects to unified
-schema 2.1. It does not provide a general command that migrates arbitrary legacy
+schema 2.2. Older schema 2.1 files remain readable and receive missing 12-state
+and mutual-information fields as ``null``. It does not provide a general command that migrates arbitrary legacy
 JSON dictionaries on disk. ML feature extraction accepts both unified and older
 pipeline layouts and treats absent 12-state features as missing values.

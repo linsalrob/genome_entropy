@@ -29,7 +29,11 @@ def entropy_command(
     Computes entropy for DNA, ORF nucleotides, proteins, 3Di, and 12-state tokens.
     """
     try:
-        from ...entropy.shannon import calculate_entropies_for_sequences, EntropyReport
+        from ...entropy.shannon import (
+            EntropyReport,
+            calculate_entropies_for_sequences,
+            mutual_information,
+        )
         from ...io.jsonio import read_json, write_json
         from ...orf.types import OrfRecord
         from ...translate.translator import ProteinRecord
@@ -90,6 +94,15 @@ def entropy_command(
             if twelve_state_seqs
             else None
         )
+        three_di_twelve_state_mutual_information = (
+            {
+                td.protein.orf.orf_id: mutual_information(td.three_di, td.twelve_state)
+                for td in three_dis
+                if td.twelve_state is not None
+            }
+            if twelve_state_seqs
+            else None
+        )
 
         # Create report
         report = EntropyReport(
@@ -104,6 +117,9 @@ def entropy_command(
                 "twelve_state": TWELVE_STATE_ALPHABET_SIZE,
             },
             twelve_state_entropy=twelve_state_entropy,
+            three_di_twelve_state_mutual_information=(
+                three_di_twelve_state_mutual_information
+            ),
         )
 
         typer.echo(f"  Calculated entropy for {len(orf_nt_entropy)} sequence(s)")

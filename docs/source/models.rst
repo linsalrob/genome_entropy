@@ -60,6 +60,8 @@ Output semantics
 The additional 12-state head predicts 12 structural classes. In JSON, 12-state
 class IDs 0--11 are deterministically serialised as characters ``A``--``L``;
 these letters are storage symbols, not a published biological nomenclature.
+For dual-head output, genome_entropy also stores raw per-ORF mutual information
+in bits between the aligned discrete 3Di and 12-state sequences.
 
 For legacy models, structural records and unified pipeline output contain:
 
@@ -67,7 +69,8 @@ For legacy models, structural records and unified pipeline output contain:
 
    {
      "twelve_state": null,
-     "twelve_state_entropy": null
+     "twelve_state_entropy": null,
+     "three_di_twelve_state_mutual_information": null
    }
 
 Older JSON in which these fields are absent remains readable and is treated as

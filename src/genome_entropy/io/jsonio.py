@@ -11,7 +11,7 @@ from ..logging_config import get_logger
 logger = get_logger(__name__)
 
 # Schema version for tracking output format changes
-SCHEMA_VERSION = "2.1.0"
+SCHEMA_VERSION = "2.2.0"
 
 
 def to_json_dict(obj: Any) -> Any:
@@ -110,6 +110,11 @@ def convert_pipeline_result_to_unified(pipeline_result):
             if result.entropy.twelve_state_entropy is None
             else result.entropy.twelve_state_entropy.get(orf_id)
         )
+        three_di_twelve_state_mutual_information = (
+            None
+            if result.entropy.three_di_twelve_state_mutual_information is None
+            else result.entropy.three_di_twelve_state_mutual_information.get(orf_id)
+        )
 
         # Build the unified feature
         # Instead of storing the ORF object three times, we extract each
@@ -155,6 +160,9 @@ def convert_pipeline_result_to_unified(pipeline_result):
                 protein_entropy=protein_entropy,
                 three_di_entropy=three_di_entropy,
                 twelve_state_entropy=twelve_state_entropy,
+                three_di_twelve_state_mutual_information=(
+                    three_di_twelve_state_mutual_information
+                ),
             ),
             twelve_state=(
                 None
@@ -220,7 +228,7 @@ def write_json(data: Any, output_path: Union[str, Path], indent: int = 2) -> Non
       - entropy.orf_nt_entropy[id] → features[id].entropy.dna_entropy
 
     NEW FORMAT adds:
-      - schema_version: "2.1.0" (for compatibility tracking)
+      - schema_version: "2.2.0" (for compatibility tracking)
       - features: dict (replaces orfs, proteins, three_dis lists)
       - Hierarchical organization (location, dna, protein, three_di, metadata, entropy)
 
@@ -304,7 +312,8 @@ def read_json(input_path: Union[str, Path]) -> Any:
     with open_func(input_path, mode, encoding="utf-8") as f:
         data = json.load(f)
 
-    # Schema 2.0 and older predate the optional 12-state representation.
+    # Schema 2.0 and older predate the optional 12-state representation, and
+    # schema 2.1 predates mutual information between structural encodings.
     records = data if isinstance(data, list) else [data]
     for record in records:
         if not isinstance(record, dict):
@@ -312,9 +321,15 @@ def read_json(input_path: Union[str, Path]) -> Any:
         for feature in record.get("features", {}).values():
             feature.setdefault("twelve_state", None)
             feature.setdefault("entropy", {}).setdefault("twelve_state_entropy", None)
+            feature["entropy"].setdefault(
+                "three_di_twelve_state_mutual_information", None
+            )
         for structural_record in record.get("three_dis", []):
             structural_record.setdefault("twelve_state", None)
         record.get("entropy", {}).setdefault("twelve_state_entropy", None)
+        record.get("entropy", {}).setdefault(
+            "three_di_twelve_state_mutual_information", None
+        )
 
     logger.info("Successfully read JSON file: %s", input_path)
     return data

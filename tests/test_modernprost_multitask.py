@@ -25,7 +25,7 @@ from genome_entropy.config import (
     resolve_model_name,
 )
 from genome_entropy.encode3di.types import IndexedSeq, StructuralEncoding, ThreeDiRecord
-from genome_entropy.entropy.shannon import shannon_entropy
+from genome_entropy.entropy.shannon import mutual_information, shannon_entropy
 from genome_entropy.errors import ModelError
 from genome_entropy.io.jsonio import read_json, to_json_dict
 from genome_entropy.ml.classifier import extract_features
@@ -283,6 +283,9 @@ def test_pipeline_entropy_reports_twelve_state_or_none() -> None:
     assert report.twelve_state_entropy == {
         "orf1": pytest.approx(shannon_entropy("AABC"))
     }
+    assert report.three_di_twelve_state_mutual_information == {
+        "orf1": pytest.approx(mutual_information("ACDE", "AABC"))
+    }
     assert report.alphabet_sizes["twelve_state"] == 12
 
     _orf, _protein, legacy_record = make_structural_record(None)
@@ -293,6 +296,7 @@ def test_pipeline_entropy_reports_twelve_state_or_none() -> None:
         [legacy_record],
     )
     assert legacy_report.twelve_state_entropy is None
+    assert legacy_report.three_di_twelve_state_mutual_information is None
 
 
 def test_read_json_backfills_older_twelve_state_fields(tmp_path) -> None:
@@ -309,6 +313,12 @@ def test_read_json_backfills_older_twelve_state_fields(tmp_path) -> None:
     loaded = read_json(path)
     assert loaded["features"]["orf1"]["twelve_state"] is None
     assert loaded["features"]["orf1"]["entropy"]["twelve_state_entropy"] is None
+    assert (
+        loaded["features"]["orf1"]["entropy"][
+            "three_di_twelve_state_mutual_information"
+        ]
+        is None
+    )
 
 
 def test_ml_features_include_twelve_state_values() -> None:

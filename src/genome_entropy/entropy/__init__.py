@@ -6,6 +6,7 @@ from .shannon import (
     normalise_protein_entropy,
     normalise_three_di_entropy,
     normalise_twelve_state_entropy,
+    mutual_information,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "normalise_protein_entropy",
     "normalise_three_di_entropy",
     "normalise_twelve_state_entropy",
+    "mutual_information",
 ]

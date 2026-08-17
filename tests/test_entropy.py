@@ -1,6 +1,7 @@
 """Tests for Shannon entropy calculation."""
 
 import math
+from collections import Counter
 
 import pytest
 
@@ -13,6 +14,7 @@ from genome_entropy.entropy.shannon import (
     normalise_protein_entropy,
     normalise_three_di_entropy,
     normalise_twelve_state_entropy,
+    mutual_information,
     shannon_entropy,
 )
 
@@ -42,6 +44,39 @@ def test_representation_normalisation_wrappers() -> None:
 def test_shannon_entropy_empty_string() -> None:
     """Test entropy of empty string is 0."""
     assert shannon_entropy("") == 0.0
+
+
+def test_mutual_information_perfect_coupling() -> None:
+    assert mutual_information("AAAAABBBBB", "AAAAABBBBB") == pytest.approx(1.0)
+    assert mutual_information("AAAAABBBBB", "CCCCCDDDDD") == pytest.approx(1.0)
+
+
+def test_mutual_information_independent_and_constant_variables() -> None:
+    assert mutual_information("AABB", "ABAB") == pytest.approx(0.0)
+    assert mutual_information("AAAAAAAA", "ABCDABCD") == pytest.approx(0.0)
+
+
+def test_mutual_information_empty_and_unequal_inputs() -> None:
+    assert mutual_information("", "") == 0.0
+    with pytest.raises(ValueError, match="aligned sequences of equal length"):
+        mutual_information("ABC", "AB")
+
+
+def test_mutual_information_symmetry_nonnegative_and_entropy_identity() -> None:
+    sequence_a = "AABBAABB"
+    sequence_b = "ABABABAB"
+    information = mutual_information(sequence_a, sequence_b)
+    joint_counts = Counter(zip(sequence_a, sequence_b))
+    joint_entropy = -sum(
+        (count / len(sequence_a)) * math.log2(count / len(sequence_a))
+        for count in joint_counts.values()
+    )
+
+    assert information == pytest.approx(mutual_information(sequence_b, sequence_a))
+    assert information >= 0.0
+    assert information == pytest.approx(
+        shannon_entropy(sequence_a) + shannon_entropy(sequence_b) - joint_entropy
+    )
 
 
 def test_shannon_entropy_single_symbol() -> None:

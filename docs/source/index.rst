@@ -10,8 +10,10 @@ content across representations derived from genomic DNA:
 
 Current multitask ModernProst models emit both 3Di and 12-state (``12st``)
 encodings. Legacy ModernProst and ProstT5 models emit 3Di only. Raw Shannon
-entropy is calculated for available representations; normalised entropy is a
-downstream derived value and is not stored in standard JSON.
+entropy is calculated for available representations. When both structural
+encodings are available, raw 3Di--12-state mutual information is also stored.
+Normalised entropy and mutual information are downstream derived values and are
+not stored in standard JSON.
 
 The pipeline calls the external ``get_orfs`` program for six-frame ORF discovery,
 uses ``pygenetic-code`` for translation, and supports FASTA or GenBank input.
