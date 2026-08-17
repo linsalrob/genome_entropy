@@ -16,6 +16,15 @@ from collections import Counter
 from itertools import combinations
 from pathlib import Path
 
+import matplotlib
+import seaborn as sns
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 
 VARIABLES = (
     "dna_entropy",
@@ -278,16 +287,102 @@ def write_results_record(
         "identify a single separating threshold. The scatter plots should be "
         "used to inspect the regions where the two classes differ.\n\n"
         "## Outputs\n\n"
-        "- [Most informative pair scatter](most_informative_pair_scatter.svg)\n"
-        "- [Four-panel entropy and mutual-information scatter plot](in_genbank_entropy_mi_panels.svg)\n"
+        "- Most informative pair scatter: [SVG](most_informative_pair_scatter.svg) | [PNG](most_informative_pair_scatter.png)\n"
+        "- Four-panel entropy and mutual-information scatter plot: [SVG](in_genbank_entropy_mi_panels.svg) | [PNG](in_genbank_entropy_mi_panels.png)\n"
         "- [All pairwise rankings](pairwise_in_genbank_mutual_information.tsv)\n\n"
         "## Method\n\n"
         f"- Valid ORFs: {counts[True]:,} in GenBank; {counts[False]:,} not in GenBank.\n"
         f"- Skipped rows: {skipped:,}.\n"
         f"- Pair ranking: empirical mutual information with `in_genbank`, using {bins} by {bins} quantile bins and a deterministic class-balanced reservoir of up to {reservoir_size:,} ORFs per class.\n"
-        "- Each scatter panel displays a deterministic balanced random sample of up to 10,000 ORFs per class.\n",
+        "- Figures were made with Seaborn/Matplotlib. Each scatter panel displays a deterministic balanced random sample of up to 10,000 ORFs per class.\n",
         encoding="utf-8",
     )
+
+
+def save_figure(figure: Figure, output_stem: Path) -> None:
+    """Save a Seaborn/Matplotlib figure as both PNG and SVG."""
+    figure.savefig(output_stem.with_suffix(".png"), dpi=220, bbox_inches="tight")
+    figure.savefig(output_stem.with_suffix(".svg"), bbox_inches="tight")
+    plt.close(figure)
+
+
+def sampled_by_label(
+    observations: list[tuple[tuple[float, ...], bool]], limit: int,
+    random_source: random.Random,
+) -> dict[bool, list[tuple[float, ...]]]:
+    """Return an equally sized random sample of each label's observations."""
+    values_by_label = {
+        label: [values for values, observed_label in observations if observed_label == label]
+        for label in LABELS
+    }
+    return {
+        label: random_source.sample(values, min(limit, len(values)))
+        for label, values in values_by_label.items()
+    }
+
+
+def seaborn_scatter(
+    axis: Axes, samples: dict[bool, list[tuple[float, ...]]], index_a: int,
+    index_b: int,
+) -> None:
+    """Draw a class-coloured scatter plot with Seaborn."""
+    palette = {False: "#e66101", True: "#1b9e77"}
+    labels = {False: "not in GenBank", True: "in GenBank"}
+    for label in LABELS:
+        values = samples[label]
+        sns.scatterplot(
+            x=[value[index_a] for value in values],
+            y=[value[index_b] for value in values],
+            ax=axis,
+            color=palette[label],
+            label=labels[label],
+            alpha=0.18,
+            s=9,
+            linewidth=0,
+            rasterized=False,
+        )
+    axis.set_xlabel(VARIABLES[index_a])
+    axis.set_ylabel(VARIABLES[index_b])
+
+
+def write_seaborn_figures(
+    observations: list[tuple[tuple[float, ...], bool]], output_directory: Path,
+    best_index_a: int, best_index_b: int, random_source: random.Random,
+) -> None:
+    """Write the single best-pair and requested four-panel Seaborn figures."""
+    sns.set_theme(style="whitegrid", context="notebook")
+
+    best_figure, best_axis = plt.subplots(figsize=(9, 7))
+    seaborn_scatter(
+        best_axis,
+        sampled_by_label(observations, 20_000, random_source),
+        best_index_a,
+        best_index_b,
+    )
+    best_axis.set_title("Most informative entropy-variable pair for in_genbank")
+    best_axis.legend(title="GenBank status", markerscale=2)
+    save_figure(best_figure, output_directory / "most_informative_pair_scatter")
+
+    panels = (
+        (1, 4, "Protein entropy vs structural mutual information"),
+        (2, 3, "3Di entropy vs 12-state entropy"),
+        (2, 4, "3Di entropy vs structural mutual information"),
+        (3, 4, "12-state entropy vs structural mutual information"),
+    )
+    panel_figure, axes = plt.subplots(2, 2, figsize=(15, 12), constrained_layout=True)
+    for axis, (index_a, index_b, title) in zip(axes.flat, panels):
+        seaborn_scatter(
+            axis,
+            sampled_by_label(observations, 10_000, random_source),
+            index_a,
+            index_b,
+        )
+        axis.set_title(title)
+        axis.legend(title="GenBank status", markerscale=2)
+    panel_figure.suptitle(
+        "Entropy and structural mutual information by GenBank status", fontsize=16
+    )
+    save_figure(panel_figure, output_directory / "in_genbank_entropy_mi_panels")
 
 
 def main() -> None:
@@ -324,14 +419,11 @@ def main() -> None:
         )
 
     _, index_a, index_b = rankings[0]
-    write_plot(
-        observations, index_a, index_b,
-        args.output_directory / "most_informative_pair_scatter.svg",
-        random.Random(args.seed + 1),
-    )
-    write_multi_panel_plot(
+    write_seaborn_figures(
         observations,
-        args.output_directory / "in_genbank_entropy_mi_panels.svg",
+        args.output_directory,
+        index_a,
+        index_b,
         random.Random(args.seed + 2),
     )
     write_results_record(
