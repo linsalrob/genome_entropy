@@ -21,5 +21,5 @@ for offset in 0 1 2 3; do
     chunk=$(printf '%s/phold_%04d.gbk.gz' "$1" "$index")
     output=$(printf '%s/phold_%04d.json.gz' "$2" "$index")
     [[ -f "$chunk" ]] || continue
-    slurm/rocm/rerun_mutual_information.slurm "$chunk" "$output"
+    bash slurm/rocm/rerun_mutual_information.slurm "$chunk" "$output"
 done
