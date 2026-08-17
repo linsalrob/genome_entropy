@@ -1,8 +1,15 @@
 Changelog
 =========
 
-Unreleased
-----------
+0.2.0 — 17 August 2026
+----------------------
+
+Structural-state analysis
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* Added raw per-ORF mutual information in bits between aligned 3Di and
+  12-state ModernProst representations. The schema is now version 2.2; legacy
+  3Di-only output remains compatible and reports the new field as ``null``.
 
 Fixes
 ^^^^^

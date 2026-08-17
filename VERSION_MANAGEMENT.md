@@ -1,6 +1,6 @@
 # Version management
 
-`pyproject.toml` is the single authoritative package-version source. The current version is `0.1.15`.
+`pyproject.toml` is the single authoritative package-version source. The current version is `0.2.0`.
 
 `src/genome_entropy/__init__.py` and `docs/source/conf.py` read installed metadata through `importlib.metadata.version("genome_entropy")`; the CLI imports that value for `--version`. The package requires Python 3.10 or newer and CI tests 3.10, 3.11, and 3.12.
 
