@@ -1,0 +1,35 @@
+#!/bin/bash
+#SBATCH --job-name=rank_orfs
+#SBATCH --account=pawsey1018-gpu
+#SBATCH --gres=gpu:8
+#SBATCH --partition=gpu-dev
+#SBATCH --time=0-4
+#SBATCH --ntasks=1
+#SBATCH -o %x-%j.out
+#SBATCH -e %x-%j.err
+
+set -euo pipefail
+trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+
+if [[ $# -ne 2 ]]; then 
+	echo "$0 <directory of json files> <output directory>" >&2;
+	exit 1;
+fi
+
+VENV_DIR="/scratch/$PAWSEY_PROJECT/$USER/software/pip/genome_entropy"
+if [[ ! -e "$VENV_DIR" ]]; then 
+	echo "Please run the installer to create the venv" >&2;
+	exit 1;
+fi
+
+source "$VENV_DIR/bin/activate"
+
+
+python /home/edwa0468/GitHubs/genome_entropy/scripts/rank_missing_orfs.py \
+    --json-dir $1 \
+    --output-dir $2 \
+    --folds 5 \
+    --minimum-probability 0.80 \
+    --minimum-aa-length 30 \
+    --device cuda
+
