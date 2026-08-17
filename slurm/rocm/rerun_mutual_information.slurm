@@ -27,8 +27,11 @@ fi
 mkdir -p "$(dirname "${OUTPUT}")"
 source "${VENV_DIR}/bin/activate"
 
+FASTA="${OUTPUT%.json.gz}.fasta.gz"
+python scripts/genbank_to_fasta.py "${INPUT}" "${FASTA}"
+
 genome_entropy run \
-    --genbank "${INPUT}" \
+    --input "${FASTA}" \
     --output "${OUTPUT}" \
     --model gbouras13/modernprost-50M \
     --multi-gpu \

@@ -10,6 +10,8 @@ import csv
 import gzip
 import json
 import math
+import sqlite3
+import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Iterator
@@ -94,11 +96,36 @@ def iter_records(input_path: Path) -> Iterator[dict]:
             yield value
 
 
-def write_tsv(input_path: Path, output_path: Path) -> tuple[int, int]:
+def label_database(label_path: Path) -> tuple[tempfile.TemporaryDirectory[str], sqlite3.Connection]:
+    """Create a disk-backed lookup of legacy PHOLD GenBank-match labels."""
+    temporary_directory = tempfile.TemporaryDirectory()
+    connection = sqlite3.connect(Path(temporary_directory.name) / "labels.sqlite")
+    connection.execute(
+        "CREATE TABLE labels (input_id, start, end, strand, frame, in_genbank, "
+        "PRIMARY KEY (input_id, start, end, strand, frame))"
+    )
+    for record in iter_records(label_path):
+        for feature in record.get("features", {}).values():
+            location = feature["location"]
+            connection.execute(
+                "INSERT OR REPLACE INTO labels VALUES (?, ?, ?, ?, ?, ?)",
+                (record["input_id"], location["start"], location["end"],
+                 location["strand"], location["frame"],
+                 feature.get("metadata", {}).get("in_genbank")),
+            )
+    connection.commit()
+    return temporary_directory, connection
+
+
+def write_tsv(input_path: Path, output_path: Path, label_path: Path | None) -> tuple[int, int]:
     """Extract one TSV row per ORF and return record and ORF counts."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     records = 0
     features_written = 0
+    temporary_directory = None
+    labels = None
+    if label_path is not None:
+        temporary_directory, labels = label_database(label_path)
 
     with output_path.open("w", newline="", encoding="utf-8") as output_handle:
         writer = csv.DictWriter(output_handle, fieldnames=HEADER, delimiter="\t")
@@ -118,6 +145,16 @@ def write_tsv(input_path: Path, output_path: Path) -> tuple[int, int]:
                 if information is None and twelve_state_encoding is not None:
                     information = mutual_information(three_di, twelve_state_encoding)
 
+                in_genbank = feature.get("metadata", {}).get("in_genbank", "")
+                if labels is not None:
+                    location = feature["location"]
+                    matched = labels.execute(
+                        "SELECT in_genbank FROM labels WHERE input_id = ? AND start = ? "
+                        "AND end = ? AND strand = ? AND frame = ?",
+                        (input_id, location["start"], location["end"],
+                         location["strand"], location["frame"]),
+                    ).fetchone()
+                    in_genbank = "" if matched is None else bool(matched[0])
                 writer.writerow(
                     {
                         "input_id": input_id,
@@ -131,13 +168,15 @@ def write_tsv(input_path: Path, output_path: Path) -> tuple[int, int]:
                         "three_di_twelve_state_mutual_information": (
                             "" if information is None else information
                         ),
-                        "in_genbank": feature.get("metadata", {}).get(
-                            "in_genbank", ""
-                        ),
+                        "in_genbank": in_genbank,
                     }
                 )
                 features_written += 1
 
+    if labels is not None:
+        labels.close()
+    if temporary_directory is not None:
+        temporary_directory.cleanup()
     return records, features_written
 
 
@@ -145,9 +184,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="Gzipped unified JSON input")
     parser.add_argument("output", type=Path, help="Output TSV path")
+    parser.add_argument(
+        "--labels", type=Path, help="Legacy PHOLD JSON supplying in_genbank labels"
+    )
     args = parser.parse_args()
 
-    records, features = write_tsv(args.input, args.output)
+    records, features = write_tsv(args.input, args.output, args.labels)
     print(f"Wrote {features} ORFs from {records} records to {args.output}")
 
 

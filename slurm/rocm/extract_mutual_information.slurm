@@ -10,8 +10,8 @@
 
 set -euo pipefail
 
-if [[ $# -ne 2 ]]; then
-    echo "Usage: $0 INPUT.json.gz OUTPUT.tsv" >&2
+if [[ $# -ne 2 && $# -ne 3 ]]; then
+    echo "Usage: $0 INPUT.json.gz OUTPUT.tsv [LABELS.json.gz]" >&2
     exit 2
 fi
 
@@ -25,4 +25,8 @@ if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
 fi
 
 source "${VENV_DIR}/bin/activate"
-python scripts/extract_structural_entropy_tsv.py "${INPUT}" "${OUTPUT}"
+if [[ $# -eq 3 ]]; then
+    python scripts/extract_structural_entropy_tsv.py "$INPUT" "$OUTPUT" --labels "$3"
+else
+    python scripts/extract_structural_entropy_tsv.py "$INPUT" "$OUTPUT"
+fi
