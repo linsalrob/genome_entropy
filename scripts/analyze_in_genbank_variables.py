@@ -166,6 +166,119 @@ def write_plot(
     output_path.write_text(svg, encoding="utf-8")
 
 
+def write_multi_panel_plot(
+    observations: list[tuple[tuple[float, ...], bool]], output_path: Path,
+    random_source: random.Random,
+) -> None:
+    """Write four requested class-coloured entropy/MI scatter plots as SVG."""
+    panels = (
+        (1, 4, "Protein entropy vs structural mutual information"),
+        (2, 3, "3Di entropy vs 12-state entropy"),
+        (2, 4, "3Di entropy vs structural mutual information"),
+        (3, 4, "12-state entropy vs structural mutual information"),
+    )
+    width, height = 2200, 1700
+    panel_width, panel_height, margin = 1000, 700, 85
+    positions = ((100, 100), (1100, 100), (100, 850), (1100, 850))
+    colours = {False: "#e66101", True: "#1b9e77"}
+    by_label = {
+        label: [values for values, observed_label in observations if observed_label == label]
+        for label in LABELS
+    }
+    elements = [
+        f'<rect width="{width}" height="{height}" fill="white"/>',
+        '<text x="1100" y="48" text-anchor="middle" font-family="sans-serif" '
+        'font-size="30">Entropy and structural mutual information by GenBank status</text>',
+    ]
+
+    for (index_a, index_b, title), (origin_x, origin_y) in zip(panels, positions):
+        sampled = []
+        for label, values in by_label.items():
+            sampled.extend(
+                (value, label)
+                for value in random_source.sample(values, min(10_000, len(values)))
+            )
+        values_a = [values[index_a] for values, _ in sampled]
+        values_b = [values[index_b] for values, _ in sampled]
+        min_a, max_a = min(values_a), max(values_a)
+        min_b, max_b = min(values_b), max(values_b)
+        range_a = max(max_a - min_a, 1e-12)
+        range_b = max(max_b - min_b, 1e-12)
+        plot_left, plot_right = origin_x + margin, origin_x + panel_width - margin
+        plot_top, plot_bottom = origin_y + margin, origin_y + panel_height - margin
+
+        def coordinate_a(value: float) -> float:
+            return plot_left + (value - min_a) / range_a * (plot_right - plot_left)
+
+        def coordinate_b(value: float) -> float:
+            return plot_bottom - (value - min_b) / range_b * (plot_bottom - plot_top)
+
+        elements.extend(
+            (
+                f'<text x="{origin_x + panel_width / 2}" y="{origin_y + 30}" '
+                f'text-anchor="middle" font-family="sans-serif" font-size="20">{html.escape(title)}</text>',
+                f'<line x1="{plot_left}" y1="{plot_bottom}" x2="{plot_right}" y2="{plot_bottom}" stroke="black"/>',
+                f'<line x1="{plot_left}" y1="{plot_top}" x2="{plot_left}" y2="{plot_bottom}" stroke="black"/>',
+                f'<text x="{origin_x + panel_width / 2}" y="{origin_y + panel_height - 15}" '
+                f'text-anchor="middle" font-family="sans-serif" font-size="16">{html.escape(VARIABLES[index_a])}</text>',
+                f'<text x="{origin_x + 25}" y="{origin_y + panel_height / 2}" '
+                f'transform="rotate(-90 {origin_x + 25} {origin_y + panel_height / 2})" '
+                f'text-anchor="middle" font-family="sans-serif" font-size="16">{html.escape(VARIABLES[index_b])}</text>',
+                f'<text x="{plot_left}" y="{plot_bottom + 20}" font-family="sans-serif" font-size="12">{min_a:.3f}</text>',
+                f'<text x="{plot_right}" y="{plot_bottom + 20}" text-anchor="end" font-family="sans-serif" font-size="12">{max_a:.3f}</text>',
+                f'<text x="{plot_left - 8}" y="{plot_bottom}" text-anchor="end" font-family="sans-serif" font-size="12">{min_b:.3f}</text>',
+                f'<text x="{plot_left - 8}" y="{plot_top + 4}" text-anchor="end" font-family="sans-serif" font-size="12">{max_b:.3f}</text>',
+            )
+        )
+        elements.extend(
+            f'<circle cx="{coordinate_a(values[index_a]):.2f}" '
+            f'cy="{coordinate_b(values[index_b]):.2f}" r="1.3" '
+            f'fill="{colours[label]}" fill-opacity="0.18"/>'
+            for values, label in sampled
+        )
+        legend_y = origin_y + 58
+        elements.extend(
+            (
+                f'<circle cx="{plot_right - 230}" cy="{legend_y}" r="5" fill="{colours[True]}"/>',
+                f'<text x="{plot_right - 218}" y="{legend_y + 5}" font-family="sans-serif" font-size="14">in GenBank</text>',
+                f'<circle cx="{plot_right - 100}" cy="{legend_y}" r="5" fill="{colours[False]}"/>',
+                f'<text x="{plot_right - 88}" y="{legend_y + 5}" font-family="sans-serif" font-size="14">not in GenBank</text>',
+            )
+        )
+
+    output_path.write_text(
+        '<svg xmlns="http://www.w3.org/2000/svg" '
+        f'width="{width}" height="{height}" viewBox="0 0 {width} {height}">\n'
+        + "\n".join(elements)
+        + "\n</svg>\n",
+        encoding="utf-8",
+    )
+
+
+def write_results_record(
+    output_path: Path, counts: Counter[bool], skipped: int,
+    rankings: list[tuple[float, int, int]], reservoir_size: int, bins: int,
+) -> None:
+    """Write a concise, linkable record of the analysis results."""
+    information, index_a, index_b = rankings[0]
+    output_path.write_text(
+        "# In-GenBank entropy and structural-state analysis\n\n"
+        "## Result\n\n"
+        f"The most informative variable pair was `{VARIABLES[index_a]}` and "
+        f"`{VARIABLES[index_b]}` (**{information:.8f} bits**).\n\n"
+        "## Outputs\n\n"
+        "- [Most informative pair scatter](most_informative_pair_scatter.svg)\n"
+        "- [Four-panel entropy and mutual-information scatter plot](in_genbank_entropy_mi_panels.svg)\n"
+        "- [All pairwise rankings](pairwise_in_genbank_mutual_information.tsv)\n\n"
+        "## Method\n\n"
+        f"- Valid ORFs: {counts[True]:,} in GenBank; {counts[False]:,} not in GenBank.\n"
+        f"- Skipped rows: {skipped:,}.\n"
+        f"- Pair ranking: empirical mutual information with `in_genbank`, using {bins} by {bins} quantile bins and a deterministic class-balanced reservoir of up to {reservoir_size:,} ORFs per class.\n"
+        "- Each scatter panel displays a deterministic balanced random sample of up to 10,000 ORFs per class.\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path, help="TSV created by the MI workflow")
@@ -204,6 +317,19 @@ def main() -> None:
         observations, index_a, index_b,
         args.output_directory / "most_informative_pair_scatter.svg",
         random.Random(args.seed + 1),
+    )
+    write_multi_panel_plot(
+        observations,
+        args.output_directory / "in_genbank_entropy_mi_panels.svg",
+        random.Random(args.seed + 2),
+    )
+    write_results_record(
+        args.output_directory / "in_genbank_analysis_results.md",
+        counts,
+        skipped,
+        rankings,
+        args.reservoir_size,
+        args.bins,
     )
     print(f"Valid rows: in_genbank={counts[True]}, not_in_genbank={counts[False]}")
     print(f"Skipped rows: {skipped}")
