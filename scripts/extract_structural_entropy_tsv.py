@@ -117,7 +117,9 @@ def label_database(label_path: Path) -> tuple[tempfile.TemporaryDirectory[str], 
     return temporary_directory, connection
 
 
-def write_tsv(input_path: Path, output_path: Path, label_path: Path | None) -> tuple[int, int]:
+def write_tsv(
+    input_paths: list[Path], output_path: Path, label_path: Path | None
+) -> tuple[int, int]:
     """Extract one TSV row per ORF and return record and ORF counts."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     records = 0
@@ -131,47 +133,48 @@ def write_tsv(input_path: Path, output_path: Path, label_path: Path | None) -> t
         writer = csv.DictWriter(output_handle, fieldnames=HEADER, delimiter="\t")
         writer.writeheader()
 
-        for record in iter_records(input_path):
-            records += 1
-            input_id = record.get("input_id", "")
-            for orf_id, feature in record.get("features", {}).items():
-                entropy = feature.get("entropy", {})
-                twelve_state = feature.get("twelve_state") or {}
-                three_di = feature.get("three_di", {}).get("encoding", "")
-                twelve_state_encoding = twelve_state.get("encoding")
-                information = entropy.get(
-                    "three_di_twelve_state_mutual_information"
-                )
-                if information is None and twelve_state_encoding is not None:
-                    information = mutual_information(three_di, twelve_state_encoding)
+        for input_path in input_paths:
+            for record in iter_records(input_path):
+                records += 1
+                input_id = record.get("input_id", "")
+                for orf_id, feature in record.get("features", {}).items():
+                    entropy = feature.get("entropy", {})
+                    twelve_state = feature.get("twelve_state") or {}
+                    three_di = feature.get("three_di", {}).get("encoding", "")
+                    twelve_state_encoding = twelve_state.get("encoding")
+                    information = entropy.get(
+                        "three_di_twelve_state_mutual_information"
+                    )
+                    if information is None and twelve_state_encoding is not None:
+                        information = mutual_information(three_di, twelve_state_encoding)
 
-                in_genbank = feature.get("metadata", {}).get("in_genbank", "")
-                if labels is not None:
-                    location = feature["location"]
-                    matched = labels.execute(
-                        "SELECT in_genbank FROM labels WHERE input_id = ? AND start = ? "
-                        "AND end = ? AND strand = ? AND frame = ?",
-                        (input_id, location["start"], location["end"],
-                         location["strand"], location["frame"]),
-                    ).fetchone()
-                    in_genbank = "" if matched is None else bool(matched[0])
-                writer.writerow(
-                    {
-                        "input_id": input_id,
-                        "orf_id": orf_id,
-                        "dna_entropy": entropy.get("dna_entropy", ""),
-                        "protein_entropy": entropy.get("protein_entropy", ""),
-                        "three_di_entropy": entropy.get("three_di_entropy", ""),
-                        "twelve_state_entropy": entropy.get(
-                            "twelve_state_entropy", ""
-                        ),
-                        "three_di_twelve_state_mutual_information": (
-                            "" if information is None else information
-                        ),
-                        "in_genbank": in_genbank,
-                    }
-                )
-                features_written += 1
+                    in_genbank = feature.get("metadata", {}).get("in_genbank", "")
+                    if labels is not None:
+                        location = feature["location"]
+                        matched = labels.execute(
+                            "SELECT in_genbank FROM labels WHERE input_id = ? AND start = ? "
+                            "AND end = ? AND strand = ? AND frame = ?",
+                            (input_id, location["start"], location["end"],
+                             location["strand"], location["frame"]),
+                        ).fetchone()
+                        in_genbank = "" if matched is None else bool(matched[0])
+                    writer.writerow(
+                        {
+                            "input_id": input_id,
+                            "orf_id": orf_id,
+                            "dna_entropy": entropy.get("dna_entropy", ""),
+                            "protein_entropy": entropy.get("protein_entropy", ""),
+                            "three_di_entropy": entropy.get("three_di_entropy", ""),
+                            "twelve_state_entropy": entropy.get(
+                                "twelve_state_entropy", ""
+                            ),
+                            "three_di_twelve_state_mutual_information": (
+                                "" if information is None else information
+                            ),
+                            "in_genbank": in_genbank,
+                        }
+                    )
+                    features_written += 1
 
     if labels is not None:
         labels.close()
@@ -182,14 +185,16 @@ def write_tsv(input_path: Path, output_path: Path, label_path: Path | None) -> t
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("input", type=Path, help="Gzipped unified JSON input")
+    parser.add_argument(
+        "inputs", nargs="+", type=Path, help="Gzipped unified JSON inputs"
+    )
     parser.add_argument("output", type=Path, help="Output TSV path")
     parser.add_argument(
         "--labels", type=Path, help="Legacy PHOLD JSON supplying in_genbank labels"
     )
     args = parser.parse_args()
 
-    records, features = write_tsv(args.input, args.output, args.labels)
+    records, features = write_tsv(args.inputs, args.output, args.labels)
     print(f"Wrote {features} ORFs from {records} records to {args.output}")
 
 
