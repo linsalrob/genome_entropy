@@ -20,6 +20,7 @@ from ..entropy.shannon import (
     EntropyReport,
     calculate_sequence_entropy,
     calculate_entropies_for_sequences,
+    mutual_information,
 )
 from ..errors import PipelineError
 from ..io.fasta import read_fasta
@@ -224,6 +225,7 @@ def run_pipeline(
                     three_di_entropy={},
                     alphabet_sizes={},
                     twelve_state_entropy=None,
+                    three_di_twelve_state_mutual_information=None,
                 )
                 results.append(
                     PipelineResult(
@@ -281,6 +283,7 @@ def run_pipeline(
                     three_di_entropy={},
                     alphabet_sizes={},
                     twelve_state_entropy=None,
+                    three_di_twelve_state_mutual_information=None,
                 )
 
             # Create result
@@ -356,6 +359,15 @@ def calculate_pipeline_entropy(
         if twelve_state_sequences
         else None
     )
+    three_di_twelve_state_mutual_information = (
+        {
+            td.protein.orf.orf_id: mutual_information(td.three_di, td.twelve_state)
+            for td in three_dis
+            if td.twelve_state is not None
+        }
+        if twelve_state_sequences
+        else None
+    )
 
     # Alphabet sizes
     alphabet_sizes = {
@@ -374,4 +386,7 @@ def calculate_pipeline_entropy(
         three_di_entropy=three_di_entropy,
         alphabet_sizes=alphabet_sizes,
         twelve_state_entropy=twelve_state_entropy,
+        three_di_twelve_state_mutual_information=(
+            three_di_twelve_state_mutual_information
+        ),
     )

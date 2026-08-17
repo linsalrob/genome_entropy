@@ -8,7 +8,7 @@
 
 `genome_entropy` quantifies Shannon entropy across biological representations derived from genomic DNA. It finds open reading frames (ORFs), translates proteins, predicts structural-state encodings, and writes a non-redundant JSON record for downstream analysis.
 
-Current multitask ModernProst models produce both Foldseek 3Di and 12-state (`12st`) encodings. The command remains named `encode3di` for compatibility. Legacy ModernProst and ProstT5 models produce 3Di only, with 12-state fields written as `null`.
+Current multitask ModernProst models produce both Foldseek 3Di and 12-state (`12st`) encodings. For those models, genome_entropy also reports the empirical mutual information between aligned 3Di and 12-state assignments in bits. The command remains named `encode3di` for compatibility. Legacy ModernProst and ProstT5 models produce 3Di only, with 12-state and mutual-information fields written as `null`.
 
 ## Capabilities
 
@@ -17,6 +17,7 @@ Current multitask ModernProst models produce both Foldseek 3Di and 12-state (`12
 - translation with [`pygenetic-code`](https://github.com/linsalrob/genetic_codes)
 - 3Di and optional 12-state prediction with ModernProst or ProstT5
 - raw Shannon entropy for DNA, protein, 3Di, and 12-state representations
+- raw 3Di--12-state mutual information for dual-head ModernProst outputs
 - CUDA, ROCm-through-PyTorch's CUDA API, Apple MPS, CPU, and multi-GPU encoding
 - optional XGBoost or PyTorch classification of whether an ORF matches a GenBank CDS
 
@@ -85,7 +86,7 @@ See the [model guide](https://genome-entropy.readthedocs.io/en/latest/models.htm
 
 ## Output and entropy
 
-The pipeline writes schema `2.1.0`, with features keyed by ORF identifier. Each feature contains location, DNA, protein, 3Di, optional 12-state, metadata, and raw entropy. JSON and JSON-gzip input are supported where documented.
+The pipeline writes schema `2.2.0`, with features keyed by ORF identifier. Each feature contains location, DNA, protein, 3Di, optional 12-state, metadata, raw entropy, and (when available) raw 3Di--12-state mutual information. JSON and JSON-gzip input are supported where documented.
 
 Normalised entropy is deliberately not serialised. Derive it downstream:
 

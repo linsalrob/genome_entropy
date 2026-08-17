@@ -38,6 +38,16 @@ The multitask ModernProst head also emits 12 classes serialised as ``A`` through
 ``L``. Legacy encoders expose missing 12-state values as ``None``/JSON ``null``.
 See :doc:`models` for model selection, provenance, and security.
 
+For a dual-head model, the pipeline also calculates the empirical mutual
+information between the aligned 3Di and 12-state assignments for each ORF. It
+is reported in raw bits and describes association between representations, not
+the diversity of either representation alone. Legacy models report ``null``;
+no normalised mutual information or contingency matrix is stored.
+
+.. math::
+
+   I(X;Y) = \sum_x \sum_y p(x,y) \log_2\left(\frac{p(x,y)}{p(x)p(y)}\right)
+
 Shannon entropy
 ---------------
 

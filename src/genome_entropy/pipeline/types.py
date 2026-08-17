@@ -114,12 +114,16 @@ class FeatureEntropy:
         protein_entropy: Shannon entropy of amino acid sequence
         three_di_entropy: Shannon entropy of 3Di encoding
         twelve_state_entropy: Shannon entropy of 12-state encoding, or ``None``
+        three_di_twelve_state_mutual_information: Raw mutual information in bits
+            between aligned 3Di and 12-state encodings, or ``None`` when the
+            model does not produce both representations
     """
 
     dna_entropy: float
     protein_entropy: float
     three_di_entropy: float
     twelve_state_entropy: float | None = None
+    three_di_twelve_state_mutual_information: float | None = None
 
 
 @dataclass

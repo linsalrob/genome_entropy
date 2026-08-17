@@ -16,7 +16,8 @@ Complete pipeline
    genome_entropy run --input genome.fasta --output results.json
 
 The default ``gbouras13/modernprost-50M`` model predicts 3Di and 12-state
-encodings. The JSON contains raw entropy and uses unified schema 2.1.0.
+encodings. The JSON contains raw entropy plus raw 3Di--12-state mutual
+information when both encodings are available, and uses unified schema 2.2.0.
 
 GenBank input enables CDS matching:
 

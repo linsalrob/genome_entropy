@@ -105,7 +105,7 @@ def test_convert_pipeline_result_to_unified():
 
     # Verify top-level fields
     assert isinstance(unified, UnifiedPipelineResult)
-    assert unified.schema_version == "2.1.0"
+    assert unified.schema_version == "2.2.0"
     assert unified.input_id == "test_seq"
     assert unified.input_dna_length == 100
     assert unified.dna_entropy_global == 1.8
@@ -151,6 +151,7 @@ def test_convert_pipeline_result_to_unified():
     assert feature.entropy.dna_entropy == 1.2
     assert feature.entropy.protein_entropy == 0.8
     assert feature.entropy.three_di_entropy == 0.0
+    assert feature.entropy.three_di_twelve_state_mutual_information is None
 
 
 def test_conversion_handles_multiple_features():
@@ -327,6 +328,7 @@ def test_unified_json_serialization():
     three_di = ThreeDiRecord(
         protein=protein,
         three_di="ABC",
+        twelve_state="ABC",
         method="prostt5_aa2fold",
         model_name="test",
         inference_device="cpu",
@@ -338,6 +340,8 @@ def test_unified_json_serialization():
         protein_aa_entropy={"orf_1": 0.8},
         three_di_entropy={"orf_1": 0.5},
         alphabet_sizes={"dna": 4, "protein": 20, "three_di": 20},
+        twelve_state_entropy={"orf_1": 1.5},
+        three_di_twelve_state_mutual_information={"orf_1": 1.5},
     )
 
     old_result = PipelineResult(
@@ -355,7 +359,7 @@ def test_unified_json_serialization():
 
     # Verify JSON structure
     assert "schema_version" in json_dict
-    assert json_dict["schema_version"] == "2.1.0"
+    assert json_dict["schema_version"] == "2.2.0"
     assert "input_id" in json_dict
     assert "input_dna_length" in json_dict
     assert "dna_entropy_global" in json_dict
@@ -373,6 +377,7 @@ def test_unified_json_serialization():
     assert "three_di" in feature_dict
     assert "metadata" in feature_dict
     assert "entropy" in feature_dict
+    assert feature_dict["entropy"]["three_di_twelve_state_mutual_information"] == 1.5
 
     # Verify no redundancy (nt_sequence appears only once)
     import json as json_module

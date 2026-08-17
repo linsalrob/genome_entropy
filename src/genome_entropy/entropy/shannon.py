@@ -70,6 +70,9 @@ class EntropyReport:
         three_di_entropy: Dictionary mapping ORF IDs to their 3Di token entropy
         alphabet_sizes: Dictionary with alphabet sizes for each representation
         twelve_state_entropy: Optional mapping of ORF IDs to 12-state entropy
+        three_di_twelve_state_mutual_information: Optional mapping of ORF IDs
+            to raw mutual information in bits between aligned 3Di and 12-state
+            encodings
     """
 
     dna_entropy_global: float
@@ -78,6 +81,7 @@ class EntropyReport:
     three_di_entropy: Dict[str, float]
     alphabet_sizes: Dict[str, int]
     twelve_state_entropy: Dict[str, float] | None = None
+    three_di_twelve_state_mutual_information: Dict[str, float] | None = None
 
 
 def shannon_entropy(
@@ -128,6 +132,50 @@ def shannon_entropy(
             return entropy / max_entropy if max_entropy > 0 else 0.0
 
     return entropy
+
+
+def mutual_information(sequence_a: str, sequence_b: str) -> float:
+    """Calculate empirical mutual information between aligned sequences.
+
+    The value is reported in bits from the observed joint distribution. Both
+    sequences must describe the same residue positions.
+
+    Args:
+        sequence_a: First categorical sequence.
+        sequence_b: Second categorical sequence aligned to ``sequence_a``.
+
+    Returns:
+        Raw mutual information in bits. Empty aligned sequences return ``0.0``.
+
+    Raises:
+        ValueError: If the sequences have unequal lengths.
+    """
+    if len(sequence_a) != len(sequence_b):
+        raise ValueError(
+            "Mutual information requires aligned sequences of equal length"
+        )
+    if not sequence_a:
+        return 0.0
+
+    total = len(sequence_a)
+    counts_a = Counter(sequence_a)
+    counts_b = Counter(sequence_b)
+    joint_counts = Counter(zip(sequence_a, sequence_b))
+
+    information = 0.0
+    for (state_a, state_b), joint_count in joint_counts.items():
+        probability_joint = joint_count / total
+        probability_a = counts_a[state_a] / total
+        probability_b = counts_b[state_b] / total
+        information += probability_joint * math.log2(
+            probability_joint / (probability_a * probability_b)
+        )
+
+    # Mutual information is non-negative; preserve meaningful errors while
+    # removing only possible floating-point noise.
+    if -1e-12 < information < 0:
+        return 0.0
+    return information
 
 
 def calculate_sequence_entropy(

@@ -51,6 +51,10 @@ The neural network learns column medians from its training set, substitutes zero
 for an all-missing column, stores those imputation values, and reuses them for
 evaluation and prediction.
 
+The 3Di--12-state mutual-information output is deliberately not an ML feature
+yet. This keeps existing saved-model feature schemas unchanged while it is
+evaluated as a possible future feature.
+
 Splitting and reproducibility
 -----------------------------
 
