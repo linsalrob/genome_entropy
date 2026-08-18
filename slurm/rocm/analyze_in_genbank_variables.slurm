@@ -22,4 +22,6 @@ if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
 fi
 
 source "${VENV_DIR}/bin/activate"
+export MPLCONFIGDIR="${TMPDIR:-/tmp}/matplotlib-${SLURM_JOB_ID}"
+mkdir -p "${MPLCONFIGDIR}"
 python scripts/analyze_in_genbank_variables.py "$1" "$2"

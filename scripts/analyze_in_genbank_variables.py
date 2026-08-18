@@ -17,13 +17,11 @@ from itertools import combinations
 from pathlib import Path
 
 import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 
 VARIABLES = (
@@ -279,9 +277,10 @@ def write_results_record(
         "This pair ranked first because its *joint* distribution across the "
         "quantile bins differs more strongly between in-GenBank and "
         "non-GenBank ORFs than the joint distributions of the other tested "
-        "pairs. In practical terms, knowing both amino-acid entropy and 3Di "
-        "entropy reduces uncertainty about the `in_genbank` label more than "
-        "knowing any other tested pair.\n\n"
+        "pairs. In practical terms, knowing both "
+        f"`{VARIABLES[index_a]}` and `{VARIABLES[index_b]}` reduces "
+        "uncertainty about the `in_genbank` label more than knowing any other "
+        "tested pair.\n\n"
         "This is an association, not a causal explanation: the result does "
         "not show that either entropy causes inclusion in GenBank, nor does it "
         "identify a single separating threshold. The scatter plots should be "
