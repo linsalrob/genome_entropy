@@ -40,8 +40,8 @@ Installation and offline jobs
 The files in ``slurm/nvidia`` and ``slurm/rocm`` are Pawsey-oriented examples,
 not portable cluster profiles. Review every ``#SBATCH`` directive and path.
 Model download jobs require outbound internet unless the cache is already
-populated. ``get_orfs`` compilation requires Rust/Cargo according to that
-project's installation instructions.
+populated. ``get_orfs`` is a C project built with CMake; it needs a C
+compiler, CMake 3.16 or newer, and zlib, and no Rust toolchain.
 
 ``PBS`` holds the equivalent PBS Pro examples, written against NCI Gadi, with
 site install instructions in ``PBS/README.md``. They are not interchangeable

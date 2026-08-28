@@ -76,9 +76,9 @@ cat <<EOF
 Environment ready at ${ENV_PREFIX}
 
 Still required:
-  1. get_orfs -- an external executable, not a Python dependency. It needs
-     Rust/Cargo; build it on a login node and put it on PATH or set
-     GET_ORFS_PATH. See that project's installation instructions.
+  1. get_orfs -- an external executable, not a Python dependency. It is a
+     C/CMake project; Gadi's default gcc and cmake are sufficient. Build it
+     on a login node and put it on PATH or set GET_ORFS_PATH.
   2. The encoder model -- run PBS/download_model.sh next. GPU nodes cannot
      reach Hugging Face, so the cache must be populated from here.
 

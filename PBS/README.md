@@ -87,9 +87,18 @@ Volta.
 
 ### `get_orfs`
 
-`get_orfs` is an external executable rather than a Python dependency, and
-needs Rust/Cargo. Build it on a login node — compute nodes cannot fetch
-crates — and put it on `PATH` or set `GET_ORFS_PATH`.
+`get_orfs` is an external executable rather than a Python dependency. It
+is a C project built with CMake, and Gadi's default `gcc` and `cmake`
+(3.26.5) are sufficient — no module load and no Rust toolchain:
+
+```bash
+git clone https://github.com/linsalrob/get_orfs
+cd get_orfs && mkdir build && cd build
+cmake .. && make && cmake --install . --prefix ..
+```
+
+Build it on a login node, since compute nodes cannot clone the repository,
+and put the binary on `PATH` or set `GET_ORFS_PATH`.
 
 ### Model cache
 
