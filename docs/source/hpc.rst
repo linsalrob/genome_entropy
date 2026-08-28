@@ -43,6 +43,17 @@ Model download jobs require outbound internet unless the cache is already
 populated. ``get_orfs`` compilation requires Rust/Cargo according to that
 project's installation instructions.
 
+``PBS`` holds the equivalent PBS Pro examples, written against NCI Gadi, with
+site install instructions in ``PBS/README.md``. They are not interchangeable
+with the SLURM files: PBS Pro identifies the project with ``-P``, requires an
+explicit ``-l storage`` directive for every filesystem a job touches, and
+exposes array indices as ``PBS_ARRAY_INDEX``. Multi-GPU discovery finds no
+SLURM variables under PBS and falls back to ``CUDA_VISIBLE_DEVICES``, so pass
+local device IDs. Where no queue offers both GPUs and outbound internet, as on
+Gadi, install the environment and populate the model cache from a login node
+first and set ``HF_HUB_OFFLINE=1`` in the job, so a cache miss fails
+immediately instead of hanging on an unreachable network.
+
 Monitoring
 ----------
 

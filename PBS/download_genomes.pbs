@@ -1,0 +1,70 @@
+#!/bin/bash
+#PBS -N genome_entropy_download
+#PBS -q copyq
+#PBS -P YOUR_NCI_PROJECT
+#PBS -l ncpus=1
+#PBS -l mem=8GB
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/YOUR_NCI_PROJECT
+#PBS -l wd
+#PBS -J 0-9
+#PBS -j oe
+#PBS -o logs/download_^array_index^.log
+#
+# Fetch GenBank files from NCBI for a list of accessions.
+#
+# copyq is the only queue with outbound internet, and it is capped at 1 CPU
+# and 10 hours. That cap is not a problem for downloads, which are
+# I/O-bound, but each chunk must finish inside 10 hours. Downloading is not
+# what this repository does -- this template exists because the GPU jobs
+# above need GenBank input on /g/data, and getting it there is the awkward
+# part on a machine whose compute nodes are offline.
+#
+# Expects accessions/chunk_<index>.txt, zero-padded to two digits, and the
+# NCBI datasets CLI on PATH (PBS/install.sh installs it from bioconda;
+# Gadi has no module for it).
+
+set -euo pipefail
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
+OUT_ROOT="${OUT_ROOT:-/g/data/YOUR_NCI_PROJECT/genomes}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+CHUNK_ID=$(printf "%02d" "${PBS_ARRAY_INDEX}")
+CHUNK_FILE="${PBS_O_WORKDIR}/accessions/chunk_${CHUNK_ID}.txt"
+OUT_DIR="${OUT_ROOT}/chunk_${CHUNK_ID}"
+
+if [[ ! -f "${CHUNK_FILE}" ]]; then
+    echo "ERROR: ${CHUNK_FILE} not found; does -J match the chunk count?" >&2
+    exit 1
+fi
+
+# An API key raises the NCBI rate limit and is worth setting for large runs.
+# Read it from the environment; do not commit it to this file.
+# export NCBI_API_KEY=...
+
+mkdir -p "${OUT_DIR}"
+cd "${OUT_DIR}"
+
+# The dehydrated download plus rehydrate path is what NCBI and GTDB
+# recommend above roughly a thousand genomes; a naive per-accession loop
+# gets rate limited.
+if [[ ! -d chunk_dehydrated ]]; then
+    datasets download genome accession \
+        --inputfile "${CHUNK_FILE}" \
+        --include genbank \
+        --dehydrated \
+        --filename chunk.zip
+    unzip -o -q chunk.zip -d chunk_dehydrated
+fi
+
+datasets rehydrate --directory chunk_dehydrated
+
+mkdir -p "${PBS_O_WORKDIR}/manifests"
+find "${OUT_DIR}/chunk_dehydrated" \( -iname "*.gbff" -o -iname "*.gbff.gz" \) \
+    | sort > "${PBS_O_WORKDIR}/manifests/chunk_${CHUNK_ID}.txt"
+
+echo "Chunk ${CHUNK_ID}: $(wc -l < "${PBS_O_WORKDIR}/manifests/chunk_${CHUNK_ID}.txt") GenBank files."
