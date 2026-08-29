@@ -1,8 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=ge_mi_aggregate
-#SBATCH --account=pawsey1018-gpu
-#SBATCH --partition=gpu-dev
-#SBATCH --gres=gpu:1
+#SBATCH --account=pawsey1018
+#SBATCH --partition=work
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
 #SBATCH --time=0-4:00
 #SBATCH --ntasks=1
 #SBATCH -o %x-%j.out
@@ -14,6 +15,12 @@ shopt -s nullglob
 if [[ $# -ne 3 ]]; then
     echo "Usage: $0 RESULTS_DIRECTORY OUTPUT.tsv LEGACY_LABELS.json.gz" >&2
     exit 2
+fi
+
+REPO_ROOT="${GENOME_ENTROPY_REPO:-${SLURM_SUBMIT_DIR:-$PWD}}"
+if [[ ! -d "${REPO_ROOT}/scripts" ]]; then
+    echo "Submit from a genome_entropy checkout, or set GENOME_ENTROPY_REPO" >&2
+    exit 1
 fi
 
 RESULTS_DIRECTORY=$1
@@ -33,5 +40,5 @@ if [[ ! -x "${VENV_DIR}/bin/python" ]]; then
 fi
 
 source "${VENV_DIR}/bin/activate"
-python scripts/extract_structural_entropy_tsv.py \
+python "${REPO_ROOT}/scripts/extract_structural_entropy_tsv.py" \
     "${INPUTS[@]}" "$OUTPUT" --labels "$LABELS"

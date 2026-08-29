@@ -14,6 +14,12 @@ if [[ $# -ne 2 ]]; then
     exit 2
 fi
 
+REPO_ROOT="${GENOME_ENTROPY_REPO:-${SLURM_SUBMIT_DIR:-$PWD}}"
+if [[ ! -d "${REPO_ROOT}/scripts" ]]; then
+    echo "Submit from a genome_entropy checkout, or set GENOME_ENTROPY_REPO" >&2
+    exit 1
+fi
+
 mkdir -p "$2"
 
 for offset in 0 1 2 3; do
@@ -21,5 +27,5 @@ for offset in 0 1 2 3; do
     chunk=$(printf '%s/phold_%04d.gbk.gz' "$1" "$index")
     output=$(printf '%s/phold_%04d.json.gz' "$2" "$index")
     [[ -f "$chunk" ]] || continue
-    bash slurm/rocm/rerun_mutual_information.slurm "$chunk" "$output"
+    bash "${REPO_ROOT}/slurm/rocm/rerun_mutual_information.slurm" "$chunk" "$output"
 done

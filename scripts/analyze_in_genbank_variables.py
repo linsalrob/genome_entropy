@@ -9,7 +9,6 @@ between the binary label and its 20-by-20 quantile-binned joint values.
 import argparse
 import bisect
 import csv
-import html
 import math
 import random
 from collections import Counter
@@ -116,149 +115,6 @@ def pair_mutual_information(
             / (pair_counts[(bin_a, bin_b)] * label_counts[label])
         )
         for (bin_a, bin_b, label), count in joint_counts.items()
-    )
-
-
-def write_plot(
-    observations: list[tuple[tuple[float, ...], bool]], index_a: int, index_b: int,
-    output_path: Path, random_source: random.Random,
-) -> None:
-    """Write a class-balanced SVG scatter plot for the selected pair."""
-    width, height, margin = 1100, 850, 100
-    by_label = {label: [values for values, observed_label in observations if observed_label == label]
-                for label in LABELS}
-    sampled = []
-    for label, values in by_label.items():
-        sampled.extend((value, label) for value in random_source.sample(
-            values, min(20_000, len(values))
-        ))
-
-    values_a = [values[index_a] for values, _ in sampled]
-    values_b = [values[index_b] for values, _ in sampled]
-    min_a, max_a = min(values_a), max(values_a)
-    min_b, max_b = min(values_b), max(values_b)
-    range_a = max(max_a - min_a, 1e-12)
-    range_b = max(max_b - min_b, 1e-12)
-
-    def coordinate_a(value: float) -> float:
-        return margin + (value - min_a) / range_a * (width - 2 * margin)
-
-    def coordinate_b(value: float) -> float:
-        return height - margin - (value - min_b) / range_b * (height - 2 * margin)
-
-    colours = {False: "#e66101", True: "#1b9e77"}
-    points = "\n".join(
-        f'<circle cx="{coordinate_a(values[index_a]):.2f}" '
-        f'cy="{coordinate_b(values[index_b]):.2f}" r="1.4" '
-        f'fill="{colours[label]}" fill-opacity="0.18"/>'
-        for values, label in sampled
-    )
-    label_a = html.escape(VARIABLES[index_a])
-    label_b = html.escape(VARIABLES[index_b])
-    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
-<rect width="100%" height="100%" fill="white"/>
-<text x="{width / 2}" y="42" text-anchor="middle" font-family="sans-serif" font-size="24">Most informative entropy-variable pair for in_genbank</text>
-<line x1="{margin}" y1="{height - margin}" x2="{width - margin}" y2="{height - margin}" stroke="black"/>
-<line x1="{margin}" y1="{margin}" x2="{margin}" y2="{height - margin}" stroke="black"/>
-<text x="{width / 2}" y="{height - 35}" text-anchor="middle" font-family="sans-serif" font-size="18">{label_a}</text>
-<text x="30" y="{height / 2}" transform="rotate(-90 30 {height / 2})" text-anchor="middle" font-family="sans-serif" font-size="18">{label_b}</text>
-<text x="{margin}" y="{height - margin + 25}" font-family="sans-serif" font-size="14">{min_a:.3f}</text>
-<text x="{width - margin}" y="{height - margin + 25}" text-anchor="end" font-family="sans-serif" font-size="14">{max_a:.3f}</text>
-<text x="{margin - 10}" y="{height - margin}" text-anchor="end" font-family="sans-serif" font-size="14">{min_b:.3f}</text>
-<text x="{margin - 10}" y="{margin + 5}" text-anchor="end" font-family="sans-serif" font-size="14">{max_b:.3f}</text>
-<circle cx="{width - 350}" cy="75" r="6" fill="{colours[True]}"/><text x="{width - 335}" y="80" font-family="sans-serif" font-size="16">in GenBank</text>
-<circle cx="{width - 190}" cy="75" r="6" fill="{colours[False]}"/><text x="{width - 175}" y="80" font-family="sans-serif" font-size="16">not in GenBank</text>
-{points}
-</svg>'''
-    output_path.write_text(svg, encoding="utf-8")
-
-
-def write_multi_panel_plot(
-    observations: list[tuple[tuple[float, ...], bool]], output_path: Path,
-    random_source: random.Random,
-) -> None:
-    """Write four requested class-coloured entropy/MI scatter plots as SVG."""
-    panels = (
-        (1, 4, "Protein entropy vs structural mutual information"),
-        (2, 3, "3Di entropy vs 12-state entropy"),
-        (2, 4, "3Di entropy vs structural mutual information"),
-        (3, 4, "12-state entropy vs structural mutual information"),
-    )
-    width, height = 2200, 1700
-    panel_width, panel_height, margin = 1000, 700, 85
-    positions = ((100, 100), (1100, 100), (100, 850), (1100, 850))
-    colours = {False: "#e66101", True: "#1b9e77"}
-    by_label = {
-        label: [values for values, observed_label in observations if observed_label == label]
-        for label in LABELS
-    }
-    elements = [
-        f'<rect width="{width}" height="{height}" fill="white"/>',
-        '<text x="1100" y="48" text-anchor="middle" font-family="sans-serif" '
-        'font-size="30">Entropy and structural mutual information by GenBank status</text>',
-    ]
-
-    for (index_a, index_b, title), (origin_x, origin_y) in zip(panels, positions):
-        sampled = []
-        for label, values in by_label.items():
-            sampled.extend(
-                (value, label)
-                for value in random_source.sample(values, min(10_000, len(values)))
-            )
-        values_a = [values[index_a] for values, _ in sampled]
-        values_b = [values[index_b] for values, _ in sampled]
-        min_a, max_a = min(values_a), max(values_a)
-        min_b, max_b = min(values_b), max(values_b)
-        range_a = max(max_a - min_a, 1e-12)
-        range_b = max(max_b - min_b, 1e-12)
-        plot_left, plot_right = origin_x + margin, origin_x + panel_width - margin
-        plot_top, plot_bottom = origin_y + margin, origin_y + panel_height - margin
-
-        def coordinate_a(value: float) -> float:
-            return plot_left + (value - min_a) / range_a * (plot_right - plot_left)
-
-        def coordinate_b(value: float) -> float:
-            return plot_bottom - (value - min_b) / range_b * (plot_bottom - plot_top)
-
-        elements.extend(
-            (
-                f'<text x="{origin_x + panel_width / 2}" y="{origin_y + 30}" '
-                f'text-anchor="middle" font-family="sans-serif" font-size="20">{html.escape(title)}</text>',
-                f'<line x1="{plot_left}" y1="{plot_bottom}" x2="{plot_right}" y2="{plot_bottom}" stroke="black"/>',
-                f'<line x1="{plot_left}" y1="{plot_top}" x2="{plot_left}" y2="{plot_bottom}" stroke="black"/>',
-                f'<text x="{origin_x + panel_width / 2}" y="{origin_y + panel_height - 15}" '
-                f'text-anchor="middle" font-family="sans-serif" font-size="16">{html.escape(VARIABLES[index_a])}</text>',
-                f'<text x="{origin_x + 25}" y="{origin_y + panel_height / 2}" '
-                f'transform="rotate(-90 {origin_x + 25} {origin_y + panel_height / 2})" '
-                f'text-anchor="middle" font-family="sans-serif" font-size="16">{html.escape(VARIABLES[index_b])}</text>',
-                f'<text x="{plot_left}" y="{plot_bottom + 20}" font-family="sans-serif" font-size="12">{min_a:.3f}</text>',
-                f'<text x="{plot_right}" y="{plot_bottom + 20}" text-anchor="end" font-family="sans-serif" font-size="12">{max_a:.3f}</text>',
-                f'<text x="{plot_left - 8}" y="{plot_bottom}" text-anchor="end" font-family="sans-serif" font-size="12">{min_b:.3f}</text>',
-                f'<text x="{plot_left - 8}" y="{plot_top + 4}" text-anchor="end" font-family="sans-serif" font-size="12">{max_b:.3f}</text>',
-            )
-        )
-        elements.extend(
-            f'<circle cx="{coordinate_a(values[index_a]):.2f}" '
-            f'cy="{coordinate_b(values[index_b]):.2f}" r="1.3" '
-            f'fill="{colours[label]}" fill-opacity="0.18"/>'
-            for values, label in sampled
-        )
-        legend_y = origin_y + 58
-        elements.extend(
-            (
-                f'<circle cx="{plot_right - 230}" cy="{legend_y}" r="5" fill="{colours[True]}"/>',
-                f'<text x="{plot_right - 218}" y="{legend_y + 5}" font-family="sans-serif" font-size="14">in GenBank</text>',
-                f'<circle cx="{plot_right - 100}" cy="{legend_y}" r="5" fill="{colours[False]}"/>',
-                f'<text x="{plot_right - 88}" y="{legend_y + 5}" font-family="sans-serif" font-size="14">not in GenBank</text>',
-            )
-        )
-
-    output_path.write_text(
-        '<svg xmlns="http://www.w3.org/2000/svg" '
-        f'width="{width}" height="{height}" viewBox="0 0 {width} {height}">\n'
-        + "\n".join(elements)
-        + "\n</svg>\n",
-        encoding="utf-8",
     )
 
 
@@ -397,11 +253,12 @@ def main() -> None:
     reservoirs, counts, skipped = read_balanced_reservoir(
         args.input, args.reservoir_size, args.seed
     )
+    if not all(reservoirs.values()):
+        raise ValueError("Both in_genbank classes require at least one valid row")
+
     observations = [
         (values, label) for label in LABELS for values in reservoirs[label]
     ]
-    if not all(reservoirs.values()):
-        raise ValueError("Both in_genbank classes require at least one valid row")
 
     rankings = [
         (pair_mutual_information(observations, index_a, index_b, args.bins), index_a, index_b)

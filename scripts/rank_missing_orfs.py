@@ -21,11 +21,20 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 from xgboost import XGBRFClassifier
 
+from genome_entropy.io.genbank import normalise_orf_interval
 from genome_entropy.ml import (
     extract_features,
     filter_json_records_with_features,
     load_json_file,
 )
+
+GENOMIC_COLUMNS = [
+    "input_id",
+    "orf_id",
+    "genomic_start",
+    "genomic_end",
+    "genomic_strand",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -117,6 +126,58 @@ def load_all_records(files: list[Path]) -> list[dict[str, Any]]:
         raise ValueError("No genome records containing usable ORFs were found")
 
     return records
+
+
+def collect_genomic_intervals(
+    records: list[list[dict[str, Any]]],
+) -> tuple[pd.DataFrame, int]:
+    """Return every ORF's genomic interval, with a count of unusable ORFs.
+
+    The serialised ``location.start``/``location.end`` values are raw
+    ``get_orfs`` coordinates: one-based, inclusive, and, on the negative
+    strand, indexing the reverse complement rather than the genomic axis.
+    They are normalised here with the same helper the GenBank CDS matcher
+    uses, so overlaps between ORFs on opposite strands are real overlaps.
+    """
+    rows: list[dict[str, Any]] = []
+    unusable = 0
+
+    for record_group in records:
+        for record in record_group:
+            features = record.get("features")
+            if not isinstance(features, dict):
+                # Legacy records carry no input_dna_length, so reverse-strand
+                # coordinates cannot be placed on the genomic axis.
+                unusable += len(record.get("orfs") or [])
+                continue
+
+            input_id = str(record.get("input_id", ""))
+            record_length = record.get("input_dna_length")
+
+            for orf_id, feature in features.items():
+                location = feature.get("location") or {}
+                try:
+                    interval = normalise_orf_interval(
+                        int(location["start"]),
+                        int(location["end"]),
+                        str(location["strand"]),
+                        None if record_length is None else int(record_length),
+                    )
+                except (KeyError, TypeError, ValueError):
+                    unusable += 1
+                    continue
+
+                rows.append(
+                    {
+                        "input_id": input_id,
+                        "orf_id": orf_id,
+                        "genomic_start": interval.start,
+                        "genomic_end": interval.end,
+                        "genomic_strand": interval.strand,
+                    }
+                )
+
+    return pd.DataFrame(rows, columns=GENOMIC_COLUMNS), unusable
 
 
 def get_group_ids(metadata: list[dict[str, Any]]) -> np.ndarray:
@@ -254,6 +315,7 @@ def genomic_overlap(
 
 
 def interval_length(start: int, end: int) -> int:
+    """Return the length of a zero-based, half-open genomic interval."""
     return abs(int(end) - int(start))
 
 
@@ -266,12 +328,16 @@ def find_overlapping_annotated_orfs(
     The selected competitor is the annotated ORF with the greatest nucleotide
     overlap. Ties are resolved in favour of the annotated ORF with the lowest
     predicted coding probability.
+
+    Overlaps are computed on the normalised zero-based, half-open genomic axis
+    supplied by ``collect_genomic_intervals``. ORFs with no normalised interval
+    are excluded rather than compared in raw ``get_orfs`` coordinates.
     """
     required = {
         "input_id",
         "orf_id",
-        "start",
-        "end",
+        "genomic_start",
+        "genomic_end",
         "in_genbank",
         "probability_in_genbank",
     }
@@ -284,7 +350,9 @@ def find_overlapping_annotated_orfs(
 
     rows: list[dict[str, Any]] = []
 
-    for input_id, genome in predictions.groupby("input_id", sort=False):
+    placed = predictions.dropna(subset=["genomic_start", "genomic_end"])
+
+    for input_id, genome in placed.groupby("input_id", sort=False):
         annotated = genome.loc[genome["in_genbank"]].copy()
         candidates = genome.loc[~genome["in_genbank"]].copy()
 
@@ -295,24 +363,24 @@ def find_overlapping_annotated_orfs(
             overlaps: list[tuple[int, float, int, pd.Series]] = []
 
             candidate_length = interval_length(
-                candidate["start"],
-                candidate["end"],
+                candidate["genomic_start"],
+                candidate["genomic_end"],
             )
 
             for annotated_index, known in annotated.iterrows():
                 overlap_nt = genomic_overlap(
-                    candidate["start"],
-                    candidate["end"],
-                    known["start"],
-                    known["end"],
+                    candidate["genomic_start"],
+                    candidate["genomic_end"],
+                    known["genomic_start"],
+                    known["genomic_end"],
                 )
 
                 if overlap_nt == 0:
                     continue
 
                 annotated_length = interval_length(
-                    known["start"],
-                    known["end"],
+                    known["genomic_start"],
+                    known["genomic_end"],
                 )
 
                 shorter_length = min(candidate_length, annotated_length)
@@ -349,11 +417,11 @@ def find_overlapping_annotated_orfs(
             row.update(
                 {
                     "competing_orf_id": competitor["orf_id"],
-                    "competing_start": competitor["start"],
-                    "competing_end": competitor["end"],
-                    "competing_strand_plus": competitor.get(
-                        "strand_plus",
-                        np.nan,
+                    "competing_genomic_start": competitor["genomic_start"],
+                    "competing_genomic_end": competitor["genomic_end"],
+                    "competing_genomic_strand": competitor.get(
+                        "genomic_strand",
+                        "",
                     ),
                     "competing_frame": competitor.get("frame", np.nan),
                     "competing_probability": competitor[
@@ -441,6 +509,26 @@ def main() -> None:
         feature_names,
         args,
     )
+
+    intervals, unplaceable = collect_genomic_intervals(records)
+    predictions = predictions.merge(
+        intervals,
+        on=["input_id", "orf_id"],
+        how="left",
+        validate="one_to_one",
+    )
+
+    unplaced = int(predictions["genomic_start"].isna().sum())
+    print(
+        f"Normalised genomic intervals for "
+        f"{len(predictions) - unplaced:,} ORFs"
+    )
+    if unplaceable or unplaced:
+        print(
+            f"Excluded from overlap analysis: {unplaced:,} predicted ORFs "
+            f"without a normalised interval "
+            f"({unplaceable:,} serialised ORFs could not be normalised)"
+        )
 
     all_output = args.output_dir / "all_orf_oof_predictions.parquet"
     predictions.to_parquet(all_output, index=False)
@@ -536,6 +624,8 @@ def main() -> None:
         "orfs": len(predictions),
         "annotated_orfs": int(predictions["in_genbank"].sum()),
         "unannotated_orfs": int((~predictions["in_genbank"]).sum()),
+        "orfs_without_genomic_interval": unplaced,
+        "serialised_orfs_not_normalisable": unplaceable,
         "high_probability_unannotated_orfs": len(unannotated),
         "high_priority_overlapping_replacements": len(alternatives),
         "minimum_probability": args.minimum_probability,

@@ -15,6 +15,12 @@ if [[ $# -ne 2 ]]; then
     exit 2
 fi
 
+REPO_ROOT="${GENOME_ENTROPY_REPO:-${SLURM_SUBMIT_DIR:-$PWD}}"
+if [[ ! -d "${REPO_ROOT}/scripts" ]]; then
+    echo "Submit from a genome_entropy checkout, or set GENOME_ENTROPY_REPO" >&2
+    exit 1
+fi
+
 INPUT=$1
 OUTPUT=$2
 VENV_DIR="/scratch/$PAWSEY_PROJECT/$USER/software/pip/genome_entropy"
@@ -28,7 +34,7 @@ mkdir -p "$(dirname "${OUTPUT}")"
 source "${VENV_DIR}/bin/activate"
 
 FASTA="${OUTPUT%.json.gz}.fasta.gz"
-python scripts/genbank_to_fasta.py "${INPUT}" "${FASTA}"
+python "${REPO_ROOT}/scripts/genbank_to_fasta.py" "${INPUT}" "${FASTA}"
 
 genome_entropy run \
     --input "${FASTA}" \
