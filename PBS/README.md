@@ -148,11 +148,34 @@ qsub: cannot submit non-rerunable Array Job
 
 Both array templates set `#PBS -r y`. Keep it.
 
-**Throttle concurrency with `max_run_subjobs`.** PBS Pro has no `%N`
-suffix; the equivalent is a `-W` option:
+**Check `max_array_size` before designing around arrays.** It can be far
+smaller than the queue's `max_queued` suggests — Gadi sets it to **10**:
 
 ```bash
-qsub -r y -J 0-759 -W max_run_subjobs=8 PBS/download_genomes.pbs
+qmgr -c "print server" | grep max_array_size     # -> set server max_array_size = 10
+```
+
+An array wider than that is refused at submission with `qsub: Array job
+exceeds server or queue size limit`. With hundreds of chunks to process,
+the workable pattern is to let each subjob *stride* through the chunk list
+rather than own a single chunk — subjob `k` takes chunks `k`, `k+STRIDE`,
+`k+2*STRIDE`, … so a 10-wide array still covers 760 chunks:
+
+```bash
+qsub -v DOMAIN=bac,TOTAL_CHUNKS=760,STRIDE=10 -r y -J 0-9 \
+     PBS/download_genomes.pbs
+```
+
+That also pins concurrent NCBI streams to exactly `STRIDE`, which is what
+you want anyway. `download_genomes.pbs` implements this and skips chunks
+whose archive already exists, so a resubmitted array resumes.
+
+**Throttle concurrency with `max_run_subjobs`.** Where arrays *are* wide
+enough to need it, PBS Pro has no `%N` suffix; the equivalent is a `-W`
+option:
+
+```bash
+qsub -r y -J 0-9 -W max_run_subjobs=4 PBS/download_genomes.pbs
 ```
 
 This matters most for the download array. NCBI rate-limits per IP — 3
@@ -161,8 +184,8 @@ of subjobs rehydrate at once gets the whole site throttled rather than
 speeding anything up. Set `NCBI_API_KEY` from the environment for large
 runs, and keep concurrency modest regardless.
 
-Queues also cap queued jobs (`max_queued = 1000` on Gadi), which is an
-upper bound on array size; split larger arrays into batches.
+Queues also cap queued jobs (`max_queued = 1000` on Gadi), which bounds
+how many subjobs can sit in the queue at once across all your arrays.
 
 ## Multi-GPU under PBS
 
