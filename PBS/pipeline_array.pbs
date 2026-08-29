@@ -56,13 +56,32 @@ export TORCH_DISABLE_DYNAMO=1
 
 mkdir -p "${OUT_DIR}"
 
+
+# NCBI datasets names every GenBank file "genomic.gbff" and puts the
+# accession in the parent directory:
+#     .../ncbi_dataset/data/GCA_030638685.1/genomic.gbff
+# Naming outputs from the basename would give every genome in a chunk the
+# same output file, and the resume check below would then skip the whole
+# chunk after the first genome. Derive the label from the accession
+# directory instead.
+genome_label () {
+    local path="$1" base
+    base="$(basename "${path}")"
+    base="${base%.gz}"
+    if [ "${base}" = "genomic.gbff" ]; then
+        basename "$(dirname "${path}")"
+    else
+        echo "${base%.gbff}"
+    fi
+}
+
 total=0
 failed=0
 while read -r gbff; do
     [[ -n "${gbff}" ]] || continue
     total=$((total + 1))
-    base="$(basename "${gbff}")"
-    out_json="${OUT_DIR}/${base%%.gbff*}.json"
+    base="$(genome_label "${gbff}")"
+    out_json="${OUT_DIR}/${base}.json"
 
     # Skip completed work so a timed-out or failed index can be resubmitted
     # without repeating GPU time already paid for.

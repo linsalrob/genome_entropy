@@ -55,7 +55,7 @@ cd "${OUT_DIR}"
 if [[ ! -d chunk_dehydrated ]]; then
     datasets download genome accession \
         --inputfile "${CHUNK_FILE}" \
-        --include genbank \
+        --include gbff \
         --dehydrated \
         --filename chunk.zip
     unzip -o -q chunk.zip -d chunk_dehydrated
