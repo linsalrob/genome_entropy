@@ -66,10 +66,20 @@ conda activate "${ENV_PREFIX}"
 PREFIX="${PREFIX:-chunk}"
 STRIDE="${STRIDE:-10}"
 
-# An API key raises the NCBI rate limit from 3 to 10 requests/second and is
-# worth setting for a run this size. Export it in the submission
-# environment; never commit it here.
-#   export NCBI_API_KEY=...
+# An API key raises the NCBI rate limit from 3 to 10 requests/second, which
+# matters at this scale. Keep it in a mode-600 file outside the repository
+# and source it, so the key never appears in a script, a log, or version
+# control:
+#
+#   umask 077; echo 'export NCBI_API_KEY=...' > ~/.ncbi_api_key
+#
+if [ -r "${HOME}/.ncbi_api_key" ]; then
+    # shellcheck disable=SC1091
+    source "${HOME}/.ncbi_api_key"
+    echo "NCBI API key loaded (rate limit 10 req/s)."
+else
+    echo "No ~/.ncbi_api_key found; using the 3 req/s anonymous limit."
+fi
 
 mkdir -p "${ARCHIVE_DIR}" logs
 
