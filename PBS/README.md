@@ -269,8 +269,32 @@ sequences of more varied length, every one padded to the longest in its
 batch. Past a point the extra padding costs more than the wider batch
 saves. The default is already at that point; leave it alone.
 
-The idle device is real, but it is not a batch-width problem — see the
-parallelism note below.
+The idle device is real, but it is not a batch-width problem.
+
+### Run several genomes per GPU instead
+
+One `run` at a time uses about one core of the 12 that `gpuvolta` bills per
+GPU, and leaves the device idle much of the time waiting on CPU-side work:
+`get_orfs`, GenBank parsing, JSON writing. Running several concurrently
+fills those gaps with other processes' CPU work. Measured on 12 bacterial
+genomes, same work at every setting:
+
+| processes | genomes/hr | speedup | GPU mem |
+|---|---|---|---|
+| 1 | 40 | 1.00× | 3.1 GB |
+| 2 | 68 | 1.71× | 4.5 GB |
+| **4** | **82** | **2.04×** | **7.8 GB** |
+| 6 | 83 | 2.07× | 10.5 GB |
+| 12 | 82 | 2.07× | 19.2 GB |
+
+Throughput saturates at **4 processes**, taking GPU utilisation from 12% to
+79% — past that the device itself is the bottleneck and more processes only
+consume VRAM. Roughly 2x, not the 8x that "4% of memory used" might
+suggest, because memory was never the binding resource.
+
+`pipeline_array.pbs` takes `PARALLEL=N` for this. Re-measure on your own
+hardware and genomes: the right number depends on how the CPU-side work
+compares to encoding, which varies with genome size and annotation.
 
 Wall times, memory figures, and chunk sizes in these templates remain
 starting points to measure, not tested defaults.
