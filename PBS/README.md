@@ -135,6 +135,35 @@ qsub -v INPUT=/g/data/.../genome.gbff,OUTPUT=/g/data/.../genome.json \
 the same way. The `YOUR_NCI_PROJECT` placeholders in the `#PBS` directives
 must be edited, because PBS does not expand variables in directive lines.
 
+## Array jobs
+
+Two things about PBS Pro arrays that are easy to discover the hard way:
+
+**Arrays must be rerunable.** Gadi defaults jobs to `-r n`, and PBS refuses
+an array submitted that way:
+
+```
+qsub: cannot submit non-rerunable Array Job
+```
+
+Both array templates set `#PBS -r y`. Keep it.
+
+**Throttle concurrency with `max_run_subjobs`.** PBS Pro has no `%N`
+suffix; the equivalent is a `-W` option:
+
+```bash
+qsub -r y -J 0-759 -W max_run_subjobs=8 PBS/download_genomes.pbs
+```
+
+This matters most for the download array. NCBI rate-limits per IP — 3
+requests per second without an API key, 10 with one — so letting hundreds
+of subjobs rehydrate at once gets the whole site throttled rather than
+speeding anything up. Set `NCBI_API_KEY` from the environment for large
+runs, and keep concurrency modest regardless.
+
+Queues also cap queued jobs (`max_queued = 1000` on Gadi), which is an
+upper bound on array size; split larger arrays into batches.
+
 ## Multi-GPU under PBS
 
 GPU discovery checks `SLURM_JOB_GPUS`, then `SLURM_GPUS`, then

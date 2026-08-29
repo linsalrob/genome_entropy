@@ -9,6 +9,7 @@
 #PBS -l storage=gdata/YOUR_NCI_PROJECT
 #PBS -l wd
 #PBS -J 0-9
+#PBS -r y
 #PBS -j oe
 #PBS -o logs/download_^array_index^.log
 #
