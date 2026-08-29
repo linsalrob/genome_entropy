@@ -4,6 +4,7 @@
 #PBS -P YOUR_NCI_PROJECT
 #PBS -l ncpus=1
 #PBS -l mem=8GB
+#PBS -l jobfs=100GB
 #PBS -l walltime=10:00:00
 #PBS -l storage=gdata/YOUR_NCI_PROJECT
 #PBS -l wd
@@ -17,41 +18,60 @@
 # and 10 hours. That cap is not a problem for downloads, which are
 # I/O-bound, but each chunk must finish inside 10 hours. Downloading is not
 # what this repository does -- this template exists because the GPU jobs
-# above need GenBank input on /g/data, and getting it there is the awkward
-# part on a machine whose compute nodes are offline.
+# need GenBank input on a shared filesystem, and getting it there is the
+# awkward part on a machine whose compute nodes are offline.
 #
-# Expects accessions/chunk_<index>.txt, zero-padded to two digits, and the
-# NCBI datasets CLI on PATH (PBS/install.sh installs it from bioconda;
-# Gadi has no module for it).
+# Nothing per-genome is written to /g/data. NCBI datasets creates two
+# inodes per genome, an accession directory and a genomic.gbff inside it,
+# which at 200k genomes is ~400k inodes -- more than many projects have
+# free, regardless of how many terabytes are unused. So the download is
+# unpacked on node-local $PBS_JOBFS and only one compressed archive per
+# chunk lands on /g/data. See PBS/README.md.
+#
+# Expects accessions/chunk_<index>.txt, zero-padded to three digits, and
+# the NCBI datasets CLI on PATH (PBS/install.sh installs it from bioconda).
 
 set -euo pipefail
 
 ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
-OUT_ROOT="${OUT_ROOT:-/g/data/YOUR_NCI_PROJECT/genomes}"
+ARCHIVE_DIR="${ARCHIVE_DIR:-/g/data/YOUR_NCI_PROJECT/genbank}"
 
 # shellcheck disable=SC1091
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "${ENV_PREFIX}"
 
-CHUNK_ID=$(printf "%02d" "${PBS_ARRAY_INDEX}")
+CHUNK_ID=$(printf "%03d" "${PBS_ARRAY_INDEX}")
 CHUNK_FILE="${PBS_O_WORKDIR}/accessions/chunk_${CHUNK_ID}.txt"
-OUT_DIR="${OUT_ROOT}/chunk_${CHUNK_ID}"
+ARCHIVE="${ARCHIVE_DIR}/chunk_${CHUNK_ID}.tar.zst"
+MANIFEST="${ARCHIVE_DIR}/chunk_${CHUNK_ID}.manifest"
 
 if [[ ! -f "${CHUNK_FILE}" ]]; then
     echo "ERROR: ${CHUNK_FILE} not found; does -J match the chunk count?" >&2
     exit 1
 fi
 
+mkdir -p "${ARCHIVE_DIR}"
+
+if [[ -f "${ARCHIVE}" ]]; then
+    echo "Chunk ${CHUNK_ID}: ${ARCHIVE} already exists — nothing to do."
+    exit 0
+fi
+
 # An API key raises the NCBI rate limit and is worth setting for large runs.
 # Read it from the environment; do not commit it to this file.
 # export NCBI_API_KEY=...
 
-mkdir -p "${OUT_DIR}"
-cd "${OUT_DIR}"
+WORK="${PBS_JOBFS}/chunk_${CHUNK_ID}"
+mkdir -p "${WORK}"
+cd "${WORK}"
+
+echo "Chunk ${CHUNK_ID}: $(wc -l < "${CHUNK_FILE}") accessions"
+echo "Working in ${WORK} (node-local jobfs, not /g/data)"
 
 # The dehydrated download plus rehydrate path is what NCBI and GTDB
 # recommend above roughly a thousand genomes; a naive per-accession loop
-# gets rate limited.
+# gets rate limited. --include takes gbff, not "genbank", which the CLI
+# rejects outright.
 if [[ ! -d chunk_dehydrated ]]; then
     datasets download genome accession \
         --inputfile "${CHUNK_FILE}" \
@@ -63,8 +83,34 @@ fi
 
 datasets rehydrate --directory chunk_dehydrated
 
-mkdir -p "${PBS_O_WORKDIR}/manifests"
-find "${OUT_DIR}/chunk_dehydrated" \( -iname "*.gbff" -o -iname "*.gbff.gz" \) \
-    | sort > "${PBS_O_WORKDIR}/manifests/chunk_${CHUNK_ID}.txt"
+DATA_DIR="chunk_dehydrated/ncbi_dataset/data"
+n_found=$(find "${DATA_DIR}" -mindepth 2 -iname "*.gbff" | wc -l)
+n_want=$(wc -l < "${CHUNK_FILE}")
+echo "Chunk ${CHUNK_ID}: rehydrated ${n_found} of ${n_want} requested genomes."
 
-echo "Chunk ${CHUNK_ID}: $(wc -l < "${PBS_O_WORKDIR}/manifests/chunk_${CHUNK_ID}.txt") GenBank files."
+if [[ "${n_found}" -eq 0 ]]; then
+    echo "ERROR: no GenBank files were rehydrated." >&2
+    exit 1
+fi
+
+# Record which accessions actually arrived, so a later stage can tell a
+# genuinely missing genome from one lost further down the pipeline.
+find "${DATA_DIR}" -mindepth 2 -iname "*.gbff" -printf '%h\n' \
+    | xargs -r -n1 basename | sort > "${MANIFEST}"
+
+if [[ "${n_found}" -ne "${n_want}" ]]; then
+    echo "WARNING: ${n_want} requested but ${n_found} rehydrated." >&2
+    comm -23 <(sort "${CHUNK_FILE}") "${MANIFEST}" \
+        > "${ARCHIVE_DIR}/chunk_${CHUNK_ID}.missing" || true
+fi
+
+# Write to .partial and rename only on success, so an interrupted job never
+# leaves a truncated archive that a later stage would try to read.
+echo "Packing ${n_found} genomes into ${ARCHIVE} ..."
+tar -cf - -C "${DATA_DIR}" . | zstd -3 -T1 -q -o "${ARCHIVE}.partial"
+mv "${ARCHIVE}.partial" "${ARCHIVE}"
+
+echo "Chunk ${CHUNK_ID} done."
+echo "  archive:  ${ARCHIVE} ($(du -h "${ARCHIVE}" | cut -f1))"
+echo "  manifest: ${MANIFEST} ($(wc -l < "${MANIFEST}") genomes)"
+echo "  /g/data inodes used by this chunk: 2"

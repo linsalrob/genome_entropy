@@ -120,7 +120,8 @@ audited or reproducible code.
 | `pipeline_array.pbs` | `gpuvolta` | array over per-chunk manifests, skipping completed output |
 | `encoder.pbs` | `gpuvolta` | protein JSON to structural-state JSON |
 | `pytest.pbs` | `gpuvolta` | test suite inside a GPU allocation |
-| `download_genomes.pbs` | `copyq` | fetch GenBank files from NCBI by accession |
+| `download_genomes.pbs` | `copyq` | fetch GenBank files from NCBI by accession into one archive per chunk |
+| `extract_entropy_rows.py` | (called by the array job) | pull per-ORF entropy values out of JSON into a TSV |
 
 The job templates read their paths from the environment so you can override
 them at submission without editing the file:

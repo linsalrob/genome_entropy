@@ -5,7 +5,7 @@
 #PBS -l ngpus=1
 #PBS -l ncpus=12
 #PBS -l mem=90GB
-#PBS -l jobfs=50GB
+#PBS -l jobfs=200GB
 #PBS -l walltime=05:00:00
 #PBS -l storage=gdata/YOUR_NCI_PROJECT
 #PBS -l wd
@@ -13,36 +13,33 @@
 #PBS -j oe
 #PBS -o logs/entropy_^array_index^.log
 #
-# Process many genomes as a PBS array, one manifest per array index.
+# Encode a chunk of genomes as a PBS array, one archive per array index,
+# consuming what download_genomes.pbs produced.
 #
-# Each manifest is a text file listing GenBank paths, one per line, named
-# manifests/chunk_<index>.txt with the index zero-padded to two digits.
-# Set -J above to match the number of manifests; mkdir -p logs first.
+# Set -J to match the number of chunk archives; mkdir -p logs first.
 #
-# Sizing the chunks is the important decision, and it is a cost decision
-# rather than a correctness one. Run PBS/estimate_tokens.pbs, then time a
-# single-genome pipeline.pbs, before choosing. A GPU service unit on Gadi
-# costs substantially more than a CPU one, so an array sized from a guess
-# can consume an allocation quickly.
+# Nothing per-genome touches /g/data. The chunk archive is expanded onto
+# node-local $PBS_JOBFS, results are written there, and two files per chunk
+# come back:
 #
-# One process per genome means the model is loaded from cache for every
-# genome. On small genomes that per-invocation overhead can rival the
-# encoding itself; measure it before assuming the GPU is the bottleneck.
+#   <out>/chunk_NNN.tar.zst   all per-genome JSON, zstd -3
+#   <out>/chunk_NNN.tsv.gz    per-ORF entropy rows only
+#
+# The TSV exists so downstream work never unpacks the archive: measured on
+# real output it is about 42x smaller than the JSON and holds every entropy
+# value. See PBS/README.md for the inode arithmetic behind this.
+#
+# Sizing chunks is a cost decision, not a correctness one. Run
+# estimate_tokens.pbs, then time a single pipeline.pbs, before choosing. A
+# GPU service unit costs substantially more than a CPU one.
 
 set -euo pipefail
 
 ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
 HF_CACHE="${HF_CACHE:-/g/data/YOUR_NCI_PROJECT/hf_cache}"
+ARCHIVE_DIR="${ARCHIVE_DIR:-/g/data/YOUR_NCI_PROJECT/genbank}"
 OUT_ROOT="${OUT_ROOT:-/g/data/YOUR_NCI_PROJECT/entropy_results}"
-
-CHUNK_ID=$(printf "%02d" "${PBS_ARRAY_INDEX}")
-MANIFEST="manifests/chunk_${CHUNK_ID}.txt"
-OUT_DIR="${OUT_ROOT}/chunk_${CHUNK_ID}"
-
-if [[ ! -f "${MANIFEST}" ]]; then
-    echo "ERROR: ${MANIFEST} not found; does -J match the manifest count?" >&2
-    exit 1
-fi
+MODEL="${MODEL:-gbouras13/modernprost-50M}"
 
 # shellcheck disable=SC1091
 source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -54,47 +51,108 @@ export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export TORCH_DISABLE_DYNAMO=1
 
-mkdir -p "${OUT_DIR}"
+CHUNK_ID=$(printf "%03d" "${PBS_ARRAY_INDEX}")
+ARCHIVE="${ARCHIVE_DIR}/chunk_${CHUNK_ID}.tar.zst"
+OUT_TAR="${OUT_ROOT}/chunk_${CHUNK_ID}.tar.zst"
+OUT_TSV="${OUT_ROOT}/chunk_${CHUNK_ID}.tsv.gz"
 
+if [[ ! -f "${ARCHIVE}" ]]; then
+    echo "ERROR: ${ARCHIVE} not found; did the matching download chunk finish?" >&2
+    exit 1
+fi
+if [[ -f "${OUT_TAR}" ]]; then
+    echo "Chunk ${CHUNK_ID}: ${OUT_TAR} already exists — nothing to do."
+    exit 0
+fi
+
+mkdir -p "${OUT_ROOT}"
+
+WORK="${PBS_JOBFS}/chunk_${CHUNK_ID}"
+IN_DIR="${WORK}/genbank"
+OUT_DIR="${WORK}/json"
+mkdir -p "${IN_DIR}" "${OUT_DIR}"
+
+# PBS sends SIGTERM before killing a job at its walltime. Flush what has
+# been encoded so far rather than losing a whole chunk's GPU time; a
+# resubmitted index can be reconciled against the .partial instead of
+# starting from zero.
+flush_partial () {
+    local n
+    n=$(find "${OUT_DIR}" -name "*.json" | wc -l)
+    if [[ "${n}" -gt 0 ]]; then
+        echo "Flushing ${n} completed genomes to ${OUT_TAR}.partial" >&2
+        tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial" || true
+    fi
+}
+trap 'flush_partial' TERM
+
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+
+echo "Unpacking ${ARCHIVE} to node-local jobfs ..."
+zstd -dq -c "${ARCHIVE}" | tar -xf - -C "${IN_DIR}"
+find "${IN_DIR}" -mindepth 2 -iname "*.gbff" | sort > "${WORK}/gbff_paths.txt"
+echo "Chunk ${CHUNK_ID}: $(wc -l < "${WORK}/gbff_paths.txt") genomes to encode"
 
 # NCBI datasets names every GenBank file "genomic.gbff" and puts the
 # accession in the parent directory:
-#     .../ncbi_dataset/data/GCA_030638685.1/genomic.gbff
+#     ncbi_dataset/data/GCA_030638685.1/genomic.gbff
 # Naming outputs from the basename would give every genome in a chunk the
-# same output file, and the resume check below would then skip the whole
-# chunk after the first genome. Derive the label from the accession
-# directory instead.
+# same output file. Derive the label from the accession directory instead.
 genome_label () {
     local path="$1" base
     base="$(basename "${path}")"
     base="${base%.gz}"
-    if [ "${base}" = "genomic.gbff" ]; then
+    if [[ "${base}" = "genomic.gbff" ]]; then
         basename "$(dirname "${path}")"
     else
         echo "${base%.gbff}"
     fi
 }
 
-total=0
+done_count=0
 failed=0
+: > "${WORK}/failures.txt"
+
 while read -r gbff; do
     [[ -n "${gbff}" ]] || continue
-    total=$((total + 1))
-    base="$(genome_label "${gbff}")"
-    out_json="${OUT_DIR}/${base}.json"
-
-    # Skip completed work so a timed-out or failed index can be resubmitted
-    # without repeating GPU time already paid for.
-    [[ -f "${out_json}" ]] && continue
-
-    if ! genome_entropy run -g "${gbff}" -o "${out_json}" \
-            --model gbouras13/modernprost-50M --encoding-size 10000; then
-        echo "FAILED: ${gbff}" >&2
+    label="$(genome_label "${gbff}")"
+    if genome_entropy run -g "${gbff}" -o "${OUT_DIR}/${label}.json" \
+            --model "${MODEL}" --encoding-size 10000; then
+        done_count=$((done_count + 1))
+    else
+        echo "${label}" >> "${WORK}/failures.txt"
         failed=$((failed + 1))
+        echo "FAILED: ${label}" >&2
     fi
-done < "${MANIFEST}"
+done < "${WORK}/gbff_paths.txt"
 
-echo "Chunk ${CHUNK_ID}: ${total} genomes, ${failed} failures."
+echo "Chunk ${CHUNK_ID}: ${done_count} encoded, ${failed} failed."
+
+if [[ "${done_count}" -eq 0 ]]; then
+    echo "ERROR: nothing encoded; not writing an archive." >&2
+    exit 1
+fi
+
+# Per-ORF entropy rows, so downstream work never needs the JSON archive.
+python3 "${PBS_O_WORKDIR}/PBS/extract_entropy_rows.py" \
+    --input-dir "${OUT_DIR}" \
+    --chunk "${CHUNK_ID}" \
+    --output "${WORK}/chunk_${CHUNK_ID}.tsv"
+gzip -c "${WORK}/chunk_${CHUNK_ID}.tsv" > "${OUT_TSV}.partial"
+mv "${OUT_TSV}.partial" "${OUT_TSV}"
+
+trap - TERM
+tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial"
+mv "${OUT_TAR}.partial" "${OUT_TAR}"
+
+if [[ "${failed}" -gt 0 ]]; then
+    cp "${WORK}/failures.txt" "${OUT_ROOT}/chunk_${CHUNK_ID}.failures"
+fi
+
+echo "Chunk ${CHUNK_ID} complete."
+echo "  json archive: ${OUT_TAR} ($(du -h "${OUT_TAR}" | cut -f1))"
+echo "  entropy rows: ${OUT_TSV} ($(du -h "${OUT_TSV}" | cut -f1))"
+echo "  /g/data inodes used by this chunk: 2"
 
 # Exit non-zero so a partially failed index is visible in qstat -x rather
 # than being mistaken for a clean run.
