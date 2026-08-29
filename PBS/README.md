@@ -242,12 +242,35 @@ the conda environment, the offline `HF_HOME` cache with `HF_HUB_OFFLINE=1`,
 `torch.cuda` on a V100, and a full `run` over five genomes producing schema
 2.2.0 with all five entropy fields populated.
 
-Two measurements from that job worth keeping in mind when sizing your own:
-it was charged **4.41 SU for 7m21s** on one GPU with 12 CPUs, which puts
-`gpuvolta` at about **36 SU per GPU-hour**; and it reported **48% GPU
-utilisation using 2.1 GB of the V100's 32 GB**, so there is substantial
-headroom — raise `--encoding-size` and measure before assuming one genome
-per process is the right granularity.
+It was charged **4.41 SU for 7m21s** on one GPU with 12 CPUs, which puts
+`gpuvolta` at about **36 SU per GPU-hour**.
+
+### Do not raise `--encoding-size` to "use the GPU"
+
+A single `run` leaves the device looking idle — 12–48% utilisation using
+1.5–2.1 GB of the V100's 32 GB — which invites the conclusion that the
+batch budget should be much larger. Measured on Gadi, that is wrong.
+
+On three bacterial genomes over two rounds (variation under 1%):
+
+| `--encoding-size` | s/genome | vs default |
+|---|---|---|
+| **10000** (default) | **119.5** | **1.000 — fastest** |
+| 25000 | 120.3 | 0.993 |
+| 50000 | 124.0 | 0.964 |
+| 100000 | 131.5 | 0.909 |
+
+An earlier single-genome sweep went further: 800000 ran 14% slower than
+the default, and 400000 and 800000 returned byte-identical peak memory,
+meaning the budget already exceeded the genome's entire protein content.
+
+`encoding_size` is a token budget per batch, and a wider budget groups
+sequences of more varied length, every one padded to the longest in its
+batch. Past a point the extra padding costs more than the wider batch
+saves. The default is already at that point; leave it alone.
+
+The idle device is real, but it is not a batch-width problem — see the
+parallelism note below.
 
 Wall times, memory figures, and chunk sizes in these templates remain
 starting points to measure, not tested defaults.
