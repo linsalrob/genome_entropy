@@ -48,8 +48,11 @@ site install instructions in ``PBS/README.md``. They are not interchangeable
 with the SLURM files: PBS Pro identifies the project with ``-P``, requires an
 explicit ``-l storage`` directive for every filesystem a job touches, and
 exposes array indices as ``PBS_ARRAY_INDEX``. Multi-GPU discovery finds no
-SLURM variables under PBS and falls back to ``CUDA_VISIBLE_DEVICES``, so pass
-local device IDs. Where no queue offers both GPUs and outbound internet, as on
+SLURM variables under PBS, and on Gadi ``CUDA_VISIBLE_DEVICES`` is unset inside
+a GPU job as well -- the scheduler restricts visibility by cgroup instead -- so
+discovery falls through to PyTorch's device count, which reports exactly the
+allocated GPUs. Pass ``--gpu-ids`` only as local indices. Where no queue offers
+both GPUs and outbound internet, as on
 Gadi, install the environment and populate the model cache from a login node
 first and set ``HF_HUB_OFFLINE=1`` in the job, so a cache miss fails
 immediately instead of hanging on an unreachable network.

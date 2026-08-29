@@ -137,10 +137,17 @@ must be edited, because PBS does not expand variables in directive lines.
 ## Multi-GPU under PBS
 
 GPU discovery checks `SLURM_JOB_GPUS`, then `SLURM_GPUS`, then
-`CUDA_VISIBLE_DEVICES`. Under PBS Pro only the last of those is set, and it
-remaps allocated devices to local indices, so pass local IDs — `--gpu-ids
-0,1` — rather than physical device numbers. Request `ngpus=2` with
-`ncpus=24` on `gpuvolta` and add `--multi-gpu`.
+`CUDA_VISIBLE_DEVICES`. On Gadi **none of the three is set** inside a GPU
+job — verified in a `gpuvolta` allocation, where the log recorded
+`CUDA_VISIBLE_DEVICES=unset` while `torch.cuda.is_available()` was true and
+the V100 was visible. PBS restricts device visibility by cgroup rather than
+by that variable, so discovery falls through to PyTorch's device count,
+which already reports exactly the GPUs you were allocated. That is the
+behaviour you want; do not set the variable by hand to "fix" it.
+
+If you pass `--gpu-ids` explicitly, use local indices (`0,1`), not physical
+device numbers. Request `ngpus=2` with `ncpus=24` on `gpuvolta` and add
+`--multi-gpu`.
 
 ## Checking a run
 
@@ -152,11 +159,42 @@ genomes whose output already exists so a resubmitted index does not repay
 for GPU time already spent. Check exit statuses before launching the next
 stage.
 
+## Inodes are usually the binding constraint
+
+On a shared `/g/data` the inode quota bites long before the byte quota. The
+project this was written against had ~520k inodes free against 30 TB of
+space, while NCBI `datasets` writes two inodes per genome (an accession
+directory and a `genomic.gbff`) and the pipeline writes one JSON per genome
+on top. A 200k-genome run wants ~600k inodes and fails on a filesystem with
+9 TB free.
+
+`download_genomes.pbs` and `pipeline_array.pbs` therefore keep nothing
+per-genome on `/g/data`. Each unpacks its input onto node-local
+`$PBS_JOBFS`, which has its own filesystem and costs no `/g/data` inodes,
+and writes back a single compressed archive per chunk. Two inodes per
+chunk, not two per genome.
+
+Measured on real output: entropy JSON is 2.3–4.9x the size of its GenBank
+input, `zstd -3` compresses it about 3.4x at roughly ten times gzip's
+speed, and the per-ORF entropy values extracted to TSV are about **42x**
+smaller than the JSON they came from. So the templates write both — a JSON
+archive for sequences and encodings, and a small TSV for the numbers — and
+downstream analysis reads the TSV without ever unpacking an archive.
+
 ## Status
 
-The `#PBS` directives, queue constraints, and offline-cache handling here
-reflect Gadi's documented limits, and the login-node install path has been
-exercised on Gadi. The GPU job templates themselves have not been run
-through a `gpuvolta` allocation, so treat wall times, memory figures, and
-the token budget as starting points to measure rather than as tested
-defaults.
+The `#PBS` directives, queue constraints, and offline-cache handling
+reflect Gadi's documented limits. Verified in a real `gpuvolta` allocation:
+the conda environment, the offline `HF_HOME` cache with `HF_HUB_OFFLINE=1`,
+`torch.cuda` on a V100, and a full `run` over five genomes producing schema
+2.2.0 with all five entropy fields populated.
+
+Two measurements from that job worth keeping in mind when sizing your own:
+it was charged **4.41 SU for 7m21s** on one GPU with 12 CPUs, which puts
+`gpuvolta` at about **36 SU per GPU-hour**; and it reported **48% GPU
+utilisation using 2.1 GB of the V100's 32 GB**, so there is substantial
+headroom — raise `--encoding-size` and measure before assuming one genome
+per process is the right granularity.
+
+Wall times, memory figures, and chunk sizes in these templates remain
+starting points to measure, not tested defaults.

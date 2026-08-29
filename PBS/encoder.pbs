@@ -18,10 +18,11 @@
 # Multitask ModernProst models emit 3Di and 12-state together.
 #
 # To use more than one GPU, request ngpus=2 with ncpus=24 and add
-# --multi-gpu. GPU discovery in genome_entropy checks SLURM variables and
-# then CUDA_VISIBLE_DEVICES; under PBS Pro only the latter is set, and it
-# remaps the allocated devices to local indices, so pass local IDs such as
-# --gpu-ids 0,1 rather than physical device numbers.
+# --multi-gpu. GPU discovery checks SLURM variables and then
+# CUDA_VISIBLE_DEVICES; on Gadi none of them is set inside a GPU job, since
+# PBS restricts device visibility by cgroup, so discovery falls through to
+# PyTorch's device count and sees exactly the allocated GPUs. If you pass
+# --gpu-ids explicitly, use local indices such as 0,1.
 
 set -euo pipefail
 trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
