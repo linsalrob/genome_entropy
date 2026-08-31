@@ -29,6 +29,13 @@ structure and can score high 3Di entropy without being a distinct protein.
 A genuine missed gene should sit in intergenic space, overlapping nothing
 annotated.
 
+"Overlapping nothing annotated" is tested against the deposited GenBank CDS
+coordinates, from 13_cds_intervals.pbs, and not against the spans of ORFs
+whose in_genbank flag is True. Those spans mislead in both directions: a CDS
+the matcher rejected is absent from them, so an ORF sitting on a real gene
+reads as intergenic, and a matched ORF runs stop to stop and can extend past
+the deposited CDS, so its overhang manufactures shadows.
+
 That gives three groups among unmatched ORFs in annotated genomes:
   shadow      overlaps an annotated CDS -> explained, not a missed gene
   intergenic  overlaps nothing annotated -> the actual candidate pool
@@ -124,28 +131,75 @@ def add_genomic_coordinates(df):
     return out
 
 
-def overlaps_annotated(df):
-    """Flag each unmatched ORF that overlaps an annotated CDS on its contig.
+def load_cds_intervals(directory, genomes):
+    """Return deposited CDS intervals per contig, for the contigs given.
 
-    Operates on the normalised forward-axis columns from
-    add_genomic_coordinates, so a plus-strand ORF and a minus-strand one are
-    finally comparable. Strand itself is still ignored, which is the intent:
-    a shadow in the opposite orientation is still a shadow.
+    Read from 13_cds_intervals.pbs. These are the actual GenBank CDS
+    coordinates, zero-based half-open on the forward strand, one row per
+    contiguous part of a compound location.
+    """
+    files = sorted(glob.glob(os.path.join(directory, "*.tsv")))
+    if not files:
+        raise SystemExit(
+            f"No CDS interval TSVs under {directory}. Run "
+            "13_cds_intervals.pbs for the chunks being analysed."
+        )
+    frame = pd.concat(
+        [pd.read_csv(f, sep="\t") for f in files], ignore_index=True
+    )
+    for column in ("genome", "contig", "start", "end"):
+        if column not in frame.columns:
+            raise SystemExit(
+                f"CDS interval files in {directory} have no '{column}' "
+                "column; expected the output of 13_cds_intervals.pbs."
+            )
+
+    # Checked per genome, not per contig: a genome whose chromosome is
+    # annotated can legitimately have a plasmid or short contig carrying no
+    # CDS at all, and that contig having no rows is the correct answer. A
+    # whole genome missing means its chunk was never extracted, and treating
+    # that as "no CDS anywhere" would report every ORF in it as a candidate.
+    missing = genomes - set(frame.genome)
+    if missing:
+        raise SystemExit(
+            f"{len(missing):,} genome(s) in the chunk TSVs have no CDS "
+            f"interval rows, e.g. {sorted(missing)[0]}. Every ORF in them "
+            "would look intergenic, so this cannot be assumed empty: run "
+            "13_cds_intervals.pbs over the same chunks. Genomes genuinely "
+            "without CDS features were already removed by STEP 1."
+        )
+    return frame
+
+
+def overlaps_annotated(df, cds):
+    """Flag each unmatched ORF that overlaps a deposited CDS on its contig.
+
+    Both sides are zero-based half-open on the forward strand, so a
+    plus-strand ORF and a minus-strand CDS are comparable. Strand is
+    deliberately ignored after that: a shadow in the opposite orientation is
+    still a shadow.
+
+    The CDS side comes from the GenBank records, not from in_genbank=True ORF
+    spans. Those spans are wrong in both directions -- a CDS the matcher
+    rejected is missing from them, and a matched ORF runs stop to stop and
+    can extend past the deposited CDS, so its overhang invents shadows.
     """
     flag = np.zeros(len(df), dtype=bool)
-    for _, g in df.groupby("contig", sort=False):
-        t = g[g.in_genbank]
+    cds_by_contig = dict(tuple(cds.groupby("contig", sort=False)))
+
+    for contig, g in df.groupby("contig", sort=False):
         f = g[~g.in_genbank]
-        if len(t) == 0 or len(f) == 0:
+        annotated = cds_by_contig.get(contig)
+        if len(f) == 0 or annotated is None or len(annotated) == 0:
             continue
-        ts = t.g_start.to_numpy(); te = t.g_end.to_numpy()
+        ts = annotated.start.to_numpy(); te = annotated.end.to_numpy()
         order = np.argsort(ts)
         ts, te = ts[order], te[order]
         # running max of end, so a binary search over starts is sufficient
         te_max = np.maximum.accumulate(te)
         fs = f.g_start.to_numpy(); fe = f.g_end.to_numpy()
-        # last annotated CDS whose start < this ORF's end (half-open, so an
-        # annotation starting exactly at fe does not overlap)
+        # last CDS whose start < this ORF's end (half-open, so a CDS
+        # starting exactly at fe does not overlap)
         idx = np.searchsorted(ts, fe, side="left") - 1
         ok = idx >= 0
         hit = np.zeros(len(f), dtype=bool)
@@ -180,6 +234,12 @@ def main():
         help="genome_cds_counts_<domain>.tsv from 12_genome_cds_counts.pbs. "
              "Required: annotation presence must come from the GenBank "
              "records, not from in_genbank.")
+    ap.add_argument(
+        "--cds-intervals", required=True,
+        help="directory of per-chunk CDS interval TSVs from "
+             "13_cds_intervals.pbs. Required: the shadow test needs the "
+             "deposited CDS coordinates, not the spans of ORFs that happened "
+             "to match.")
     args = ap.parse_args()
 
     if not FILES:
@@ -234,7 +294,10 @@ def main():
 
     # --- confounder 2: shadow ORFs over real CDS ---
     print("STEP 2 - within annotated genomes, separate shadows from intergenic")
-    d["shadow"] = overlaps_annotated(d)
+    cds = load_cds_intervals(args.cds_intervals, set(d.genome.unique()))
+    cds = cds[cds.genome.isin(annotated)]
+    print(f"  deposited CDS parts read       : {len(cds):,}")
+    d["shadow"] = overlaps_annotated(d, cds)
     unm = d[~d.in_genbank]
     hi = unm[unm.three_di_entropy >= THRESH]
     print(f"  unmatched ORFs                  : {len(unm):,}")

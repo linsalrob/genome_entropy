@@ -250,16 +250,28 @@ structurally like real proteins, so perhaps the original annotation software
 failed to call them.
 
 > **The shadow/intergenic split below is superseded and awaits recomputation.**
-> `10_missed_genes.py` tested overlap using raw `get_orfs` coordinates. On the
-> negative strand those index the reverse complement, so every plus-versus-minus
-> comparison was made between two different coordinate systems: real
-> cross-strand shadows were missed and unrelated spans were counted as shadows.
-> The script now converts both intervals onto the forward genomic axis with
-> `normalise_orf_interval`, the same helper the `in_genbank` matcher uses, but
-> the numbers here predate that fix and have not been regenerated. A synthetic
-> check shows the two errors run in opposite directions, so the totals can look
-> stable while individual ORFs are assigned to the wrong group — treat the
-> 15,338 / 8,651 split, everything derived from it, and the "1.6% survives"
+> Two independent defects produced it, both now fixed in the scripts and
+> neither reflected in the numbers here.
+>
+> *Coordinates.* Overlap was tested using raw `get_orfs` coordinates. On the
+> negative strand those index the reverse complement, so every
+> plus-versus-minus comparison was made between two different coordinate
+> systems: real cross-strand shadows were missed and unrelated spans were
+> counted as shadows. Both sides are now placed on the forward genomic axis
+> with `normalise_orf_interval`, the same helper the `in_genbank` matcher uses.
+>
+> *What counts as "annotated".* The CDS set was taken to be the spans of ORFs
+> whose `in_genbank` flag was True. That misleads in both directions: a CDS the
+> matcher rejected is absent from it, so an ORF sitting on a real gene reads as
+> intergenic, and a matched ORF runs stop to stop and can extend past the
+> deposited CDS, so its overhang manufactures shadows. The test now uses the
+> deposited GenBank coordinates from `13_cds_intervals.pbs`. The example data in
+> this repository contains a concrete instance: an origin-crossing CDS that the
+> matcher skips entirely, and which the old method therefore could never see.
+>
+> Synthetic checks show both defects produce errors in opposing directions, so
+> totals can look stable while individual ORFs sit in the wrong group. Treat
+> the 15,338 / 8,651 split, everything derived from it, and the "1.6% survives"
 > figure as provisional until the analysis is rerun.
 >
 > The 95.5% attributable to genomes with no annotation at all does not depend
@@ -435,10 +447,12 @@ Final footprint: 1.5 TB results + 350 GB GenBank archives.
    GenBank records rather than from `in_genbank`. Both are currently upper
    bounds.
 7. **Rerun `10_missed_genes.py`** now that it converts negative-strand
-   coordinates onto the forward genomic axis and takes annotation presence from
-   item 6, and replace the superseded shadow/intergenic numbers in §6. Needs
-   chunk TSVs regenerated from the JSON archives, because the originals predate
-   the `contig_length` column.
+   coordinates onto the forward genomic axis, takes annotation presence from
+   item 6, and tests shadows against deposited CDS coordinates from
+   `13_cds_intervals.pbs`; replace the superseded shadow/intergenic numbers in
+   §6. Needs chunk TSVs regenerated from the JSON archives, because the
+   originals predate the `contig_length` column, and `13` run over the same
+   chunks.
 8. **Test what 3Di state `D` corresponds to.** Run DSSP over predicted
    structures, or a disorder predictor, on ORFs below and above the 1.585 line.
    The entropy ceiling is established without this, but the disorder reading of
@@ -481,6 +495,8 @@ Pipeline in `/g/data/ob80/re3494/Projects/genome_entropy/claude/`:
 | `08_plot_entropy_scatter.py` | four-panel scatter |
 | `09_plot_density.py` | hexbin and KDE figures |
 | `10_missed_genes.py` | §6 analysis |
+| `12_genome_cds_counts.pbs` | annotation presence from the GenBank records |
+| `13_cds_intervals.pbs`, `cds_intervals.py` | deposited CDS coordinates for the §6 shadow test |
 
 Gadi-specific PBS templates and install instructions were contributed upstream
 on branch `feature/pbs-gadi-templates` of `linsalrob/genome_entropy`.

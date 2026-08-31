@@ -23,10 +23,13 @@ re-run the thing.
   (2.04×), taking utilisation from 12% to 79%. This cut the projected bacterial
   cost from ~227,000 to ~74,000 service units.
 - **3Di entropy has hard ceilings at log₂(k)** for k distinct 3Di states, and a
-  large population of ORFs encodes to only 2–3 states (dominated by `D`, the
-  coil state), so their entropy is mechanically capped at log₂(3) = 1.585. Any
+  large population of ORFs encodes to only 2–3 states (76% of their residues are
+  `D`), so their entropy is mechanically capped at log₂(3) = 1.585. Any
   threshold analysis on 3Di entropy should use that constant rather than a value
-  read off a plot. §5 of the report.
+  read off a plot. The ceiling follows from the number of states alone; what
+  those states correspond to structurally is not established here, and 3Di
+  letters are learned tertiary-interaction states rather than named
+  secondary-structure categories. §5 of the report.
 - **`in_genbank=False` does not mean "annotation declined this ORF".** At least
   46% of GTDB bacterial representatives carry no CDS annotation at all, so 42.8%
   of all ORFs are `False` by construction. Filter on annotation status before
@@ -59,9 +62,11 @@ re-run the thing.
 | `07_count_orfs.pbs` | `normal` | exact ORF / `in_genbank` counts, cached per chunk |
 | `11_genome_annotation_status.pbs` | `normal` | per-genome table of whether any ORF matched a CDS |
 | `12_genome_cds_counts.pbs` | `normal` | per-genome CDS counts read from the GenBank records — the authoritative annotation-presence answer |
+| `13_cds_intervals.pbs` | `normal` | deposited CDS coordinates for named chunks, for the shadow test |
+| `cds_intervals.py` | (called by 13) | GenBank CDS locations → interval TSV |
 | `08_plot_entropy_scatter.py` | login | four-panel scatter |
 | `09_plot_density.py` | login | hexbin and 2D-KDE figures |
-| `10_missed_genes.py` | login | candidate genes missed by annotation; needs `--annotation-status` from `12` |
+| `10_missed_genes.py` | login | candidate genes missed by annotation; needs `--annotation-status` from `12` and `--cds-intervals` from `13` |
 
 ### Order
 
@@ -92,9 +97,18 @@ python3 05_aggregate_results.py --domain bac
 `10_missed_genes.py` needs:
 
 ```bash
+qsub -v DOMAIN=bac,CHUNKS="000 051" 13_cds_intervals.pbs
+
 python3 10_missed_genes.py \
-    --annotation-status /g/data/.../genome_cds_counts_bac.tsv
+    --annotation-status /g/data/.../genome_cds_counts_bac.tsv \
+    --cds-intervals     /g/data/.../cds_intervals/bac
 ```
+
+`13` parses records properly rather than grepping, so it is run only over the
+chunks an analysis needs; `12` stays cheap enough for the whole corpus. The
+shadow test needs `13` because the spans of ORFs that happened to match a CDS
+are not the CDS set: a CDS the matcher rejected is missing from them, and a
+matched ORF runs stop to stop and can extend past the deposited CDS.
 
 Then repeat with `DOMAIN=arc`.
 
@@ -110,7 +124,7 @@ Paths are hardcoded to the machine this ran on. Change:
 | `GET_ORFS_PATH` | `00`, `00b`–`00e`, `04`, `06` |
 | `HF_HOME` | `00`, `00b`–`00e`, `03b`, `04`, `06` |
 | `$GE_SCRATCH` | `08`, `09`, `10` — read from the environment, defaults to `./work` |
-| `GDATA_ROOT`, `GENBANK_DIR` | `12` — overridable from the environment |
+| `GDATA_ROOT`, `GENBANK_DIR` | `12`, `13` — overridable from the environment |
 
 For a portable starting point rather than this record, use the templates in
 [`../../PBS/`](../../PBS) instead.

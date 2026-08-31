@@ -102,10 +102,35 @@ def main():
                     help="aggregate one domain at a time; bacteria and "
                          "archaea are kept separate end to end")
     ap.add_argument("--output", default=None)
+    ap.add_argument("--annotation-status", default=None,
+                    help="genome_cds_counts_<domain>.tsv from "
+                         "12_genome_cds_counts.pbs. Without it the "
+                         "has_annotation column is left empty rather than "
+                         "inferred from in_genbank, which cannot tell an "
+                         "unannotated genome from one whose CDSs the ORF "
+                         "matcher rejected.")
     args = ap.parse_args()
 
     if args.output is None:
         args.output = f"summary_per_genome_{args.domain}.tsv"
+
+    cds_counts = {}
+    if args.annotation_status:
+        with open(args.annotation_status, newline="") as fh:
+            reader = csv.DictReader(fh, delimiter="\t")
+            for column in ("genome", "n_cds"):
+                if column not in (reader.fieldnames or ()):
+                    print(f"ERROR: {args.annotation_status} has no '{column}' "
+                          "column; expected the output of "
+                          "12_genome_cds_counts.pbs.", file=sys.stderr)
+                    return 1
+            for row in reader:
+                try:
+                    cds_counts[row["genome"]] = int(row["n_cds"])
+                except (TypeError, ValueError):
+                    continue
+        print(f"annotation status: {len(cds_counts):,} genomes from "
+              f"{args.annotation_status}")
 
     pattern = os.path.join(args.results_dir, args.domain, f"{args.domain}_*.tsv.gz")
     files = sorted(glob.glob(pattern))
@@ -166,8 +191,15 @@ def main():
             print(f"WARNING: could not read {path}: {e}", file=sys.stderr)
             bad_files.append(path)
 
+    # matcher_matched_a_cds, not "annotated": it says whether any called ORF
+    # passed genome_entropy's coordinate/frame/translation match, which is
+    # not the same question as whether the assembly carries CDS annotation.
+    # has_annotation is filled from 12_genome_cds_counts.pbs when its table
+    # is supplied, and left empty otherwise rather than guessed.
     columns = ["genome", "domain", "chunk", "n_contigs", "n_orfs",
-               "n_orfs_in_genbank", "frac_orfs_in_genbank", "genome_annotated"]
+               "n_orfs_in_genbank", "frac_orfs_in_genbank",
+               "matcher_matched_a_cds", "n_cds_in_genbank_file",
+               "has_annotation"]
     for metric in ENTROPY_FIELDS:
         columns += [f"n_{metric}", f"mean_{metric}", f"sd_{metric}",
                     f"min_{metric}", f"max_{metric}"]
@@ -192,9 +224,13 @@ def main():
             row["n_orfs_in_genbank"] = n_ing
             row["frac_orfs_in_genbank"] = (
                 f"{n_ing / orf_counts[genome]:.4f}" if orf_counts[genome] else "")
-            # Distinguishes "assembly carries no CDS annotation at all" from
-            # "annotated, but this ORF was not among the CDS".
-            row["genome_annotated"] = "True" if n_ing else "False"
+            # Whether the matcher found anything, which is all this file can
+            # know on its own. A genome with real CDS features that all fail
+            # the strict match reads False here.
+            row["matcher_matched_a_cds"] = "True" if n_ing else "False"
+            cds_n = cds_counts.get(genome)
+            row["n_cds_in_genbank_file"] = "" if cds_n is None else cds_n
+            row["has_annotation"] = "" if cds_n is None else ("True" if cds_n else "False")
             for metric in ENTROPY_FIELDS:
                 acc = stats[genome].get(metric)
                 if acc and acc.n:
@@ -218,12 +254,20 @@ def main():
     print(f"genomes          : {len(orf_counts)}")
     print(f"ORF rows         : {n_rows}")
     n_ing_total = sum(in_genbank_counts.values())
-    n_annotated = sum(1 for g in orf_counts if in_genbank_counts.get(g))
+    n_matched = sum(1 for g in orf_counts if in_genbank_counts.get(g))
     print(f"ORFs in GenBank  : {n_ing_total} "
           f"({n_ing_total / n_rows * 100:.1f}% of ORFs)" if n_rows else "")
-    print(f"annotated genomes: {n_annotated} of {len(orf_counts)} "
-          f"({n_annotated / len(orf_counts) * 100:.1f}%) carry any CDS annotation"
-          if orf_counts else "")
+    print(f"genomes with >=1 matched ORF: {n_matched} of {len(orf_counts)} "
+          f"({n_matched / len(orf_counts) * 100:.1f}%)" if orf_counts else "")
+    if cds_counts:
+        n_ann = sum(1 for g in orf_counts if cds_counts.get(g))
+        print(f"genomes with CDS annotation : {n_ann} of {len(orf_counts)} "
+              f"({n_ann / len(orf_counts) * 100:.1f}%)  [from 12_genome_cds_counts]")
+        print(f"  annotated but unmatched   : {n_ann - sum(1 for g in orf_counts if cds_counts.get(g) and in_genbank_counts.get(g))}"
+              "  <- would read as unannotated from in_genbank alone")
+    else:
+        print("genomes with CDS annotation : not determined "
+              "(pass --annotation-status from 12_genome_cds_counts.pbs)")
     if n_bad_rows:
         print(f"unparseable rows : {n_bad_rows}", file=sys.stderr)
     if bad_files:
