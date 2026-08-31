@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -21,8 +22,16 @@ import pandas as pd
 from sklearn.model_selection import GroupKFold
 from xgboost import XGBRFClassifier
 
-from genome_entropy.io.genbank import normalise_orf_interval
-from genome_entropy.ml import (
+# The documented ROCm environment installs genome_entropy from PyPI, and
+# running this file by path only puts scripts/ on sys.path. Prefer the
+# checkout this script lives in so the script and the package it calls into
+# cannot diverge; fall back to the installed package outside a checkout.
+CHECKOUT_SOURCE = Path(__file__).resolve().parent.parent / "src"
+if (CHECKOUT_SOURCE / "genome_entropy").is_dir():
+    sys.path.insert(0, str(CHECKOUT_SOURCE))
+
+from genome_entropy.io.genbank import normalise_orf_interval  # noqa: E402
+from genome_entropy.ml import (  # noqa: E402
     extract_features,
     filter_json_records_with_features,
     load_json_file,

@@ -17,7 +17,7 @@ Mutual-information workflow, in submission order:
 - `analyze_in_genbank_variables.slurm` ranks entropy-variable pairs by their association with `in_genbank` and writes the Seaborn figures.
 - `rank_missing_orfs.slurm` ranks putative missed or misannotated ORFs with genome-level cross-validated XGBoost.
 
-These scripts locate the repository through `GENOME_ENTROPY_REPO`, falling back to `SLURM_SUBMIT_DIR`. Submit them from a `genome_entropy` checkout, or export `GENOME_ENTROPY_REPO=/path/to/genome_entropy` first.
+These scripts locate the repository through `GENOME_ENTROPY_REPO`, falling back to `SLURM_SUBMIT_DIR`. Submit them from a `genome_entropy` checkout, or export `GENOME_ENTROPY_REPO=/path/to/genome_entropy` first. `install.slurm` installs `genome_entropy` from PyPI, so `rank_missing_orfs.py` puts its own checkout's `src/` ahead of that release on `sys.path`; the script and the package code it calls therefore cannot diverge, and the virtual environment does not need reinstalling for each checkout.
 
 The chunking, extraction, aggregation, analysis, and ranking jobs do no GPU work and therefore request the CPU `work` partition under the non-GPU account. Only the encoding jobs reserve GPUs.
 

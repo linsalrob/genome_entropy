@@ -23,6 +23,16 @@ def load_script():
     return module
 
 
+def test_package_helpers_come_from_this_checkout() -> None:
+    """A stale installed release must not shadow the checkout's helpers."""
+    module = load_script()
+
+    source = Path(module.normalise_orf_interval.__code__.co_filename).resolve()
+    expected = SCRIPT.parents[1] / "src" / "genome_entropy" / "io" / "genbank.py"
+
+    assert source == expected.resolve()
+
+
 def make_record(orfs):
     """Build one unified record from (orf_id, start, end, strand) tuples."""
     return {
