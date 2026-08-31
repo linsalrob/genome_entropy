@@ -1,0 +1,194 @@
+#!/bin/bash
+#PBS -N genome_entropy_download
+#PBS -q copyq
+#PBS -P YOUR_NCI_PROJECT
+#PBS -l ncpus=1
+#PBS -l mem=8GB
+#PBS -l jobfs=100GB
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/YOUR_NCI_PROJECT
+#PBS -l wd
+#PBS -r y
+#PBS -j oe
+#PBS -o logs/download_^array_index^.log
+#
+# Fetch GenBank files from NCBI for one domain's accession chunks.
+#
+# copyq is the only Gadi queue with outbound internet, and it is capped at
+# 1 CPU and 10 hours. That cap is fine here: downloading is I/O-bound, and
+# a 250-genome chunk measured about 60 seconds on Gadi.
+#
+# INODES ARE THE BINDING CONSTRAINT, NOT BYTES.
+#
+# A shared /g/data project can have very few free inodes. NCBI datasets creates two inodes
+# per genome -- an accession directory and a genomic.gbff inside it -- so
+# 200k representative genomes would cost about 400k inodes here, and the
+# entropy JSON in 04 another 200k. That is over quota before anything else
+# on the project grows.
+#
+# So nothing per-genome is ever written to /g/data. The download is
+# unpacked on node-local $PBS_JOBFS, which has its own filesystem and costs
+# no /g/data inodes at all, and only a single compressed archive plus a
+# manifest per chunk lands on /g/data: 2 inodes instead of ~2 x CHUNK_SIZE.
+#
+# THIS PBS SERVER CAPS ARRAYS AT 10 SUBJOBS (max_array_size = 10), far
+# fewer than a large dataset needs. Each subjob therefore strides
+# through the chunk list rather than handling a single chunk: subjob k
+# processes chunks k, k+STRIDE, k+2*STRIDE, ... That keeps a whole domain
+# in one array and pins concurrent NCBI access to exactly STRIDE streams.
+# NCBI rate-limits per IP -- 3 requests/second without an API key, 10 with
+# one -- so a wide fan-out gets throttled rather than finishing sooner.
+#
+# BEFORE SUBMITTING:
+#   1. Split your accession list into accessions/<PREFIX>_NNN.txt files,
+#      zero-padded to three digits.
+#   2. mkdir -p logs
+#
+# Submit as:
+#   qsub -v PREFIX=bac,TOTAL_CHUNKS=760,STRIDE=10 -r y -J 0-9 \
+#        PBS/download_genomes.pbs
+#
+# Chunks whose archive already exists are skipped, so a resubmitted array
+# resumes rather than re-downloading.
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+ARCHIVE_DIR="${ARCHIVE_DIR:-/g/data/YOUR_NCI_PROJECT/genbank}"
+ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
+
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+: "${TOTAL_CHUNKS:?Pass TOTAL_CHUNKS=<n> via qsub -v}"
+# PREFIX namespaces one logical dataset, so unrelated groups of genomes
+# (say bacteria and archaea) never share a chunk or output namespace.
+PREFIX="${PREFIX:-chunk}"
+STRIDE="${STRIDE:-10}"
+
+# An API key raises the NCBI rate limit from 3 to 10 requests/second, which
+# matters at this scale. Keep it in a mode-600 file outside the repository
+# and source it, so the key never appears in a script, a log, or version
+# control:
+#
+#   umask 077; echo 'export NCBI_API_KEY=...' > ~/.ncbi_api_key
+#
+if [ -r "${HOME}/.ncbi_api_key" ]; then
+    # shellcheck disable=SC1091
+    source "${HOME}/.ncbi_api_key"
+    echo "NCBI API key loaded (rate limit 10 req/s)."
+else
+    echo "No ~/.ncbi_api_key found; using the 3 req/s anonymous limit."
+fi
+
+mkdir -p "${ARCHIVE_DIR}" logs
+
+# Download and pack one chunk.
+#   0 = done, 2 = already present, 1 = failed
+# Returns rather than exits, so one bad chunk costs one chunk instead of
+# the subjob's remaining work.
+do_chunk () {
+    local chunk_id="$1"
+    local tag="${PREFIX}_${chunk_id}"
+    local chunk_file="${PBS_O_WORKDIR}/accessions/${tag}.txt"
+    local archive="${ARCHIVE_DIR}/${tag}.tar.zst"
+    local manifest="${ARCHIVE_DIR}/${tag}.manifest"
+    local work="${PBS_JOBFS}/${tag}"
+    local data_dir n_found n_want
+
+    [ -f "${chunk_file}" ] || { echo "ERROR: ${chunk_file} not found." >&2; return 1; }
+    if [ -f "${archive}" ]; then
+        echo "Chunk ${tag}: archive already present — skipping."
+        return 2
+    fi
+
+    rm -rf "${work}"; mkdir -p "${work}"
+    cd "${work}"
+
+    n_want=$(wc -l < "${chunk_file}")
+    echo "Chunk ${tag}: ${n_want} accessions -> ${work} (node-local jobfs)"
+
+    # Dehydrated download then rehydrate is what NCBI and GTDB recommend
+    # above roughly a thousand genomes; a per-accession loop gets rate
+    # limited. --include takes gbff; "genbank" is rejected outright.
+    if ! datasets download genome accession \
+            --inputfile "${chunk_file}" \
+            --include gbff \
+            --dehydrated \
+            --filename chunk.zip; then
+        echo "ERROR: chunk ${tag}: datasets download failed." >&2
+        cd "${PBS_O_WORKDIR}"; rm -rf "${work}"; return 1
+    fi
+
+    if ! unzip -o -q chunk.zip -d chunk_dehydrated; then
+        echo "ERROR: chunk ${tag}: unzip failed." >&2
+        cd "${PBS_O_WORKDIR}"; rm -rf "${work}"; return 1
+    fi
+
+    if ! datasets rehydrate --directory chunk_dehydrated; then
+        echo "ERROR: chunk ${tag}: rehydrate failed." >&2
+        cd "${PBS_O_WORKDIR}"; rm -rf "${work}"; return 1
+    fi
+
+    data_dir="chunk_dehydrated/ncbi_dataset/data"
+    n_found=$(find "${data_dir}" -mindepth 2 -iname "*.gbff" | wc -l)
+    echo "Chunk ${tag}: rehydrated ${n_found} of ${n_want}."
+
+    if [ "${n_found}" -eq 0 ]; then
+        echo "ERROR: chunk ${tag}: nothing rehydrated." >&2
+        cd "${PBS_O_WORKDIR}"; rm -rf "${work}"; return 1
+    fi
+
+    # Record which accessions actually arrived, so a later stage can tell a
+    # genuinely absent genome from one lost further down the pipeline.
+    find "${data_dir}" -mindepth 2 -iname "*.gbff" -printf '%h\n' \
+        | xargs -r -n1 basename | sort > "${manifest}"
+
+    if [ "${n_found}" -ne "${n_want}" ]; then
+        echo "WARNING: chunk ${tag}: ${n_want} requested, ${n_found} rehydrated." >&2
+        comm -23 <(sort "${chunk_file}") "${manifest}" \
+            > "${ARCHIVE_DIR}/${tag}.missing" || true
+    fi
+
+    # Write to .partial and rename only on success, so an interrupted job
+    # never leaves a truncated archive that 04 would read as complete.
+    # zstd -3 measured about 3.5x on GenBank at roughly ten times gzip's
+    # speed; copyq gives one core, so -T1.
+    if ! tar -cf - -C "${data_dir}" . | zstd -3 -T1 -q -o "${archive}.partial"; then
+        echo "ERROR: chunk ${tag}: packing failed." >&2
+        rm -f "${archive}.partial"
+        cd "${PBS_O_WORKDIR}"; rm -rf "${work}"; return 1
+    fi
+    mv "${archive}.partial" "${archive}"
+
+    echo "Chunk ${tag} done: ${n_found} genomes, $(du -h "${archive}" | cut -f1)"
+
+    # jobfs is shared across every chunk this subjob handles, so reclaim it
+    # before the next one rather than accumulating all of them.
+    cd "${PBS_O_WORKDIR}"
+    rm -rf "${work}"
+    return 0
+}
+
+echo "Subjob ${PBS_ARRAY_INDEX}: prefix=${PREFIX} stride=${STRIDE} total_chunks=${TOTAL_CHUNKS}"
+
+n_done=0; n_skip=0; n_fail=0
+for (( idx=PBS_ARRAY_INDEX; idx<TOTAL_CHUNKS; idx+=STRIDE )); do
+    cid=$(printf "%03d" "${idx}")
+    set +e
+    do_chunk "${cid}"
+    rc=$?
+    set -e
+    case "${rc}" in
+        0) n_done=$((n_done + 1)) ;;
+        2) n_skip=$((n_skip + 1)) ;;
+        *) n_fail=$((n_fail + 1))
+           echo "${PREFIX}_${cid}" >> "${PBS_O_WORKDIR}/logs/download_failures_${PREFIX}.txt" ;;
+    esac
+done
+
+echo "Subjob ${PBS_ARRAY_INDEX} finished: ${n_done} downloaded, ${n_skip} skipped, ${n_fail} failed."
+
+# Non-zero exit so a subjob that lost chunks is visible in qstat -x rather
+# than being mistaken for a clean run.
+[ "${n_fail}" -eq 0 ]

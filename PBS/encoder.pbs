@@ -1,0 +1,45 @@
+#!/bin/bash
+#PBS -N genome_entropy_encode3di
+#PBS -q gpuvolta
+#PBS -P YOUR_NCI_PROJECT
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=05:00:00
+#PBS -l storage=gdata/YOUR_NCI_PROJECT
+#PBS -l wd
+#PBS -j oe
+#
+# Encode an existing protein JSON to structural-state JSON.
+#
+#   qsub -v INPUT=proteins.json,OUTPUT=structural.json PBS/encoder.pbs
+#
+# Multitask ModernProst models emit 3Di and 12-state together.
+#
+# To use more than one GPU, request ngpus=2 with ncpus=24 and add
+# --multi-gpu. GPU discovery checks SLURM variables and then
+# CUDA_VISIBLE_DEVICES; on Gadi none of them is set inside a GPU job, since
+# PBS restricts device visibility by cgroup, so discovery falls through to
+# PyTorch's device count and sees exactly the allocated GPUs. If you pass
+# --gpu-ids explicitly, use local indices such as 0,1.
+
+set -euo pipefail
+trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+
+: "${INPUT:?Pass INPUT=<protein json> via qsub -v}"
+: "${OUTPUT:?Pass OUTPUT=<structural json> via qsub -v}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
+HF_CACHE="${HF_CACHE:-/g/data/YOUR_NCI_PROJECT/hf_cache}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export HF_HOME="${HF_CACHE}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export TORCH_DISABLE_DYNAMO=1
+
+genome_entropy encode3di -i "${INPUT}" -o "${OUTPUT}" --encoding-size 10000
