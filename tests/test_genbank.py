@@ -18,6 +18,7 @@ from genome_entropy.io.genbank import (
     extract_cds_features,
     match_orf_to_genbank_cds,
     normalise_orf_coordinates,
+    normalise_orf_interval,
     normalise_protein_sequence,
     orf_matches_genbank_cds,
     read_genbank,
@@ -289,6 +290,17 @@ def test_coordinate_normalisation_on_both_strands() -> None:
     )
     assert normalise_orf_coordinates(forward, 1000) == CodingInterval(99, 111, "+")
     assert normalise_orf_coordinates(reverse, 1000) == CodingInterval(399, 411, "-")
+
+
+def test_coordinate_only_normalisation_matches_record_normalisation() -> None:
+    """Callers holding serialised locations share one normalisation rule."""
+    assert normalise_orf_interval(100, 111, "+", 1000) == CodingInterval(99, 111, "+")
+    assert normalise_orf_interval(590, 601, "-", 1000) == CodingInterval(399, 411, "-")
+
+    with pytest.raises(ValueError):
+        normalise_orf_interval(100, 111, "?", 1000)
+    with pytest.raises(ValueError):
+        normalise_orf_interval(590, 601, "-", None)
 
 
 def test_invalid_coding_intervals_are_rejected() -> None:

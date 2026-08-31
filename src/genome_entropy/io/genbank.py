@@ -374,8 +374,10 @@ def amino_acids_are_compatible(residue_a: str, residue_b: str) -> bool:
     return residue_a == residue_b or residue_a == "X" or residue_b == "X"
 
 
-def normalise_orf_coordinates(
-    orf: OrfRecord,
+def normalise_orf_interval(
+    start: int,
+    end: int,
+    strand: str,
     record_length: Optional[int],
 ) -> CodingInterval:
     """Convert get_orfs one-based inclusive coordinates to genomic coordinates.
@@ -383,16 +385,33 @@ def normalise_orf_coordinates(
     Positive-strand coordinates index the source sequence. Negative-strand
     coordinates index its reverse complement and therefore require the parent
     record length to map them back to the genomic axis.
+
+    This takes plain coordinates so that callers holding serialised ORF
+    locations, rather than an :class:`~genome_entropy.orf.types.OrfRecord`,
+    share one normalisation implementation.
     """
-    if orf.start < 1 or orf.end < orf.start:
-        raise ValueError(f"Invalid ORF coordinates: start={orf.start}, end={orf.end}")
-    if orf.strand == "+":
-        return CodingInterval(orf.start - 1, orf.end, "+")
+    if strand not in ("+", "-"):
+        raise ValueError(f"Invalid strand: {strand}")
+    if start < 1 or end < start:
+        raise ValueError(f"Invalid ORF coordinates: start={start}, end={end}")
+    if strand == "+":
+        return CodingInterval(start - 1, end, "+")
     if record_length is None:
         raise ValueError("record length is required for a reverse-strand ORF")
-    if orf.end > record_length:
-        raise ValueError(f"ORF end {orf.end} exceeds record length {record_length}")
-    return CodingInterval(record_length - orf.end, record_length - orf.start + 1, "-")
+    if end > record_length:
+        raise ValueError(f"ORF end {end} exceeds record length {record_length}")
+    return CodingInterval(record_length - end, record_length - start + 1, "-")
+
+
+def normalise_orf_coordinates(
+    orf: OrfRecord,
+    record_length: Optional[int],
+) -> CodingInterval:
+    """Return an ORF record's genomic interval.
+
+    This is a thin wrapper around :func:`normalise_orf_interval`.
+    """
+    return normalise_orf_interval(orf.start, orf.end, orf.strand, record_length)
 
 
 def normalise_genbank_coordinates(cds: GenBankCDS) -> CodingInterval:
