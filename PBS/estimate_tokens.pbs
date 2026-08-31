@@ -1,0 +1,36 @@
+#!/bin/bash
+#PBS -N genome_entropy_tokens
+#PBS -q gpuvolta
+#PBS -P YOUR_NCI_PROJECT
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=01:00:00
+#PBS -l storage=gdata/YOUR_NCI_PROJECT
+#PBS -l wd
+#PBS -j oe
+#
+# Benchmark a safe encoding token budget on the GPU you will actually use.
+#
+# Run this before sizing any production array. The budget depends on the
+# model, the PyTorch build, and the device, so a number measured on a V100
+# does not transfer to an A100 or to a different wheel.
+
+set -euo pipefail
+trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
+HF_CACHE="${HF_CACHE:-/g/data/YOUR_NCI_PROJECT/hf_cache}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export HF_HOME="${HF_CACHE}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+nvidia-smi
+
+genome_entropy estimate-tokens --start 3000 --end 20000
