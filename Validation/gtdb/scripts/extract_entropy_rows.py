@@ -39,6 +39,14 @@ COLUMNS = (
     "aa_length",
     "in_genbank",
     *ENTROPY_FIELDS,
+    # Appended, not inserted: 07_count_orfs.pbs and
+    # 11_genome_annotation_status.pbs address this file by column number.
+    #
+    # Length of the contig this ORF was called on. Needed downstream because
+    # negative-strand start/end index the reverse complement, so placing an
+    # ORF on the forward genomic axis is impossible without it -- see
+    # 10_missed_genes.py.
+    "contig_length",
 )
 
 
@@ -53,6 +61,7 @@ def rows_for(path, chunk, domain):
     genome = os.path.basename(path).split(".json")[0]
     for record in load(path):
         input_id = record.get("input_id", "")
+        contig_length = record.get("input_dna_length")
         for orf_id, feat in record.get("features", {}).items():
             if not isinstance(feat, dict):
                 continue
@@ -71,6 +80,7 @@ def rows_for(path, chunk, domain):
                 "strand": loc.get("strand"),
                 "aa_length": protein.get("length"),
                 "in_genbank": meta.get("in_genbank"),
+                "contig_length": "" if contig_length is None else contig_length,
             }
             for field in ENTROPY_FIELDS:
                 value = entropy.get(field)

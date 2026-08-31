@@ -36,6 +36,8 @@ import sys
 import numpy as np
 import pandas as pd
 
+from genome_entropy.io.genbank import normalise_orf_interval
+
 # Working directory for intermediate samples. Session-scratch on the
 # machine this was run on; set SCRATCH in the environment, or edit, to
 # point somewhere writable on yours.
@@ -45,21 +47,80 @@ SCRATCH = os.environ.get("GE_SCRATCH", "./work")
 # a genome, so these are complete chunks rather than a sampled subset.
 # Produce them with, per chunk:
 #   zcat <results>/bac_NNN.tsv.gz | awk -F'\t' 'NR>1 && $12!="" && $13!="" \
-#     {print $3"\t"$4"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"\t"$12"\t"$13}' \
+#     {print $3"\t"$4"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"\t"$12"\t"$13"\t"$16}' \
 #     > $GE_SCRATCH/missed/bac_NNN.tsv
+#
+# $16 is contig_length, appended to the chunk TSV by extract_entropy_rows.py.
+# TSVs written before that column existed cannot be used here: without the
+# contig length a negative-strand ORF cannot be placed on the genomic axis.
+# Regenerate them from the JSON archives rather than dropping the column.
 FILES = sorted(glob.glob(os.path.join(SCRATCH, "missed", "*.tsv")))
 COLS = ["genome", "contig", "start", "end", "strand", "aa_length",
-        "in_genbank", "protein_entropy", "three_di_entropy"]
+        "in_genbank", "protein_entropy", "three_di_entropy", "contig_length"]
 THRESH = 2.5
+
+
+def add_genomic_coordinates(df):
+    """Place every ORF on the forward genomic axis.
+
+    get_orfs reports one-based inclusive coordinates, and on the negative
+    strand they index the reverse complement rather than the forward
+    sequence. Comparing a minus-strand span directly against a plus-strand
+    one therefore compares two different coordinate systems: it invents
+    overlaps between spans that are far apart and misses the real
+    cross-strand ones. Since the whole question here is whether an unmatched
+    ORF coincides with coding sequence "in any frame or orientation", that
+    conversion cannot be skipped.
+
+    normalise_orf_interval is the same helper the GenBank CDS matcher uses,
+    so this analysis and the in_genbank flag it reads agree on where an ORF
+    is. It returns zero-based half-open intervals, which also removes the
+    off-by-one that inclusive coordinates introduce into overlap lengths.
+    """
+    missing = df.contig_length.isna().sum()
+    if missing:
+        raise SystemExit(
+            f"{missing:,} rows have no contig_length, so their negative-strand "
+            "coordinates cannot be placed on the genomic axis. Regenerate the "
+            "chunk TSVs with a current extract_entropy_rows.py."
+        )
+
+    starts = np.empty(len(df), dtype=np.int64)
+    ends = np.empty(len(df), dtype=np.int64)
+    bad = []
+    for i, (s, e, strand, length) in enumerate(
+        zip(df.start, df.end, df.strand, df.contig_length)
+    ):
+        try:
+            interval = normalise_orf_interval(int(s), int(e), str(strand),
+                                              int(length))
+        except ValueError as exc:
+            bad.append(f"{s}-{e}{strand} on a contig of {int(length)}: {exc}")
+            continue
+        starts[i], ends[i] = interval.start, interval.end
+
+    # Refuse to report a shadow/intergenic split computed from a partial
+    # coordinate set: dropping annotated ORFs would silently inflate the
+    # candidate pool, which is the number this script exists to produce.
+    if bad:
+        raise SystemExit(
+            f"{len(bad):,} ORF(s) could not be placed on the genomic axis, "
+            f"e.g. {bad[0]}. Fix the inputs rather than analysing a subset."
+        )
+
+    out = df.copy()
+    out["g_start"] = starts
+    out["g_end"] = ends
+    return out
 
 
 def overlaps_annotated(df):
     """Flag each unmatched ORF that overlaps an annotated CDS on its contig.
 
-    Coordinates are one-based inclusive and, per the schema, negative-strand
-    ORFs are reported on the reverse-complement sequence. Strand is
-    therefore ignored: the question is whether this span coincides with
-    coding sequence at all, in any frame or orientation.
+    Operates on the normalised forward-axis columns from
+    add_genomic_coordinates, so a plus-strand ORF and a minus-strand one are
+    finally comparable. Strand itself is still ignored, which is the intent:
+    a shadow in the opposite orientation is still a shadow.
     """
     flag = np.zeros(len(df), dtype=bool)
     for _, g in df.groupby("contig", sort=False):
@@ -67,17 +128,18 @@ def overlaps_annotated(df):
         f = g[~g.in_genbank]
         if len(t) == 0 or len(f) == 0:
             continue
-        ts = t.start.to_numpy(); te = t.end.to_numpy()
+        ts = t.g_start.to_numpy(); te = t.g_end.to_numpy()
         order = np.argsort(ts)
         ts, te = ts[order], te[order]
         # running max of end, so a binary search over starts is sufficient
         te_max = np.maximum.accumulate(te)
-        fs = f.start.to_numpy(); fe = f.end.to_numpy()
-        # last annotated CDS whose start <= this ORF's end
-        idx = np.searchsorted(ts, fe, side="right") - 1
+        fs = f.g_start.to_numpy(); fe = f.g_end.to_numpy()
+        # last annotated CDS whose start < this ORF's end (half-open, so an
+        # annotation starting exactly at fe does not overlap)
+        idx = np.searchsorted(ts, fe, side="left") - 1
         ok = idx >= 0
         hit = np.zeros(len(f), dtype=bool)
-        hit[ok] = te_max[idx[ok]] >= fs[ok]
+        hit[ok] = te_max[idx[ok]] > fs[ok]
         flag[df.index.get_indexer(f.index)] = hit
     return flag
 
@@ -110,7 +172,7 @@ def main():
     print(f"    of which in UNannotated genomes: {len(hi_all)-len(hi_ann):,} "
           f"({(1-len(hi_ann)/len(hi_all))*100:.1f}%)  <- not 'missed', never annotated\n")
 
-    d = df[df.genome.isin(annotated)].reset_index(drop=True)
+    d = add_genomic_coordinates(df[df.genome.isin(annotated)]).reset_index(drop=True)
 
     # --- confounder 2: shadow ORFs over real CDS ---
     print("STEP 2 - within annotated genomes, separate shadows from intergenic")

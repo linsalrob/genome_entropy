@@ -47,10 +47,10 @@ re-run the thing.
 | `01_get_gtdb_reps.sh` | login | GTDB metadata → per-domain accession lists |
 | `01b_make_chunks.sh` | login | split one domain into chunks; prints the `-J` range |
 | `02_download_genomes.pbs` | `copyq` | NCBI download, one archive per chunk |
-| `03_install_genome_entropy.sh` | login | environment |
-| `03b_download_model.sh` | login | cache the model for offline GPU use |
+| `03_install_genome_entropy.sh` | login | conda environment (wraps `../../PBS/install.sh`) |
+| `03b_download_model.sh` | login | cache the model for offline GPU use (wraps `../../PBS/download_model.sh`) |
 | `04_run_entropy.pbs` | `gpuvolta` | encoding; archive + per-ORF TSV per chunk |
-| `extract_entropy_rows.py` | (called by 04) | JSON → per-ORF entropy rows |
+| `extract_entropy_rows.py` | (called by 04) | JSON → per-ORF entropy rows, including contig length |
 | `05_aggregate_results.py` | login | per-genome summary, one domain at a time |
 | `06_diagnose_failures.pbs` | `gpuvolta` | re-run failed genomes, capture the cause |
 | `07_count_orfs.pbs` | `normal` | exact ORF / `in_genbank` counts, cached per chunk |
@@ -61,9 +61,12 @@ re-run the thing.
 
 ### Order
 
+`03` must run before `00_smoke_test.sh`, which activates the environment it
+creates.
+
 ```bash
+bash 03_install_genome_entropy.sh              # creates the conda prefix
 bash 00_smoke_test.sh
-bash 03_install_genome_entropy.sh
 bash 03b_download_model.sh                     # login node: GPU nodes are offline
 bash 01_get_gtdb_reps.sh
 bash 01b_make_chunks.sh bac 250                # prints TOTAL_CHUNKS and -J
@@ -89,7 +92,7 @@ Paths are hardcoded to the machine this ran on. Change:
 |---|---|
 | `#PBS -P`, `-l storage=` | every `.pbs` header |
 | `GDATA_ROOT` | `02`, `04`, `05`, `06`, `07`, `11` |
-| `ENV_PREFIX` (conda prefix) | every script that activates an environment |
+| `ENV_PREFIX` (conda prefix) | `03`, `03b`, and every job that activates an environment |
 | `GET_ORFS_PATH` | `00`, `00b`–`00e`, `04`, `06` |
 | `HF_HOME` | `00`, `00b`–`00e`, `03b`, `04`, `06` |
 | `$GE_SCRATCH` | `08`, `09`, `10` — read from the environment, defaults to `./work` |

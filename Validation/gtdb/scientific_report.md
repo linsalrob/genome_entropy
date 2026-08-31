@@ -20,9 +20,12 @@ states. Section 5 establishes this quantitatively.
 
 A secondary result (section 6) is that the population of unmatched ORFs with
 high 3Di entropy — a candidate pool for genes missed by annotation — is 95.5%
-explained by genomes that were never annotated at all, and a further 64% of the
-remainder by shadow ORFs overlapping real CDS. About 1.6% survives as genuine
-candidates.
+explained by genomes that were never annotated at all. A further 64% of the
+remainder was attributed to shadow ORFs overlapping real CDS, leaving about
+1.6% as candidates; that second split is provisional, because the overlap test
+that produced it compared plus- and minus-strand coordinates in different
+systems. See the note in section 6. The 95.5% does not depend on coordinates
+and is unaffected.
 
 ---
 
@@ -227,6 +230,27 @@ Hypothesis tested: unmatched ORFs with 3Di entropy above ~2.5 look
 structurally like real proteins, so perhaps the original annotation software
 failed to call them.
 
+> **The shadow/intergenic split below is superseded and awaits recomputation.**
+> `10_missed_genes.py` tested overlap using raw `get_orfs` coordinates. On the
+> negative strand those index the reverse complement, so every plus-versus-minus
+> comparison was made between two different coordinate systems: real
+> cross-strand shadows were missed and unrelated spans were counted as shadows.
+> The script now converts both intervals onto the forward genomic axis with
+> `normalise_orf_interval`, the same helper the `in_genbank` matcher uses, but
+> the numbers here predate that fix and have not been regenerated. A synthetic
+> check shows the two errors run in opposite directions, so the totals can look
+> stable while individual ORFs are assigned to the wrong group — treat the
+> 15,338 / 8,651 split, everything derived from it, and the "1.6% survives"
+> figure as provisional until the analysis is rerun.
+>
+> Unaffected: the 95.5% attributable to genomes with no annotation at all, which
+> depends only on `in_genbank` per genome and not on coordinates. That remains
+> the dominant result of this section.
+>
+> Rerunning needs chunk TSVs carrying the `contig_length` column that
+> `extract_entropy_rows.py` now emits; TSVs from the original run do not have it
+> and must be regenerated from the JSON archives.
+
 Two confounders dominate. Starting from 537,488 unmatched ORFs with 3Di ≥ 2.5
 across 500 genomes (chunks `bac_000`, `bac_051`):
 
@@ -377,18 +401,23 @@ Final footprint: 1.5 TB results + 350 GB GenBank archives.
    often annotated (40% vs 54% in samples).
 5. Compute **fraction of `D` residues** per ORF as a length-independent
    alternative to 3Di entropy (§5.3).
-6. Homology-search the 8,651 missed-gene candidates (§6).
-7. Stratify candidates by GTDB annotation provenance (§6).
-8. Parallelise `05_aggregate_results.py` — 87 s per chunk single-threaded is
+6. **Rerun `10_missed_genes.py`** now that it converts negative-strand
+   coordinates onto the forward genomic axis, and replace the superseded
+   shadow/intergenic numbers in §6. Needs chunk TSVs regenerated from the JSON
+   archives, because the originals predate the `contig_length` column.
+7. Homology-search the recomputed missed-gene candidates (§6). The 8,651 figure
+   is provisional until item 6 is done.
+8. Stratify candidates by GTDB annotation provenance (§6).
+9. Parallelise `05_aggregate_results.py` — 87 s per chunk single-threaded is
    ~18 h over 760 chunks. Each genome lives in exactly one chunk, so chunks are
    independent and this parallelises trivially.
 
 ### Upstream reports (not yet filed — both would post publicly)
 
-9. `genome_entropy`: add a `--max-aa` guard (§7).
-10. `gbouras13/modernprost-50M`: `_make_sliding_mask` materialises an L×L matrix
+10. `genome_entropy`: add a `--max-aa` guard (§7).
+11. `gbouras13/modernprost-50M`: `_make_sliding_mask` materialises an L×L matrix
     for a banded mask (§7).
-11. `genome_entropy download` prints a hardcoded `~/.cache/huggingface` path
+12. `genome_entropy download` prints a hardcoded `~/.cache/huggingface` path
     while correctly honouring `HF_HOME`, which is misleading for exactly the
     offline-cache workflow an air-gapped GPU node needs.
 

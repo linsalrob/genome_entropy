@@ -4,31 +4,40 @@
 # GPU compute nodes on Gadi have NO internet access, same as the CPU nodes.
 # If a gpuvolta/gpua100 job tries to pull model weights from Hugging Face on
 # first use, it will just hang or fail. So the model has to be cached here
-# first, in a location the GPU jobs can read — /g/data, not the default
+# first, in a location the GPU jobs can read -- /g/data, not the default
 # home-directory cache, since /home has a small quota and GPU jobs need to
 # find the same cache path.
+#
+# A thin wrapper around ../../PBS/download_model.sh, pinned to the prefix
+# and cache path this run used. It activates the same conda prefix as the
+# jobs; it previously sourced a venv that 03 no longer creates.
 
 set -euo pipefail
 WORKDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "${WORKDIR}"
+REPO_ROOT="$(cd "${WORKDIR}/../../.." && pwd)"
 
-source genome_entropy_venv/bin/activate
+# Must match ENV_PREFIX and HF_HOME in 04_run_entropy.pbs, which defaults
+# HF_HOME to ${GDATA_ROOT}/hf_cache. Set for NCI project ob80.
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
+HF_HOME="${HF_HOME:-${GDATA_ROOT}/hf_cache}"
+MODEL="${MODEL:-gbouras13/modernprost-50M}"   # default dual-head (3Di + 12-state)
 
-# Shared cache location — must match HF_HOME set in 04_run_entropy.pbs.
-# Set for NCI project ob80.
-export HF_HOME="/g/data/ob80/re3494/gtdb_entropy/hf_cache"
-mkdir -p "${HF_HOME}"
+if [[ ! -f "${REPO_ROOT}/PBS/download_model.sh" ]]; then
+    echo "ERROR: ${REPO_ROOT}/PBS/download_model.sh not found." >&2
+    echo "Run this from a genome_entropy checkout." >&2
+    exit 1
+fi
 
-MODEL="gbouras13/modernprost-50M"   # the default dual-head (3Di + 12-state) model
+bash "${REPO_ROOT}/PBS/download_model.sh" "${ENV_PREFIX}" "${HF_HOME}" "${MODEL}"
 
-echo "Caching ${MODEL} into ${HF_HOME} ..."
-genome_entropy download --model "${MODEL}"
+cat <<MSG
 
-echo ""
-echo "Done. Verify the model landed under ${HF_HOME} (not ~/.cache/huggingface),"
-echo "since that's the path 04_run_entropy.pbs points GPU jobs at."
-echo ""
-echo "NOTE on trust_remote_code: the genome_entropy README states ModernProst"
-echo "loads model-provided Python code with trust_remote_code=True. Review the"
-echo "model repo (https://huggingface.co/gbouras13/modernprost-50M) and pin a"
-echo "specific revision if your project needs reproducible/audited code."
+Verify the model landed under ${HF_HOME} (not ~/.cache/huggingface),
+since that is the path 04_run_entropy.pbs points GPU jobs at.
+
+NOTE on trust_remote_code: the genome_entropy README states ModernProst
+loads model-provided Python code with trust_remote_code=True. Review the
+model repo (https://huggingface.co/gbouras13/modernprost-50M) and pin a
+specific revision if your project needs reproducible/audited code.
+MSG
