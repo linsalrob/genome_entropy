@@ -276,10 +276,35 @@ fi
 
 # Per-ORF entropy rows, so downstream work never needs the JSON archive.
 echo "=== extracting entropy rows ==="
+# A genome whose JSON cannot be read back exits this non-zero. Downstream
+# aggregation reads only the TSV, so such a genome would otherwise vanish
+# from the experiment while the chunk reported clean -- and, with
+# DELETE_GENBANK_AFTER=1, its GenBank archive would be deleted too. Count it
+# against the chunk exactly like an encoding failure.
+extract_rc=0
 python3 "${PBS_O_WORKDIR}/extract_entropy_rows.py" \
     --input-dir "${OUT_DIR}" \
     --chunk "${CHUNK_ID}" --domain "${DOMAIN}" \
-    --output "${WORK}/${TAG}.tsv"
+    --output "${WORK}/${TAG}.tsv" \
+    --failures "${WORK}/unparseable.txt" || extract_rc=$?
+
+if [ "${extract_rc}" -ne 0 ]; then
+    if [ -s "${WORK}/unparseable.txt" ]; then
+        n_unparseable=$(wc -l < "${WORK}/unparseable.txt")
+        echo "ERROR: ${n_unparseable} genome(s) produced unreadable JSON; the" >&2
+        echo "       TSV for chunk ${TAG} is incomplete." >&2
+        cat "${WORK}/unparseable.txt" >> "${WORK}/failures.txt"
+        fail_count=$((fail_count + n_unparseable))
+    else
+        echo "ERROR: entropy extraction failed for chunk ${TAG}." >&2
+        exit 1
+    fi
+fi
+
+# Still published: these hold real encoded genomes, and discarding them
+# would waste the GPU time. The non-zero exit at the end and the .failures
+# file are what stop the chunk reading as clean, and the raised fail_count
+# is what stops the GenBank archive being deleted below.
 gzip -c "${WORK}/${TAG}.tsv" > "${OUT_TSV}.partial"
 mv "${OUT_TSV}.partial" "${OUT_TSV}"
 

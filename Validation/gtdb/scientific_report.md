@@ -269,10 +269,17 @@ failed to call them.
 > this repository contains a concrete instance: an origin-crossing CDS that the
 > matcher skips entirely, and which the old method therefore could never see.
 >
-> Synthetic checks show both defects produce errors in opposing directions, so
-> totals can look stable while individual ORFs sit in the wrong group. Treat
-> the 15,338 / 8,651 split, everything derived from it, and the "1.6% survives"
-> figure as provisional until the analysis is rerun.
+> *The miss-rate denominator.* The per-genome "≈0.9% of its CDS count" used the
+> number of matched ORFs as the genome's CDS count, which undercounts wherever
+> the matcher rejected a real CDS and therefore inflates the rate. It now comes
+> from the deposited counts.
+>
+> Synthetic checks show the first two defects produce errors in opposing
+> directions, so totals can look stable while individual ORFs sit in the wrong
+> group; the third inflates in one direction only (5× on a fixture built to
+> isolate it). Treat the 15,338 / 8,651 split, everything derived from it, the
+> "1.6% survives" figure, and the per-genome miss rate as provisional until the
+> analysis is rerun.
 >
 > The 95.5% attributable to genomes with no annotation at all does not depend
 > on coordinates and is unaffected by that fix — but it has a separate problem
@@ -322,6 +329,12 @@ closer to real CDS than to noise. That is consistent with missed genes, which
 should be biased toward short proteins precisely because short ORFs are what
 annotation pipelines under-call. Median **24 candidates per annotated genome,
 ≈0.9% of its CDS count** — a plausible miss rate rather than an implausible one.
+That percentage is also superseded: its denominator was the number of ORFs the
+matcher accepted, not the deposited CDS count, so every genome with a CDS the
+matcher rejected contributed too small a denominator and the rate is inflated.
+The script now divides by `n_cds` from `12_genome_cds_counts.pbs` and indexes
+over every annotated genome, so genomes yielding no candidates count as zero
+rather than dropping out of the median.
 
 **This does not discriminate missed genes from other intergenic coding-like
 sequence**: pseudogenes, phage or IS remnants, or ORFs annotation deliberately

@@ -216,7 +216,7 @@ def load_annotation_status(path):
     in_genbank: see the module docstring.
     """
     status = pd.read_csv(path, sep="\t")
-    for column in ("genome", "has_annotation"):
+    for column in ("genome", "has_annotation", "n_cds"):
         if column not in status.columns:
             raise SystemExit(
                 f"{path} has no '{column}' column; expected the output of "
@@ -325,14 +325,28 @@ def main():
         print(f"  {name:<36}{len(g):>10,}{g.aa_length.median():>8.0f}"
               f"{(g.aa_length >= 100).mean()*100:>9.1f}%{g.three_di_entropy.median():>9.2f}")
 
+    # The denominator is the deposited CDS count, not the number of ORFs the
+    # matcher accepted. Using matched ORFs undercounts every genome with a
+    # partial, compound, or short CDS the matcher rejected, which inflates
+    # the miss rate -- the same proxy this script now avoids elsewhere.
+    #
+    # Indexed over every annotated genome, so genomes that yielded no
+    # candidates count as zero in the medians instead of dropping out.
     print("\n  per annotated genome:")
-    per = cand.groupby("genome").size()
-    ncds = matched.groupby("genome").size()
-    j = pd.concat([per.rename("cand"), ncds.rename("cds")], axis=1).fillna(0)
-    print(f"    annotated CDS per genome (median)      : {j.cds.median():.0f}")
+    cds_per_genome = status.set_index("genome").n_cds
+    j = pd.DataFrame(index=sorted(annotated))
+    j["cand"] = cand.groupby("genome").size().reindex(j.index).fillna(0)
+    j["cds"] = pd.to_numeric(cds_per_genome.reindex(j.index), errors="coerce")
+    print(f"    deposited CDS per genome (median)      : {j.cds.median():.0f}")
     print(f"    candidate missed genes per genome (med): {j.cand.median():.0f}")
-    print(f"    candidates as % of annotated CDS (med) : "
-          f"{(j.cand/j.cds.replace(0, np.nan)).median()*100:.1f}%")
+    print(f"    candidates as % of deposited CDS (med) : "
+          f"{(j.cand / j.cds.replace(0, np.nan)).median() * 100:.1f}%")
+
+    # How far the matched-ORF denominator was off, on this sample.
+    matched_per_genome = matched.groupby("genome").size().reindex(j.index).fillna(0)
+    shortfall = (j.cds - matched_per_genome)
+    print(f"    (matched-ORF denominator would have been "
+          f"{matched_per_genome.median():.0f}, short by {shortfall.median():.0f})")
     return 0
 
 
