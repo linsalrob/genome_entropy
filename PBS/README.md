@@ -117,7 +117,7 @@ audited or reproducible code.
 | `download_model.sh` | login node | cache the encoder model on `/g/data` for offline GPU jobs |
 | `estimate_tokens.pbs` | `gpuvolta` | benchmark an encoding token budget on the real device |
 | `pipeline.pbs` | `gpuvolta` | one GenBank file to one results JSON |
-| `pipeline_array.pbs` | `gpuvolta` | array over per-chunk manifests, skipping completed output |
+| `pipeline_array.pbs` | `gpuvolta` | array over `PREFIX`-named chunk archives, resuming partial and completed output |
 | `encoder.pbs` | `gpuvolta` | protein JSON to structural-state JSON |
 | `pytest.pbs` | `gpuvolta` | test suite inside a GPU allocation |
 | `download_genomes.pbs` | `copyq` | fetch GenBank files from NCBI by accession into one archive per chunk |
@@ -162,13 +162,25 @@ rather than own a single chunk — subjob `k` takes chunks `k`, `k+STRIDE`,
 `k+2*STRIDE`, … so a 10-wide array still covers 760 chunks:
 
 ```bash
-qsub -v DOMAIN=bac,TOTAL_CHUNKS=760,STRIDE=10 -r y -J 0-9 \
+qsub -v PREFIX=bac,TOTAL_CHUNKS=760,STRIDE=10 -r y -J 0-9 \
      PBS/download_genomes.pbs
 ```
 
 That also pins concurrent NCBI streams to exactly `STRIDE`, which is what
 you want anyway. `download_genomes.pbs` implements this and skips chunks
 whose archive already exists, so a resubmitted array resumes.
+
+**`PREFIX` names the dataset end to end.** It is what `download_genomes.pbs`
+calls the archives it writes, so `pipeline_array.pbs` needs the same value
+to find them; pass it to both:
+
+```bash
+qsub -v PREFIX=bac,PARALLEL=4 -r y -J 0-9 PBS/pipeline_array.pbs
+```
+
+It defaults to `chunk` in both scripts, so a single unnamed dataset works
+without setting it. Give separate domains separate prefixes and their
+inputs and outputs never collide.
 
 **Throttle concurrency with `max_run_subjobs`.** Where arrays *are* wide
 enough to need it, PBS Pro has no `%N` suffix; the equivalent is a `-W`
@@ -207,10 +219,22 @@ device numbers. Request `ngpus=2` with `ncpus=24` on `gpuvolta` and add
 `qstat -x <jobid>` shows exit status after a job leaves the queue; an array
 reports per-index status with `qstat -xt <jobid>[]`. `pipeline_array.pbs`
 exits non-zero when any genome in its chunk failed, so a partially failed
-index is visible rather than being mistaken for a clean run, and it skips
-genomes whose output already exists so a resubmitted index does not repay
-for GPU time already spent. Check exit statuses before launching the next
-stage.
+index is visible rather than being mistaken for a clean run. Check exit
+statuses before launching the next stage.
+
+A chunk counts as failed if a genome failed to encode **or** if its JSON
+could not be read back when the entropy TSV was extracted. The second case
+matters: the TSV and archive are still published, because they hold real
+encoded genomes and discarding them would waste the GPU time, but the TSV
+is missing rows it should have had. Either way the affected accessions are
+named in `<out>/<prefix>_NNN.failures`, so a chunk that quietly lost a
+genome is not possible.
+
+**Resuming after walltime.** When PBS sends `SIGTERM`, the job packs the
+genomes it has finished into `<out>/<prefix>_NNN.tar.zst.partial`. A
+resubmitted index unpacks that partial first and encodes only what is
+missing, so the GPU time already spent is not repaid. Delete the `.partial`
+if you want a clean re-run.
 
 ## Inodes are usually the binding constraint
 
@@ -292,9 +316,12 @@ Throughput saturates at **4 processes**, taking GPU utilisation from 12% to
 consume VRAM. Roughly 2x, not the 8x that "4% of memory used" might
 suggest, because memory was never the binding resource.
 
-`pipeline_array.pbs` takes `PARALLEL=N` for this. Re-measure on your own
-hardware and genomes: the right number depends on how the CPU-side work
-compares to encoding, which varies with genome size and annotation.
+`pipeline_array.pbs` takes `PARALLEL=N` for this, keeping up to `N`
+`genome_entropy run` processes in flight against the one GPU. It defaults
+to `1`; the measurement above says `4`. Re-measure on your own hardware and
+genomes: the right number depends on how the CPU-side work compares to
+encoding, which varies with genome size and annotation. Watch VRAM, since
+each process holds its own copy of the model.
 
 Wall times, memory figures, and chunk sizes in these templates remain
 starting points to measure, not tested defaults.

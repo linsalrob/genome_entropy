@@ -84,6 +84,10 @@ def main():
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--chunk", required=True)
     ap.add_argument("--output", required=True)
+    ap.add_argument("--failures",
+                    help="write the label of every unparseable genome here, "
+                         "one per line, so the caller can fold them into the "
+                         "chunk's failure state")
     args = ap.parse_args()
 
     files = sorted(Path(args.input_dir).glob("*.json"))
@@ -92,26 +96,39 @@ def main():
         return 1
 
     n_rows = 0
-    n_bad = 0
+    bad = []
     with open(args.output, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=COLUMNS, delimiter="\t",
                                 extrasaction="ignore")
         writer.writeheader()
         for path in files:
             try:
-                for row in rows_for(path, args.chunk):
-                    writer.writerow(row)
-                    n_rows += 1
+                # Buffer the genome so a file that fails partway through
+                # cannot leave half its ORFs in an otherwise complete TSV.
+                genome_rows = list(rows_for(path, args.chunk))
             except (json.JSONDecodeError, OSError, ValueError) as e:
                 # Count and name it rather than dropping it silently; a
                 # chunk that quietly lost genomes is worse than one that
                 # reports the loss.
                 print(f"WARNING: could not parse {path}: {e}", file=sys.stderr)
-                n_bad += 1
+                bad.append(os.path.basename(str(path)).split(".json")[0])
+                continue
+            for row in genome_rows:
+                writer.writerow(row)
+                n_rows += 1
 
-    print(f"chunk {args.chunk}: {len(files) - n_bad} genomes, {n_rows} ORF rows"
-          f"{f', {n_bad} unparseable' if n_bad else ''}")
-    return 1 if n_bad and n_bad == len(files) else 0
+    if args.failures:
+        with open(args.failures, "w") as fh:
+            for label in bad:
+                fh.write(f"{label}\n")
+
+    print(f"chunk {args.chunk}: {len(files) - len(bad)} genomes, {n_rows} ORF rows"
+          f"{f', {len(bad)} unparseable' if bad else ''}")
+
+    # Any unreadable genome means this TSV is missing science the chunk was
+    # supposed to produce. Exit non-zero so the caller cannot publish it as
+    # a clean result; the caller decides whether to keep the partial output.
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":

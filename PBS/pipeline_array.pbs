@@ -19,12 +19,20 @@
 #
 # Set -J to match the number of chunk archives; mkdir -p logs first.
 #
+# Submit as:
+#   qsub -v PREFIX=bac,PARALLEL=4 -r y -J 0-9 PBS/pipeline_array.pbs
+#
+# PREFIX must match the one given to download_genomes.pbs, because that is
+# what names the archives this job consumes. PARALLEL is how many genomes
+# to encode concurrently on the one GPU; see PBS/README.md for the measured
+# curve behind the default.
+#
 # Nothing per-genome touches /g/data. The chunk archive is expanded onto
 # node-local $PBS_JOBFS, results are written there, and two files per chunk
 # come back:
 #
-#   <out>/chunk_NNN.tar.zst   all per-genome JSON, zstd -3
-#   <out>/chunk_NNN.tsv.gz    per-ORF entropy rows only
+#   <out>/<prefix>_NNN.tar.zst   all per-genome JSON, zstd -3
+#   <out>/<prefix>_NNN.tsv.gz    per-ORF entropy rows only
 #
 # The TSV exists so downstream work never unpacks the archive: measured on
 # real output it is about 42x smaller than the JSON and holds every entropy
@@ -41,6 +49,22 @@ HF_CACHE="${HF_CACHE:-/g/data/YOUR_NCI_PROJECT/hf_cache}"
 ARCHIVE_DIR="${ARCHIVE_DIR:-/g/data/YOUR_NCI_PROJECT/genbank}"
 OUT_ROOT="${OUT_ROOT:-/g/data/YOUR_NCI_PROJECT/entropy_results}"
 MODEL="${MODEL:-gbouras13/modernprost-50M}"
+ENCODING_SIZE="${ENCODING_SIZE:-10000}"
+
+# Must match the PREFIX download_genomes.pbs was submitted with: that is
+# what named the archives, and it keeps unrelated datasets (say bacteria
+# and archaea) in separate input and output namespaces.
+PREFIX="${PREFIX:-chunk}"
+
+# Genomes encoded concurrently on the single GPU. One `run` uses about a
+# core of the 12 gpuvolta bills per GPU and leaves the device waiting on
+# get_orfs, GenBank parsing, and JSON writing; overlapping several fills
+# those gaps. Throughput saturated at 4 in the measurement in the README.
+PARALLEL="${PARALLEL:-1}"
+if ! [[ "${PARALLEL}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: PARALLEL must be a positive integer, got '${PARALLEL}'" >&2
+    exit 2
+fi
 
 # shellcheck disable=SC1091
 source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -53,25 +77,30 @@ export TRANSFORMERS_OFFLINE=1
 export TORCH_DISABLE_DYNAMO=1
 
 CHUNK_ID=$(printf "%03d" "${PBS_ARRAY_INDEX}")
-ARCHIVE="${ARCHIVE_DIR}/chunk_${CHUNK_ID}.tar.zst"
-OUT_TAR="${OUT_ROOT}/chunk_${CHUNK_ID}.tar.zst"
-OUT_TSV="${OUT_ROOT}/chunk_${CHUNK_ID}.tsv.gz"
+TAG="${PREFIX}_${CHUNK_ID}"
+ARCHIVE="${ARCHIVE_DIR}/${TAG}.tar.zst"
+OUT_TAR="${OUT_ROOT}/${TAG}.tar.zst"
+OUT_TSV="${OUT_ROOT}/${TAG}.tsv.gz"
 
 if [[ ! -f "${ARCHIVE}" ]]; then
     echo "ERROR: ${ARCHIVE} not found; did the matching download chunk finish?" >&2
     exit 1
 fi
 if [[ -f "${OUT_TAR}" ]]; then
-    echo "Chunk ${CHUNK_ID}: ${OUT_TAR} already exists — nothing to do."
+    echo "Chunk ${TAG}: ${OUT_TAR} already exists — nothing to do."
     exit 0
 fi
 
 mkdir -p "${OUT_ROOT}"
 
-WORK="${PBS_JOBFS}/chunk_${CHUNK_ID}"
+WORK="${PBS_JOBFS}/${TAG}"
 IN_DIR="${WORK}/genbank"
 OUT_DIR="${WORK}/json"
-mkdir -p "${IN_DIR}" "${OUT_DIR}"
+# Encoding writes here first and is moved into OUT_DIR only on success, so
+# OUT_DIR never holds a half-written JSON for the signal handler to pack or
+# for a resumed run to mistake for finished work.
+TMP_DIR="${WORK}/incomplete"
+mkdir -p "${IN_DIR}" "${OUT_DIR}" "${TMP_DIR}"
 
 # PBS sends SIGTERM before killing a job at its walltime. Flush what has
 # been encoded so far rather than losing a whole chunk's GPU time; a
@@ -82,7 +111,9 @@ flush_partial () {
     n=$(find "${OUT_DIR}" -name "*.json" | wc -l)
     if [[ "${n}" -gt 0 ]]; then
         echo "Flushing ${n} completed genomes to ${OUT_TAR}.partial" >&2
-        tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial" || true
+        # -f because a resumed run was started from an earlier .partial and
+        # zstd will not overwrite an existing -o target.
+        tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -f -o "${OUT_TAR}.partial" || true
     fi
 }
 trap 'flush_partial' TERM
@@ -92,7 +123,20 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 echo "Unpacking ${ARCHIVE} to node-local jobfs ..."
 zstd -dq -c "${ARCHIVE}" | tar -xf - -C "${IN_DIR}"
 find "${IN_DIR}" -mindepth 2 -iname "*.gbff" | sort > "${WORK}/gbff_paths.txt"
-echo "Chunk ${CHUNK_ID}: $(wc -l < "${WORK}/gbff_paths.txt") genomes to encode"
+echo "Chunk ${TAG}: $(wc -l < "${WORK}/gbff_paths.txt") genomes in this chunk"
+
+# A previous attempt that hit walltime left its completed genomes in
+# OUT_TAR.partial. Restore them so this run re-encodes only what is
+# actually missing, which is the whole point of the signal handler.
+if [[ -f "${OUT_TAR}.partial" ]]; then
+    echo "Resuming from $(basename "${OUT_TAR}.partial") ..."
+    if zstd -dq -c "${OUT_TAR}.partial" | tar -xf - -C "${OUT_DIR}"; then
+        echo "Chunk ${TAG}: recovered $(find "${OUT_DIR}" -name '*.json' | wc -l) genomes."
+    else
+        echo "WARNING: ${OUT_TAR}.partial is unreadable; re-encoding the chunk." >&2
+        rm -rf "${OUT_DIR}"; mkdir -p "${OUT_DIR}"
+    fi
+fi
 
 # NCBI datasets names every GenBank file "genomic.gbff" and puts the
 # accession in the parent directory:
@@ -110,24 +154,51 @@ genome_label () {
     fi
 }
 
-done_count=0
-failed=0
 : > "${WORK}/failures.txt"
+resumed=0
 
+# Runs in a background subshell, so it reports through the filesystem
+# rather than through counters the parent shell would never see.
+encode_one () {
+    local gbff="$1" label="$2"
+    if genome_entropy run -g "${gbff}" -o "${TMP_DIR}/${label}.json" \
+            --model "${MODEL}" --encoding-size "${ENCODING_SIZE}"; then
+        mv "${TMP_DIR}/${label}.json" "${OUT_DIR}/${label}.json"
+        return 0
+    fi
+    rm -f "${TMP_DIR}/${label}.json"
+    echo "${label}" >> "${WORK}/failures.txt"
+    echo "FAILED: ${label}" >&2
+    return 1
+}
+
+echo "Chunk ${TAG}: encoding ${PARALLEL} genome(s) at a time."
+running=0
 while read -r gbff; do
     [[ -n "${gbff}" ]] || continue
     label="$(genome_label "${gbff}")"
-    if genome_entropy run -g "${gbff}" -o "${OUT_DIR}/${label}.json" \
-            --model "${MODEL}" --encoding-size 10000; then
-        done_count=$((done_count + 1))
-    else
-        echo "${label}" >> "${WORK}/failures.txt"
-        failed=$((failed + 1))
-        echo "FAILED: ${label}" >&2
+    if [[ -s "${OUT_DIR}/${label}.json" ]]; then
+        resumed=$((resumed + 1))
+        continue
     fi
+    if (( running >= PARALLEL )); then
+        # A failing child returns non-zero here; encode_one has already
+        # recorded it, so do not let set -e abandon the rest of the chunk.
+        wait -n || true
+        running=$((running - 1))
+    fi
+    encode_one "${gbff}" "${label}" &
+    running=$((running + 1))
 done < "${WORK}/gbff_paths.txt"
+wait
 
-echo "Chunk ${CHUNK_ID}: ${done_count} encoded, ${failed} failed."
+# Counted from the filesystem because the encoders ran as separate
+# processes and could not have updated shell counters.
+done_count=$(find "${OUT_DIR}" -name "*.json" | wc -l)
+failed=$(wc -l < "${WORK}/failures.txt")
+
+echo "Chunk ${TAG}: ${done_count} complete (${resumed} restored, \
+$((done_count - resumed)) encoded here), ${failed} failed."
 
 if [[ "${done_count}" -eq 0 ]]; then
     echo "ERROR: nothing encoded; not writing an archive." >&2
@@ -135,22 +206,44 @@ if [[ "${done_count}" -eq 0 ]]; then
 fi
 
 # Per-ORF entropy rows, so downstream work never needs the JSON archive.
+# A genome whose JSON cannot be parsed exits this non-zero: the TSV is then
+# missing science the chunk was meant to produce, so it counts against the
+# chunk exactly like an encoding failure.
+extract_rc=0
 python3 "${PBS_O_WORKDIR}/PBS/extract_entropy_rows.py" \
     --input-dir "${OUT_DIR}" \
-    --chunk "${CHUNK_ID}" \
-    --output "${WORK}/chunk_${CHUNK_ID}.tsv"
-gzip -c "${WORK}/chunk_${CHUNK_ID}.tsv" > "${OUT_TSV}.partial"
+    --chunk "${TAG}" \
+    --output "${WORK}/${TAG}.tsv" \
+    --failures "${WORK}/unparseable.txt" || extract_rc=$?
+
+if [[ "${extract_rc}" -ne 0 ]]; then
+    if [[ -s "${WORK}/unparseable.txt" ]]; then
+        n_unparseable=$(wc -l < "${WORK}/unparseable.txt")
+        echo "ERROR: ${n_unparseable} genome(s) produced unreadable JSON; the" >&2
+        echo "       TSV for chunk ${TAG} is incomplete." >&2
+        cat "${WORK}/unparseable.txt" >> "${WORK}/failures.txt"
+        failed=$((failed + n_unparseable))
+    else
+        echo "ERROR: entropy extraction failed for chunk ${TAG}." >&2
+        exit 1
+    fi
+fi
+
+# The outputs are still published: they hold real encoded genomes, and
+# discarding them would throw away the GPU time. The non-zero exit below
+# and the .failures file are what keep the chunk from reading as clean.
+gzip -c "${WORK}/${TAG}.tsv" > "${OUT_TSV}.partial"
 mv "${OUT_TSV}.partial" "${OUT_TSV}"
 
 trap - TERM
-tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial"
+tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -f -o "${OUT_TAR}.partial"
 mv "${OUT_TAR}.partial" "${OUT_TAR}"
 
 if [[ "${failed}" -gt 0 ]]; then
-    cp "${WORK}/failures.txt" "${OUT_ROOT}/chunk_${CHUNK_ID}.failures"
+    cp "${WORK}/failures.txt" "${OUT_ROOT}/${TAG}.failures"
 fi
 
-echo "Chunk ${CHUNK_ID} complete."
+echo "Chunk ${TAG} complete."
 echo "  json archive: ${OUT_TAR} ($(du -h "${OUT_TAR}" | cut -f1))"
 echo "  entropy rows: ${OUT_TSV} ($(du -h "${OUT_TSV}" | cut -f1))"
 echo "  /g/data inodes used by this chunk: 2"
