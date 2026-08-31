@@ -1,0 +1,263 @@
+#!/bin/bash
+#PBS -N gtdb_entropy_3di
+#PBS -q gpuvolta
+#PBS -P ob80
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=200GB
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -r y
+#PBS -j oe
+#PBS -o logs/entropy3di_^array_index^.log
+#
+# Produces 3Di + 12-state entropy (and their mutual information) using the
+# dual-head ModernProst model. Confirmed against genome_entropy 0.2.0:
+# `run` accepts --model/-m, --genbank/-g and --output/-o, and emits schema
+# 2.2.0 with entropy fields dna_entropy, protein_entropy, three_di_entropy,
+# twelve_state_entropy and three_di_twelve_state_mutual_information.
+#
+# INODES AND BYTES BOTH MATTER HERE.
+#
+# Measured on Gadi: entropy JSON runs 2.3-4.9x the size of its GenBank
+# input, so 200k genomes is on the order of 3 TB uncompressed and 200k
+# inodes. gdata/ob80 has roughly 520k inodes free in total. So, exactly as
+# in 02, nothing per-genome is written to /g/data: the chunk archive is
+# expanded onto node-local $PBS_JOBFS, results are written there, and only
+# two files per chunk land on /g/data:
+#
+#   entropy_3di_results/chunk_NNN.tar.zst   all per-genome JSON, zstd -3
+#   entropy_3di_results/chunk_NNN.tsv.gz    per-ORF entropy rows only
+#
+# The TSV exists so downstream analysis never has to unpack the JSON at
+# all; the JSON archive is there when you need sequences or encodings.
+# zstd -3 measured about 3.4x on this output.
+#
+# BEFORE SUBMITTING:
+#   1. 02_download_genomes.pbs must have produced genbank/chunk_NNN.tar.zst
+#      for the matching indices.
+#   2. The conda env, get_orfs, and the HF cache must exist (see
+#      03_install_genome_entropy.sh and 03b_download_model.sh).
+#   3. mkdir -p logs
+#
+# DOMAIN and the array range are passed at submission, keeping bacteria and
+# archaea in separate namespaces end to end:
+#
+#   qsub -v DOMAIN=bac -J 0-474 04_run_entropy.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+GDATA_ROOT="/g/data/ob80/re3494/gtdb_entropy"
+GENBANK_DIR="${GDATA_ROOT}/genbank"
+ENTROPY_OUT="${GDATA_ROOT}/entropy_3di_results"
+MODEL="gbouras13/modernprost-50M"
+
+# Per-batch token budget in amino acids.
+#
+# Measured, do not raise this. On bacterial genomes over two rounds
+# (logs/calibration_bac_results.tsv) the default 10000 was fastest at 119.5
+# s/genome; 25000 was within noise at 120.3, 50000 cost 3.6% and 100000
+# cost 9.1%. An earlier single-genome archaeal sweep went further: 800000
+# was 14% slower than the default, and 400000 and 800000 returned identical
+# peak memory, meaning the budget already exceeded a whole genome's protein
+# content. Wider batches mix sequence lengths and pad to the longest, so
+# filling GPU memory buys nothing here.
+ENCODING_SIZE="${ENCODING_SIZE:-10000}"
+
+# Genomes encoded concurrently on the one GPU. One at a time leaves the
+# device far short of saturated -- 12-48% utilisation at 1.5-2.1 GB of 32
+# GB -- while using a single core of the 12 that gpuvolta bills per GPU.
+# See logs/calibration_par_results.tsv for the measured throughput.
+PARALLEL="${PARALLEL:-4}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+
+# Set to 1 to delete a chunk's GenBank archive once its entropy archive has
+# been written successfully. The GenBank files can always be re-downloaded
+# from NCBI, so this is purely a storage/inode policy choice; it costs one
+# unlink per chunk and saves a few hundred GB across the full run.
+DELETE_GENBANK_AFTER="${DELETE_GENBANK_AFTER:-0}"
+
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export GET_ORFS_PATH="${GET_ORFS_PATH:-/g/data/ob80/re3494/Projects/genome_entropy/get_orfs/bin/get_orfs}"
+
+# GPU nodes have no route to Hugging Face. Fail immediately on a cache miss
+# rather than hanging on a connection that cannot succeed.
+export HF_HOME="${HF_HOME:-${GDATA_ROOT}/hf_cache}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export TORCH_DISABLE_DYNAMO=1
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+case "${DOMAIN}" in bac|arc) ;; *) echo "DOMAIN must be bac or arc" >&2; exit 2 ;; esac
+
+# This server caps arrays at 10 subjobs (max_array_size = 10), and a chunk
+# takes hours, so a strided subjob cannot cover 760 chunks inside a
+# walltime the way the download job can. Instead each 10-wide array covers
+# a block of 10 chunks, offset by CHUNK_START:
+#
+#   qsub -v DOMAIN=bac,CHUNK_START=10 -r y -J 0-9 04_run_entropy.pbs
+#
+# PBS also rejects a one-element array (-J 0-0), so a single chunk can be
+# run standalone with -v CHUNK=N for validating or re-running one index.
+if [ -n "${PBS_ARRAY_INDEX:-}" ]; then
+    CHUNK_INDEX=$(( ${CHUNK_START:-0} + PBS_ARRAY_INDEX ))
+else
+    CHUNK_INDEX="${CHUNK:-}"
+fi
+: "${CHUNK_INDEX:?Pass CHUNK=<n> via qsub -v, or submit as an array}"
+CHUNK_ID=$(printf "%03d" "${CHUNK_INDEX}")
+TAG="${DOMAIN}_${CHUNK_ID}"
+ARCHIVE="${GENBANK_DIR}/${TAG}.tar.zst"
+# Results are written under a per-domain directory so bacteria and archaea
+# never share an output namespace and can be aggregated independently.
+ENTROPY_OUT="${ENTROPY_OUT}/${DOMAIN}"
+OUT_TAR="${ENTROPY_OUT}/${TAG}.tar.zst"
+OUT_TSV="${ENTROPY_OUT}/${TAG}.tsv.gz"
+
+if [ ! -f "${ARCHIVE}" ]; then
+    echo "ERROR: ${ARCHIVE} not found — did the matching download chunk finish?" >&2
+    exit 1
+fi
+if [ -f "${OUT_TAR}" ]; then
+    echo "Chunk ${TAG}: ${OUT_TAR} already exists — nothing to do."
+    exit 0
+fi
+
+mkdir -p "${ENTROPY_OUT}"
+
+WORK="${PBS_JOBFS}/${TAG}"
+IN_DIR="${WORK}/genbank"
+OUT_DIR="${WORK}/json"
+mkdir -p "${IN_DIR}" "${OUT_DIR}"
+
+# PBS sends SIGTERM before killing a job at its walltime. Flush whatever
+# has been encoded so far to /g/data under a .partial name rather than
+# losing an entire chunk's GPU time; a resubmitted index can then be
+# reconciled against it instead of starting from zero.
+flush_partial () {
+    local n
+    n=$(find "${OUT_DIR}" -name "*.json" | wc -l)
+    if [ "${n}" -gt 0 ]; then
+        echo "Flushing ${n} completed genomes to ${OUT_TAR}.partial" >&2
+        tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial" || true
+    fi
+}
+trap 'flush_partial' TERM
+
+echo "=== node ==="
+hostname
+echo "encoding-size: ${ENCODING_SIZE}   parallel: ${PARALLEL}"
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+
+echo "=== unpacking ${ARCHIVE} to node-local jobfs ==="
+zstd -dq -c "${ARCHIVE}" | tar -xf - -C "${IN_DIR}"
+find "${IN_DIR}" -mindepth 2 -iname "*.gbff" | sort > "${WORK}/gbff_paths.txt"
+total=$(wc -l < "${WORK}/gbff_paths.txt")
+echo "Chunk ${TAG}: ${total} genomes to encode"
+
+# NCBI datasets names every GenBank file "genomic.gbff" and puts the
+# accession in the parent directory:
+#     ncbi_dataset/data/GCA_030638685.1/genomic.gbff
+# Naming outputs from the basename would give every genome in a chunk the
+# same output file, and the resume check would then skip the rest of the
+# chunk after the first genome. Derive the label from the accession
+# directory instead.
+genome_label () {
+    local path="$1" base
+    base="$(basename "${path}")"
+    base="${base%.gz}"
+    if [ "${base}" = "genomic.gbff" ]; then
+        basename "$(dirname "${path}")"
+    else
+        echo "${base%.gbff}"
+    fi
+}
+
+# One genome. Written to a file because xargs runs it in its own shell, so
+# it cannot rely on anything defined above.
+cat > "${WORK}/encode_one.sh" <<EOF
+#!/bin/bash
+gbff="\$1"
+base="\$(basename "\${gbff}")"; base="\${base%.gz}"
+if [ "\${base}" = "genomic.gbff" ]; then
+    label="\$(basename "\$(dirname "\${gbff}")")"
+else
+    label="\${base%.gbff}"
+fi
+out="${OUT_DIR}/\${label}.json"
+[ -f "\${out}" ] && exit 0
+if genome_entropy run --genbank "\${gbff}" --model "${MODEL}" \
+        --encoding-size ${ENCODING_SIZE} \
+        --output "\${out}" >> "${WORK}/logs/\${label}.log" 2>&1; then
+    exit 0
+fi
+echo "\${label}" >> "${WORK}/failures.txt"
+echo "FAILED: \${label}" >&2
+# Keep the reason. PBS -o files collide when several arrays share an array
+# index, so a failure that is only explained in the job log is a failure
+# whose explanation gets overwritten. Copy the tail next to the results.
+{
+  echo "=== \${label} ==="
+  tail -25 "${WORK}/logs/\${label}.log"
+  echo
+} >> "${ENTROPY_OUT}/${TAG}.failure_logs"
+exit 0   # keep xargs going; failures are counted from the file
+EOF
+chmod +x "${WORK}/encode_one.sh"
+mkdir -p "${WORK}/logs"
+: > "${WORK}/failures.txt"
+
+echo "Encoding ${total} genomes, ${PARALLEL} at a time ..."
+xargs -a "${WORK}/gbff_paths.txt" -n1 -P "${PARALLEL}" "${WORK}/encode_one.sh"
+
+done_count=$(find "${OUT_DIR}" -name "*.json" | wc -l)
+fail_count=$(sort -u "${WORK}/failures.txt" | tee "${WORK}/failures_uniq.txt" | wc -l)
+mv "${WORK}/failures_uniq.txt" "${WORK}/failures.txt"
+
+echo "Chunk ${TAG}: ${done_count} encoded, ${fail_count} failed."
+
+if [ "${done_count}" -eq 0 ]; then
+    echo "ERROR: nothing encoded; not writing an archive." >&2
+    exit 1
+fi
+
+# Per-ORF entropy rows, so downstream work never needs the JSON archive.
+echo "=== extracting entropy rows ==="
+python3 "${PBS_O_WORKDIR}/extract_entropy_rows.py" \
+    --input-dir "${OUT_DIR}" \
+    --chunk "${CHUNK_ID}" --domain "${DOMAIN}" \
+    --output "${WORK}/${TAG}.tsv"
+gzip -c "${WORK}/${TAG}.tsv" > "${OUT_TSV}.partial"
+mv "${OUT_TSV}.partial" "${OUT_TSV}"
+
+# Single archive of all per-genome JSON. Write to .partial and rename only
+# on success so a truncated archive is never mistaken for a finished chunk.
+echo "=== packing JSON archive ==="
+trap - TERM
+tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial"
+mv "${OUT_TAR}.partial" "${OUT_TAR}"
+
+if [ "${fail_count}" -gt 0 ]; then
+    cp "${WORK}/failures.txt" "${ENTROPY_OUT}/${TAG}.failures"
+fi
+
+echo "Chunk ${TAG} complete."
+echo "  json archive: ${OUT_TAR} ($(du -h "${OUT_TAR}" | cut -f1))"
+echo "  entropy rows: ${OUT_TSV} ($(du -h "${OUT_TSV}" | cut -f1))"
+echo "  /g/data inodes used by this chunk: 2"
+
+if [ "${DELETE_GENBANK_AFTER}" = "1" ] && [ "${fail_count}" -eq 0 ]; then
+    echo "Removing consumed GenBank archive ${ARCHIVE} (re-downloadable via 02)."
+    rm -f "${ARCHIVE}"
+fi
+
+# Non-zero exit so a partially failed index is visible in qstat -x rather
+# than being mistaken for a clean run.
+[ "${fail_count}" -eq 0 ]

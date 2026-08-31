@@ -1,0 +1,118 @@
+#!/bin/bash
+#PBS -N ge_diagnose
+#PBS -q gpuvolta
+#PBS -P ob80
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/diagnose_failures.log
+#
+# Re-run the genomes that failed during 04, one at a time, capturing full
+# output so the cause is on record.
+#
+# 04 records a failed accession in <tag>.failures, but the per-genome log
+# lived on jobfs and went with the node, and the PBS -o files collide when
+# several arrays share an array index. So the first wave's failures are
+# known by name but not by reason. This reconstructs the reason.
+#
+# Run whenever <tag>.failures files appear:
+#   qsub -v DOMAIN=bac 06_diagnose_failures.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+
+GDATA_ROOT="/g/data/ob80/re3494/gtdb_entropy"
+GENBANK_DIR="${GDATA_ROOT}/genbank"
+RESULTS="${GDATA_ROOT}/entropy_3di_results/${DOMAIN}"
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+MODEL="gbouras13/modernprost-50M"
+
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export GET_ORFS_PATH="${GET_ORFS_PATH:-/g/data/ob80/re3494/Projects/genome_entropy/get_orfs/bin/get_orfs}"
+export HF_HOME="${HF_HOME:-${GDATA_ROOT}/hf_cache}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export TORCH_DISABLE_DYNAMO=1
+
+WORK="${PBS_JOBFS}/diag"
+mkdir -p "${WORK}"
+REPORT="${PBS_O_WORKDIR}/logs/failure_diagnosis_${DOMAIN}.txt"
+: > "${REPORT}"
+
+echo "=== failed genomes to diagnose ==="
+for f in "${RESULTS}"/*.failures; do
+    [ -e "${f}" ] || { echo "No .failures files; nothing to do."; exit 0; }
+    tag="$(basename "${f}" .failures)"
+    while read -r acc; do
+        echo "${tag}	${acc}"
+    done < "${f}"
+done | tee "${WORK}/todo.tsv"
+
+n=$(wc -l < "${WORK}/todo.tsv")
+echo ""
+echo "Diagnosing ${n} genomes."
+
+while IFS=$'\t' read -r tag acc; do
+    echo "" | tee -a "${REPORT}"
+    echo "================ ${tag} / ${acc} ================" | tee -a "${REPORT}"
+
+    src="${GENBANK_DIR}/${tag}.tar.zst"
+    if [ ! -f "${src}" ]; then
+        echo "  archive ${src} missing (deleted after encoding?)" | tee -a "${REPORT}"
+        continue
+    fi
+
+    rm -rf "${WORK}/g"; mkdir -p "${WORK}/g"
+    # Pull just this accession's directory out of the chunk archive.
+    if ! zstd -dq -c "${src}" | tar -xf - -C "${WORK}/g" "./${acc}" 2>/dev/null; then
+        echo "  could not extract ./${acc} from ${src}" | tee -a "${REPORT}"
+        continue
+    fi
+
+    gbff="${WORK}/g/${acc}/genomic.gbff"
+    if [ ! -f "${gbff}" ]; then
+        echo "  no genomic.gbff inside ./${acc}" | tee -a "${REPORT}"
+        continue
+    fi
+
+    {
+        echo "  input size : $(du -h "${gbff}" | cut -f1)"
+        echo "  contigs    : $(grep -c '^LOCUS' "${gbff}" || true)"
+        echo "  CDS        : $(grep -c '^     CDS  ' "${gbff}" || true)"
+    } | tee -a "${REPORT}"
+
+    start=$(date +%s)
+    set +e
+    genome_entropy run --genbank "${gbff}" --model "${MODEL}" \
+        --encoding-size 10000 \
+        --output "${WORK}/${acc}.json" > "${WORK}/${acc}.log" 2>&1
+    rc=$?
+    set -e
+    elapsed=$(( $(date +%s) - start ))
+
+    if [ "${rc}" -eq 0 ]; then
+        echo "  RESULT: succeeded on retry in ${elapsed}s (transient in the array run)" | tee -a "${REPORT}"
+        echo "  output : $(du -h "${WORK}/${acc}.json" | cut -f1)" | tee -a "${REPORT}"
+    else
+        echo "  RESULT: reproducibly fails, exit ${rc}, after ${elapsed}s" | tee -a "${REPORT}"
+        echo "  --- last 30 lines ---" | tee -a "${REPORT}"
+        tail -30 "${WORK}/${acc}.log" | tee -a "${REPORT}"
+    fi
+    rm -f "${WORK}/${acc}.json"
+done < "${WORK}/todo.tsv"
+
+echo ""
+echo "=== summary ==="
+grep -c "succeeded on retry" "${REPORT}" 2>/dev/null | xargs -I{} echo "  transient (succeeded on retry): {}"
+grep -c "reproducibly fails"  "${REPORT}" 2>/dev/null | xargs -I{} echo "  reproducible failures        : {}"
+echo ""
+echo "Full report: ${REPORT}"

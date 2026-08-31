@@ -1,0 +1,128 @@
+#!/bin/bash
+#PBS -N ge_smoke_gpu
+#PBS -q gpuvolta
+#PBS -P ob80
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=01:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/smoke_gpu.log
+#
+# GPU half of the smoke test. 00_smoke_test.sh handles the login-node part
+# (accessions, download, install checks); this runs the actual encoding on
+# the hardware the production jobs will use, because CPU timings from a
+# login node say nothing useful about GPU cost, and heavy inference does
+# not belong on a shared head node.
+#
+# Prerequisites, all done on a login node:
+#   - the conda env exists
+#   - get_orfs is built
+#   - the model is cached under HF_HOME on /g/data
+#   - 00_smoke_test.sh has run at least through step 3, so the 5 genomes
+#     and smoke_test/gbff_paths.txt exist
+#
+# Submit with:  qsub 00b_smoke_test_gpu.pbs
+
+set -euo pipefail
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export GET_ORFS_PATH="${GET_ORFS_PATH:-/g/data/ob80/re3494/Projects/genome_entropy/get_orfs/bin/get_orfs}"
+export HF_HOME="${HF_HOME:-/g/data/ob80/re3494/gtdb_entropy/hf_cache}"
+
+# Compute nodes have no route to Hugging Face. Fail immediately on a cache
+# miss rather than hanging on a connection that cannot succeed.
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export TORCH_DISABLE_DYNAMO=1
+
+MODEL="gbouras13/modernprost-50M"
+WORKDIR="/g/data/ob80/re3494/Projects/genome_entropy/claude"
+cd "${WORKDIR}/smoke_test"
+
+echo "=== node and GPU ==="
+hostname
+nvidia-smi
+python -c "import torch; print('torch', torch.__version__, '| cuda', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0))"
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+
+# Same helper as 00_smoke_test.sh: NCBI datasets names every file
+# genomic.gbff, so the accession has to come from the parent directory.
+genome_label () {
+    local path="$1" base
+    base="$(basename "${path}")"
+    base="${base%.gz}"
+    if [ "${base}" = "genomic.gbff" ]; then
+        basename "$(dirname "${path}")"
+    else
+        echo "${base%.gbff}"
+    fi
+}
+
+mkdir -p entropy_out_gpu
+: > timings_gpu.tsv
+
+echo ""
+echo "=== running ${MODEL} on the smoke-test genomes ==="
+while read -r gbff; do
+    label="$(genome_label "${gbff}")"
+    bp=$(grep -c "" "${gbff}" || true)
+    echo "  -> ${label}"
+    start=$(date +%s)
+    if genome_entropy run --genbank "${gbff}" --model "${MODEL}" \
+            --output "entropy_out_gpu/${label}.json"; then
+        status=ok
+    else
+        status=FAILED
+    fi
+    elapsed=$(( $(date +%s) - start ))
+    printf '%s\t%s\t%s\t%s\n' "${label}" "${status}" "${elapsed}" "${bp}" >> timings_gpu.tsv
+    echo "     ${status} in ${elapsed}s"
+done < gbff_paths.txt
+
+echo ""
+echo "=== per-genome GPU timings (label, status, seconds, gbff lines) ==="
+column -t timings_gpu.tsv
+
+echo ""
+echo "=== output inspection: schema and entropy field names ==="
+python - <<'PY'
+import json, glob, statistics
+files = sorted(glob.glob("entropy_out_gpu/*.json"))
+print(f"{len(files)} output files")
+for f in files:
+    with open(f) as fh:
+        data = json.load(fh)
+    print(f"\n{f}")
+    print(f"  top level: {type(data).__name__}, {len(data)} record(s)")
+    rec = data[0] if isinstance(data, list) else data
+    print(f"  schema_version: {rec.get('schema_version')}")
+    print(f"  record keys: {sorted(rec.keys())}")
+    feats = rec.get("features", {})
+    print(f"  features in record 0: {len(feats)}")
+    total = sum(len((d[0] if isinstance(d, list) else d).get("features", {}))
+                for d in ([data] if isinstance(data, dict) else data)) if False else None
+    if feats:
+        k = next(iter(feats))
+        print(f"  sample ORF '{k}' blocks: {sorted(feats[k].keys())}")
+        ent = feats[k].get("entropy", {})
+        print(f"  entropy fields: {sorted(ent.keys())}")
+        print(f"  entropy values: {ent}")
+        for metric in ("three_di_entropy", "twelve_state_entropy",
+                       "three_di_twelve_state_mutual_information"):
+            vals = [v.get("entropy", {}).get(metric) for v in feats.values()]
+            vals = [v for v in vals if isinstance(v, (int, float))]
+            if vals:
+                print(f"  {metric}: n={len(vals)} mean={statistics.mean(vals):.4f}")
+            else:
+                print(f"  {metric}: ABSENT or all null")
+PY
+
+echo ""
+echo "=== done ==="

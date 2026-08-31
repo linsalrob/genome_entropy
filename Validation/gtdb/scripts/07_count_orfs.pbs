@@ -1,0 +1,72 @@
+#!/bin/bash
+#PBS -N ge_count
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=24
+#PBS -l mem=48GB
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/count_orfs.log
+#
+# Exact ORF and in_genbank counts across every completed chunk.
+#
+# The per-chunk TSVs total tens of GB compressed, so counting means
+# decompressing all of them -- too much to do on a login node. This runs on
+# the normal queue, which needs no internet, and decompresses chunks in
+# parallel.
+#
+# Writes one small stats line per chunk to <results>/counts/<tag>.count so
+# the work is not repeated: a later run skips chunks already counted and
+# the totals can be re-derived instantly by summing the files.
+#
+#   qsub -v DOMAIN=bac 07_count_orfs.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+RESULTS="/g/data/ob80/re3494/gtdb_entropy/entropy_3di_results/${DOMAIN}"
+COUNTS="${RESULTS}/counts"
+mkdir -p "${COUNTS}"
+
+# Count one chunk: rows, distinct genomes, in_genbank True/False.
+cat > "${PBS_JOBFS}/count_one.sh" <<EOF
+#!/bin/bash
+f="\$1"
+tag="\$(basename "\${f}" .tsv.gz)"
+out="${COUNTS}/\${tag}.count"
+[ -s "\${out}" ] && exit 0        # already counted
+zcat "\${f}" | awk -F'\t' -v tag="\${tag}" '
+    NR>1 {
+        rows++
+        g[\$3]=1
+        if (\$10=="True") ing++; else notg++
+    }
+    END { printf "%s\t%d\t%d\t%d\t%d\n", tag, rows, length(g), ing, notg }
+' > "\${out}.tmp" && mv "\${out}.tmp" "\${out}"
+EOF
+chmod +x "${PBS_JOBFS}/count_one.sh"
+
+ls "${RESULTS}"/${DOMAIN}_*.tsv.gz > "${PBS_JOBFS}/files.txt" 2>/dev/null || true
+n=$(wc -l < "${PBS_JOBFS}/files.txt")
+echo "chunks present: ${n}"
+echo "already counted: $(ls "${COUNTS}"/*.count 2>/dev/null | wc -l)"
+
+# zcat is the bottleneck and is single-threaded per file, so run one per core.
+xargs -a "${PBS_JOBFS}/files.txt" -n1 -P "${PBS_NCPUS:-24}" "${PBS_JOBFS}/count_one.sh"
+
+echo ""
+echo "=== totals for ${DOMAIN} ==="
+cat "${COUNTS}"/*.count | awk -F'\t' '
+    { chunks++; rows+=$2; genomes+=$3; ing+=$4; notg+=$5 }
+    END {
+        printf "  chunks counted    : %d\n", chunks
+        printf "  genomes           : %d\n", genomes
+        printf "  ORF rows          : %d\n", rows
+        printf "  in_genbank TRUE   : %d  (%.2f%%)\n", ing, 100*ing/rows
+        printf "  in_genbank FALSE  : %d  (%.2f%%)\n", notg, 100*notg/rows
+        printf "  mean ORFs/genome  : %.0f\n", rows/genomes
+    }
+'

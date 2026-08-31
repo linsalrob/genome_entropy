@@ -1,0 +1,123 @@
+#!/bin/bash
+#PBS -N ge_calib_bac
+#PBS -q gpuvolta
+#PBS -P ob80
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=01:30:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/calibrate_bac.log
+#
+# Settle --encoding-size on real bacterial genomes, with repeats.
+#
+# The first sweep (00c, one archaeal genome) found that raising the batch
+# budget makes things SLOWER, not faster: 800000 took 198s against 174s at
+# the default 10000, and the best result was 25000 at 142s. That is the
+# opposite of the "GPU is half idle, so use more of it" intuition, and it
+# is a plausible padding effect -- a wider token budget batches sequences
+# of more varied length together and every one pads to the longest.
+#
+# That single-genome margin (142s vs 158s) is within noise, and the choice
+# multiplies across ~190k bacterial genomes and a six-figure SU budget, so
+# it is worth measuring properly: bacterial genomes rather than archaeal,
+# several genomes per setting, and two rounds to expose run-to-run
+# variation. The sweep stays at the small end because 00c already showed
+# the large end is both slower and unreachable -- 400000 and 800000 gave
+# byte-identical memory, meaning the budget already exceeded the genome's
+# entire protein content.
+#
+# Also yields the bacterial per-genome timing needed to size chunks.
+
+set -euo pipefail
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export GET_ORFS_PATH="${GET_ORFS_PATH:-/g/data/ob80/re3494/Projects/genome_entropy/get_orfs/bin/get_orfs}"
+export HF_HOME="${HF_HOME:-/g/data/ob80/re3494/gtdb_entropy/hf_cache}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export TORCH_DISABLE_DYNAMO=1
+
+MODEL="gbouras13/modernprost-50M"
+WORKDIR="/g/data/ob80/re3494/Projects/genome_entropy/claude"
+ARCHIVE="/g/data/ob80/re3494/gtdb_entropy/genbank/bac_000.tar.zst"
+
+WORK="${PBS_JOBFS}/calib"
+IN="${WORK}/genbank"
+mkdir -p "${IN}"
+
+echo "=== extracting a sample of bacterial genomes from ${ARCHIVE} ==="
+zstd -dq -c "${ARCHIVE}" | tar -xf - -C "${IN}"
+
+# Pick three genomes spanning the size range rather than three similar
+# ones, so the result is not tuned to a single genome shape.
+find "${IN}" -mindepth 2 -iname "*.gbff" -printf '%s\t%p\n' | sort -n > "${WORK}/by_size.txt"
+n=$(wc -l < "${WORK}/by_size.txt")
+{
+    sed -n "$(( n / 6 ))p"     "${WORK}/by_size.txt"
+    sed -n "$(( n / 2 ))p"     "${WORK}/by_size.txt"
+    sed -n "$(( n * 5 / 6 ))p" "${WORK}/by_size.txt"
+} | cut -f2 > "${WORK}/sample.txt"
+
+echo "Sample genomes (small / median / large of ${n}):"
+while read -r g; do
+    printf '  %-20s %s MB\n' "$(basename "$(dirname "${g}")")" \
+        "$(du -m "${g}" | cut -f1)"
+done < "${WORK}/sample.txt"
+
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+
+RESULTS="${WORK}/results.tsv"
+: > "${RESULTS}"
+
+echo ""
+echo "=== sweep: 2 rounds x 3 genomes per setting ==="
+for round in 1 2; do
+    for ENC in 10000 25000 50000 100000; do
+        round_total=0
+        for gbff in $(cat "${WORK}/sample.txt"); do
+            label="$(basename "$(dirname "${gbff}")")"
+            start=$(date +%s)
+            if genome_entropy run --genbank "${gbff}" --model "${MODEL}" \
+                    --encoding-size "${ENC}" \
+                    --output "${WORK}/out.json" > "${WORK}/log.txt" 2>&1; then
+                status=ok
+            else
+                status=FAILED
+                tail -5 "${WORK}/log.txt" >&2
+            fi
+            elapsed=$(( $(date +%s) - start ))
+            round_total=$(( round_total + elapsed ))
+            printf '%s\t%s\t%s\t%s\t%s\n' "${round}" "${ENC}" "${label}" "${status}" "${elapsed}" \
+                >> "${RESULTS}"
+            rm -f "${WORK}/out.json"
+        done
+        echo "round ${round}  encoding_size ${ENC}: ${round_total}s for 3 genomes"
+    done
+done
+
+echo ""
+echo "=== summary: total seconds for the same 3 genomes ==="
+awk -F'\t' '
+    $4=="ok" { tot[$2]+=$5; n[$2]++; if ($1==1) r1[$2]+=$5; else r2[$2]+=$5 }
+    END {
+        printf "%-15s %-12s %-12s %-12s %s\n", "encoding_size", "round1_s", "round2_s", "mean_s", "vs_default"
+        for (e in tot) printf "%-15d %-12d %-12d %-12.1f %.3f\n", e, r1[e], r2[e], tot[e]/2, (r1[10000]+r2[10000])/tot[e]
+    }
+' "${RESULTS}" | sort -n
+
+echo ""
+echo "=== per-genome mean at each setting (for chunk sizing) ==="
+awk -F'\t' '$4=="ok" { tot[$2]+=$5; n[$2]++ } END {
+    for (e in tot) printf "  encoding_size %-8d %.1f s/genome\n", e, tot[e]/n[e]
+}' "${RESULTS}" | sort -k3 -n
+
+cp "${RESULTS}" "${WORKDIR}/logs/calibration_bac_results.tsv"
+echo ""
+echo "Raw results copied to logs/calibration_bac_results.tsv"
