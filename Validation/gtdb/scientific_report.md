@@ -15,17 +15,22 @@ representative in GTDB r232. The headline analytical result is that the
 **boundary at 3Di entropy ≈ 1.585 bits, visible as a sharp horizontal line
 separating GenBank-matched from unmatched ORFs, is an information-theoretic
 ceiling rather than a biological threshold**: it is exactly log₂(3), and it
-arises because the encoder collapses unstructured sequence onto three 3Di
-states. Section 5 establishes this quantitatively.
+arises because the encoder assigns a large ORF population to only three
+distinct 3Di states. What those states correspond to structurally is not
+established here — see the note under "Why encodings collapse to three
+states" in §5. Section 5 establishes the ceiling quantitatively.
 
 A secondary result (section 6) is that the population of unmatched ORFs with
 high 3Di entropy — a candidate pool for genes missed by annotation — is 95.5%
-explained by genomes that were never annotated at all. A further 64% of the
-remainder was attributed to shadow ORFs overlapping real CDS, leaving about
-1.6% as candidates; that second split is provisional, because the overlap test
-that produced it compared plus- and minus-strand coordinates in different
-systems. See the note in section 6. The 95.5% does not depend on coordinates
-and is unaffected.
+attributed to genomes that appear never to have been annotated. A further 64%
+of the remainder was attributed to shadow ORFs overlapping real CDS, leaving
+about 1.6% as candidates.
+
+Both splits are provisional. The shadow test compared plus- and minus-strand
+coordinates in different systems, and "never annotated" was inferred from
+`in_genbank` rather than from the GenBank records, which can only over-count
+unannotated genomes. Both defects are fixed in the scripts; the numbers here
+predate the fixes. See the note in section 6.
 
 ---
 
@@ -53,10 +58,13 @@ overlap, frame and translation:
 
 The low matched fraction is expected and is not an error rate. `get_orfs`
 enumerates open reading frames in all six frames, so most calls are not genes.
-Separately, **46% of bacterial representatives carry no CDS annotation at all**
-(GCA assemblies submitted unannotated), and every ORF in those genomes is
-`False` by construction. Any analysis of what `False` *means* must exclude
-them; see §6.
+Separately, **at least 46% of bacterial representatives appear to carry no CDS
+annotation at all** (GCA assemblies submitted unannotated), and every ORF in
+those genomes is `False` by construction. Any analysis of what `False` *means*
+must exclude them; see §6. That 46% is an upper bound: it was measured from
+`in_genbank`, which cannot distinguish a genome with no annotation from one
+whose annotations the ORF matcher rejected. `12_genome_cds_counts.pbs` answers
+this from the GenBank records; see the note in §6.
 
 ---
 
@@ -193,22 +201,32 @@ by arithmetic, and that population's ceiling is the line.
 | median length (aa) | 120–190 | 288–372 |
 | fraction matched to CDS | ~0–1% | 3.6% → 66.9% rising with H |
 
-Below the line, **three letters account for 99.4% of all residues.** `D` is the
-coil/unstructured state in Foldseek's 3Di alphabet, so the model is reporting
-"no resolvable structure" across essentially the whole sequence. A string that
-is ~76% `D` with a little `V` and `P` is mathematically pinned below 1.585.
-Above the line the full 20-letter alphabet is in genuine use with no single
-dominant state.
+Below the line, **three letters account for 99.4% of all residues.** A string
+that is ~76% `D` with a little `V` and `P` is mathematically pinned below
+1.585. Above the line the full 20-letter alphabet is in genuine use with no
+single dominant state.
 
 The distribution is therefore **bimodal by mechanism**, not a continuum with a
 cut imposed on it:
 
-- *structureless* — encoder emits mostly coil, ≤3 effective states, H ≤ 1.585 by
-  arithmetic
-- *structured* — real secondary-structure variety, H spreading to ~4.1
+- *low state diversity* — ≤3 effective states, H ≤ 1.585 by arithmetic
+- *full alphabet* — most of the 20 states in use, H spreading to ~4.1
 
 That is why the boundary is crisp: it is where a hard ceiling meets a genuinely
-different regime.
+different regime. Note that this argument is purely about how many distinct
+states the encoder emits; it does not depend on what any individual state
+means.
+
+> **What `D` means is not established here.** An earlier version of this
+> report called `D` "the coil/unstructured state" and read its dominance as the
+> model reporting "no resolvable structure". Foldseek's 3Di alphabet is a
+> learned 20-state description of each residue's local tertiary-interaction
+> geometry; the letters are borrowed from the amino-acid alphabet for tooling
+> convenience and are not named secondary-structure categories, so there is no
+> designated coil state. Dominance by `D` is a measured fact and is sufficient
+> to explain the entropy ceiling, but reading it as disorder needs an
+> independent measurement — DSSP over predicted structures, or a disorder
+> predictor, on the same ORFs. Recorded as outstanding work.
 
 ### Consequences for interpretation
 
@@ -219,8 +237,9 @@ different regime.
    to display state variety. Some of the separation in §4 is length, not
    structure.
 3. **A cleaner discriminant exists.** The *fraction of `D` residues* measures
-   "no resolvable structure" directly and, unlike entropy, is not bounded by
-   sequence length. Worth computing as an alternative axis.
+   dominance by a single 3Di state directly and, unlike entropy, is not bounded
+   by sequence length. Worth computing as an alternative axis — as a measure of
+   state dominance, not of disorder, until the note above is settled.
 
 ---
 
@@ -243,9 +262,19 @@ failed to call them.
 > 15,338 / 8,651 split, everything derived from it, and the "1.6% survives"
 > figure as provisional until the analysis is rerun.
 >
-> Unaffected: the 95.5% attributable to genomes with no annotation at all, which
-> depends only on `in_genbank` per genome and not on coordinates. That remains
-> the dominant result of this section.
+> The 95.5% attributable to genomes with no annotation at all does not depend
+> on coordinates and is unaffected by that fix — but it has a separate problem
+> of its own, below.
+>
+> **"Never annotated" was inferred from `in_genbank`, which cannot establish
+> it.** The flag is set only when a called ORF passes the coordinate, frame,
+> and translation match, so a genome with real CDS features that all fail that
+> match was counted as never annotated and had its high-3Di ORFs written off.
+> The error can only run one way: it over-counts unannotated genomes, so the
+> 95.5% here and the 46% quoted in §1 and §6 are upper bounds, not estimates.
+> `12_genome_cds_counts.pbs` now counts CDS features in the GenBank records
+> directly, and `10_missed_genes.py` requires its table instead of the proxy.
+> Both figures need regenerating from it.
 >
 > Rerunning needs chunk TSVs carrying the `contig_length` column that
 > `extract_entropy_rows.py` now emits; TSVs from the original run do not have it
@@ -256,7 +285,7 @@ across 500 genomes (chunks `bac_000`, `bac_051`):
 
 | | count | share |
 |---|---:|---:|
-| in genomes with **no annotation at all** | 513,499 | **95.5%** |
+| in genomes with **no annotation at all** (upper bound, see note) | 513,499 | **95.5%** |
 | in annotated genomes | 23,989 | 4.5% |
 | → **shadow** of an annotated CDS (overlapping, any frame/strand) | 15,338 | 63.9% of those |
 | → **intergenic — candidates** | **8,651** | 36.1% of those |
@@ -401,23 +430,32 @@ Final footprint: 1.5 TB results + 350 GB GenBank archives.
    often annotated (40% vs 54% in samples).
 5. Compute **fraction of `D` residues** per ORF as a length-independent
    alternative to 3Di entropy (§5.3).
-6. **Rerun `10_missed_genes.py`** now that it converts negative-strand
-   coordinates onto the forward genomic axis, and replace the superseded
-   shadow/intergenic numbers in §6. Needs chunk TSVs regenerated from the JSON
-   archives, because the originals predate the `contig_length` column.
-7. Homology-search the recomputed missed-gene candidates (§6). The 8,651 figure
-   is provisional until item 6 is done.
-8. Stratify candidates by GTDB annotation provenance (§6).
-9. Parallelise `05_aggregate_results.py` — 87 s per chunk single-threaded is
+6. **Run `12_genome_cds_counts.pbs`** and regenerate the annotation-presence
+   figures (the 46% in §1/§6 and the 95.5% in §6) from CDS features in the
+   GenBank records rather than from `in_genbank`. Both are currently upper
+   bounds.
+7. **Rerun `10_missed_genes.py`** now that it converts negative-strand
+   coordinates onto the forward genomic axis and takes annotation presence from
+   item 6, and replace the superseded shadow/intergenic numbers in §6. Needs
+   chunk TSVs regenerated from the JSON archives, because the originals predate
+   the `contig_length` column.
+8. **Test what 3Di state `D` corresponds to.** Run DSSP over predicted
+   structures, or a disorder predictor, on ORFs below and above the 1.585 line.
+   The entropy ceiling is established without this, but the disorder reading of
+   `D` dominance is not (§5).
+9. Homology-search the recomputed missed-gene candidates (§6). The 8,651 figure
+   is provisional until items 6 and 7 are done.
+10. Stratify candidates by GTDB annotation provenance (§6).
+11. Parallelise `05_aggregate_results.py` — 87 s per chunk single-threaded is
    ~18 h over 760 chunks. Each genome lives in exactly one chunk, so chunks are
    independent and this parallelises trivially.
 
 ### Upstream reports (not yet filed — both would post publicly)
 
-10. `genome_entropy`: add a `--max-aa` guard (§7).
-11. `gbouras13/modernprost-50M`: `_make_sliding_mask` materialises an L×L matrix
+12. `genome_entropy`: add a `--max-aa` guard (§7).
+13. `gbouras13/modernprost-50M`: `_make_sliding_mask` materialises an L×L matrix
     for a banded mask (§7).
-12. `genome_entropy download` prints a hardcoded `~/.cache/huggingface` path
+14. `genome_entropy download` prints a hardcoded `~/.cache/huggingface` path
     while correctly honouring `HF_HOME`, which is misleading for exactly the
     offline-cache workflow an air-gapped GPU node needs.
 

@@ -27,10 +27,13 @@ re-run the thing.
   coil state), so their entropy is mechanically capped at log₂(3) = 1.585. Any
   threshold analysis on 3Di entropy should use that constant rather than a value
   read off a plot. §5 of the report.
-- **`in_genbank=False` does not mean "annotation declined this ORF".** 46% of
-  GTDB bacterial representatives carry no CDS annotation at all, so 42.8% of all
-  ORFs are `False` by construction. Filter on annotation status before
-  interpreting the flag. §6.
+- **`in_genbank=False` does not mean "annotation declined this ORF".** At least
+  46% of GTDB bacterial representatives carry no CDS annotation at all, so 42.8%
+  of all ORFs are `False` by construction. Filter on annotation status before
+  interpreting the flag. Take that status from `12_genome_cds_counts.pbs`, which
+  reads the GenBank records: `in_genbank` alone cannot tell a genome with no
+  annotation from one whose annotations the ORF matcher rejected, so the 46% is
+  an upper bound. §6.
 - **Long ORFs crash the encoder.** 39 genomes (0.021%) failed with CUDA OOM in
   `_make_sliding_mask`, which materialises an L×L matrix for a banded mask;
   worst case attempted 4,374 GiB for a 766,188-aa ORF call. §7.
@@ -54,10 +57,11 @@ re-run the thing.
 | `05_aggregate_results.py` | login | per-genome summary, one domain at a time |
 | `06_diagnose_failures.pbs` | `gpuvolta` | re-run failed genomes, capture the cause |
 | `07_count_orfs.pbs` | `normal` | exact ORF / `in_genbank` counts, cached per chunk |
-| `11_genome_annotation_status.pbs` | `normal` | per-genome annotated/unannotated table |
+| `11_genome_annotation_status.pbs` | `normal` | per-genome table of whether any ORF matched a CDS |
+| `12_genome_cds_counts.pbs` | `normal` | per-genome CDS counts read from the GenBank records — the authoritative annotation-presence answer |
 | `08_plot_entropy_scatter.py` | login | four-panel scatter |
 | `09_plot_density.py` | login | hexbin and 2D-KDE figures |
-| `10_missed_genes.py` | login | candidate genes missed by annotation |
+| `10_missed_genes.py` | login | candidate genes missed by annotation; needs `--annotation-status` from `12` |
 
 ### Order
 
@@ -79,7 +83,17 @@ done
 
 qsub -v DOMAIN=bac 07_count_orfs.pbs
 qsub -v DOMAIN=bac 11_genome_annotation_status.pbs
+qsub -v DOMAIN=bac 12_genome_cds_counts.pbs
 python3 05_aggregate_results.py --domain bac
+```
+
+`12` reads the GenBank archives, so run it before `04` deletes them
+(`DELETE_GENBANK_AFTER=1`) or re-download with `02`. Its table is what
+`10_missed_genes.py` needs:
+
+```bash
+python3 10_missed_genes.py \
+    --annotation-status /g/data/.../genome_cds_counts_bac.tsv
 ```
 
 Then repeat with `DOMAIN=arc`.
@@ -96,6 +110,7 @@ Paths are hardcoded to the machine this ran on. Change:
 | `GET_ORFS_PATH` | `00`, `00b`–`00e`, `04`, `06` |
 | `HF_HOME` | `00`, `00b`–`00e`, `03b`, `04`, `06` |
 | `$GE_SCRATCH` | `08`, `09`, `10` — read from the environment, defaults to `./work` |
+| `GDATA_ROOT`, `GENBANK_DIR` | `12` — overridable from the environment |
 
 For a portable starting point rather than this record, use the templates in
 [`../../PBS/`](../../PBS) instead.

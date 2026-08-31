@@ -7,11 +7,20 @@ software simply failed to call them.
 
 Two things have to be separated out before that can be tested.
 
-FIRST, and much the larger effect: 46% of GTDB bacterial representatives
-carry no CDS annotation at all. Every ORF in those genomes is False by
-construction, and nothing was "missed" because nothing was ever run. Only
-genomes with at least one annotated CDS can speak to the hypothesis, so
-everything below is restricted to those.
+FIRST, and much the larger effect: a large share of GTDB bacterial
+representatives carry no CDS annotation at all. Every ORF in those genomes
+is False by construction, and nothing was "missed" because nothing was ever
+run. Only genomes with at least one annotated CDS can speak to the
+hypothesis, so everything below is restricted to those.
+
+Which genomes those are must come from the GenBank records, not from
+in_genbank. That flag is set only when a called ORF passes the coordinate,
+frame, and translation match, so a genome whose real CDS features all fail
+that strict match looks identical to one that was never annotated. Using
+any(in_genbank) as the proxy can therefore only over-count unannotated
+genomes, which inflates the share of high-3Di ORFs written off as "never
+annotated". Run 12_genome_cds_counts.pbs and pass its table with
+--annotation-status.
 
 SECOND, get_orfs reads all six frames, so an unmatched ORF that overlaps an
 annotated CDS is usually a shadow of that gene -- an alternative frame or
@@ -30,6 +39,7 @@ characteristic length distribution; spurious ORF calls skew short. If the
 high-3Di intergenic ORFs are missed genes, their lengths should resemble
 the annotated CDS population rather than the short-ORF background.
 """
+import argparse
 import glob
 import os
 import sys
@@ -144,7 +154,34 @@ def overlaps_annotated(df):
     return flag
 
 
+def load_annotation_status(path):
+    """Return the set of genomes that carry at least one GenBank CDS.
+
+    Read from 12_genome_cds_counts.pbs, which counts CDS features in the
+    source GenBank records. This is deliberately not derived from
+    in_genbank: see the module docstring.
+    """
+    status = pd.read_csv(path, sep="\t")
+    for column in ("genome", "has_annotation"):
+        if column not in status.columns:
+            raise SystemExit(
+                f"{path} has no '{column}' column; expected the output of "
+                "12_genome_cds_counts.pbs."
+            )
+    if status.has_annotation.dtype != bool:
+        status["has_annotation"] = status.has_annotation.astype(str) == "True"
+    return status, set(status.loc[status.has_annotation, "genome"])
+
+
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument(
+        "--annotation-status", required=True,
+        help="genome_cds_counts_<domain>.tsv from 12_genome_cds_counts.pbs. "
+             "Required: annotation presence must come from the GenBank "
+             "records, not from in_genbank.")
+    args = ap.parse_args()
+
     if not FILES:
         print(f"No chunk TSVs under {SCRATCH}/missed -- see the comment on "
               f"FILES for how to produce them.", file=sys.stderr)
@@ -158,11 +195,32 @@ def main():
     print(f"ORFs loaded: {len(df):,} from {df.genome.nunique()} genomes\n")
 
     # --- confounder 1: genomes with no annotation at all ---
-    ann = df.groupby("genome").in_genbank.any()
-    annotated = set(ann[ann].index)
-    n_all, n_ann = len(ann), len(annotated)
+    status, with_cds = load_annotation_status(args.annotation_status)
+
+    present = set(df.genome.unique())
+    unknown = present - set(status.genome)
+    if unknown:
+        raise SystemExit(
+            f"{len(unknown):,} genome(s) in the chunk TSVs are absent from "
+            f"{args.annotation_status}, e.g. {sorted(unknown)[0]}. Rerun "
+            "12_genome_cds_counts.pbs over the same chunks rather than "
+            "assuming their annotation status."
+        )
+
+    annotated = present & with_cds
+    n_all, n_ann = len(present), len(annotated)
     print("STEP 1 - remove genomes that were never annotated")
-    print(f"  genomes with >=1 annotated CDS : {n_ann} of {n_all} ({n_ann/n_all*100:.0f}%)")
+    print(f"  genomes with >=1 GenBank CDS   : {n_ann} of {n_all} ({n_ann/n_all*100:.0f}%)")
+
+    # How far the old in_genbank proxy was off, on this sample. Any genome
+    # here has real CDS features that no called ORF matched, so the proxy
+    # would have discarded its ORFs as "never annotated".
+    matcher_says = set(df.groupby("genome").in_genbank.any().pipe(lambda s: s[s].index))
+    proxy_missed = annotated - matcher_says
+    if proxy_missed:
+        print(f"  of which no ORF matched a CDS  : {len(proxy_missed)} "
+              f"({len(proxy_missed)/n_ann*100:.1f}% of annotated) "
+              f"<- counted as unannotated by the old in_genbank proxy")
 
     hi_all = df[(~df.in_genbank) & (df.three_di_entropy >= THRESH)]
     hi_ann = hi_all[hi_all.genome.isin(annotated)]
