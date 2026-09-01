@@ -92,6 +92,25 @@ qsub -v DOMAIN=bac 12_genome_cds_counts.pbs
 python3 05_aggregate_results.py --domain bac
 ```
 
+### Reruns and partial results
+
+Every stage refuses to present incomplete work as finished, so resubmitting is
+the recovery path in each case:
+
+- `04_run_entropy.pbs` publishes a chunk that had failures, but writes
+  `<out>/<prefix>_NNN.failures` and exits non-zero. Resubmitting that index
+  restores the genomes that succeeded from the published archive, re-encodes
+  only the ones named in `.failures`, and clears the marker once the chunk is
+  clean. It therefore needs the GenBank archive still present, which is why
+  `DELETE_GENBANK_AFTER=1` only deletes after a chunk with no failures.
+- `05_aggregate_results.py` refuses to write a summary if any chunk cannot be
+  read to the end; a truncated `.tsv.gz` contributes a prefix of its rows
+  before gzip notices, and those would silently distort per-genome statistics.
+- `12_genome_cds_counts.pbs` refuses to publish unless every archive produced
+  a cache entry, since a missing one drops a whole chunk's genomes from a
+  table other scripts treat as authoritative. Cached chunks are skipped, so a
+  rerun only redoes the failures.
+
 `12` reads the GenBank archives, so run it before `04` deletes them
 (`DELETE_GENBANK_AFTER=1`) or re-download with `02`. Its table is what
 `10_missed_genes.py` needs:

@@ -188,8 +188,27 @@ def main():
                         if is_ing:
                             stats_ing[genome][metric].add(value)
         except (OSError, EOFError, csv.Error) as e:
-            print(f"WARNING: could not read {path}: {e}", file=sys.stderr)
+            # gzip only raises at the point the stream breaks, so a truncated
+            # chunk has usually already contributed a prefix of its rows to
+            # the accumulators. Those cannot be unwound cheaply, so the run
+            # is abandoned below rather than publishing per-genome statistics
+            # computed from part of a chunk.
+            print(f"ERROR: could not read {path}: {e}", file=sys.stderr)
             bad_files.append(path)
+
+    if bad_files:
+        print(f"\nERROR: {len(bad_files)} of {len(files)} chunk(s) could not be "
+              "read to the end:", file=sys.stderr)
+        for path in bad_files[:10]:
+            print(f"  {path}", file=sys.stderr)
+        if len(bad_files) > 10:
+            print(f"  ... and {len(bad_files) - 10} more", file=sys.stderr)
+        print("Rows already accumulated from a truncated chunk would make the "
+              "affected genomes' statistics wrong in a way nothing downstream "
+              "could detect, so no summary is written. Re-run the chunk with "
+              "04_run_entropy.pbs, or move the damaged file aside if the "
+              "genomes in it are being abandoned deliberately.", file=sys.stderr)
+        return 1
 
     # matcher_matched_a_cds, not "annotated": it says whether any called ORF
     # passed genome_entropy's coordinate/frame/translation match, which is
@@ -270,8 +289,6 @@ def main():
               "(pass --annotation-status from 12_genome_cds_counts.pbs)")
     if n_bad_rows:
         print(f"unparseable rows : {n_bad_rows}", file=sys.stderr)
-    if bad_files:
-        print(f"unreadable chunks: {len(bad_files)}", file=sys.stderr)
         for p in bad_files:
             print(f"  {p}", file=sys.stderr)
 

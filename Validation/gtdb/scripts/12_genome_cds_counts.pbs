@@ -69,9 +69,12 @@ rm -rf "${work}"; mkdir -p "${work}"
 
 # GenBank files are the only members worth reading, and the accession is the
 # directory holding each one (NCBI names every file genomic.gbff).
+# Non-zero, not a warning: this table is the authoritative annotation
+# answer, and a chunk that produced no cache file would drop every genome
+# in it from the published table without changing the exit status.
 zstd -dq -c "${archive}" | tar -xf - -C "${work}" --wildcards '*.gbff' 2>/dev/null || {
-    echo "WARNING: ${tag}: could not extract GenBank members" >&2
-    rm -rf "${work}"; exit 0
+    echo "ERROR: ${tag}: could not extract GenBank members" >&2
+    rm -rf "${work}"; exit 1
 }
 
 find "${work}" -mindepth 2 -iname '*.gbff' -print0 \
@@ -101,8 +104,29 @@ if [ "${n_arch}" -eq 0 ]; then
     exit 1
 fi
 
+xargs_rc=0
 xargs -a "${PBS_JOBFS}/archives.txt" -n1 -P "${PBS_NCPUS:-24}" \
-      -I{} "${PBS_JOBFS}/one_chunk.sh" {} "${CACHE}" "${DOMAIN}"
+      -I{} "${PBS_JOBFS}/one_chunk.sh" {} "${CACHE}" "${DOMAIN}" || xargs_rc=$?
+
+# Belt and braces: xargs reporting success is not proof that every archive
+# produced a cache entry, and a missing entry silently removes a whole
+# chunk's genomes from a table other scripts treat as authoritative.
+missing=0
+while read -r archive; do
+    tag="$(basename "${archive}" .tar.zst)"
+    if [ ! -s "${CACHE}/${tag}.tsv" ]; then
+        echo "ERROR: no CDS counts cached for ${tag}" >&2
+        missing=$((missing + 1))
+    fi
+done < "${PBS_JOBFS}/archives.txt"
+
+if [ "${xargs_rc}" -ne 0 ] || [ "${missing}" -gt 0 ]; then
+    echo "ERROR: ${missing} of ${n_arch} chunk(s) produced no CDS counts;" >&2
+    echo "       refusing to publish a table missing their genomes." >&2
+    echo "       Fix or re-download those archives and rerun; chunks already" >&2
+    echo "       cached are skipped, so only the failures are redone." >&2
+    exit 1
+fi
 
 {
     printf 'genome\tdomain\tchunk\tn_cds\thas_annotation\n'
