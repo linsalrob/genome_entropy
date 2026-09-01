@@ -103,13 +103,31 @@ the recovery path in each case:
   only the ones named in `.failures`, and clears the marker once the chunk is
   clean. It therefore needs the GenBank archive still present, which is why
   `DELETE_GENBANK_AFTER=1` only deletes after a chunk with no failures.
+- `04_run_entropy.pbs` also reconciles its worklist against what landed. A
+  worker killed between starting and recording its label would otherwise leave
+  its genome in neither the output nor `.failures`, and the chunk would publish
+  clean and delete its GenBank archive; such genomes are counted as failures
+  instead.
 - `05_aggregate_results.py` refuses to write a summary if any chunk cannot be
   read to the end; a truncated `.tsv.gz` contributes a prefix of its rows
   before gzip notices, and those would silently distort per-genome statistics.
-- `12_genome_cds_counts.pbs` refuses to publish unless every archive produced
-  a cache entry, since a missing one drops a whole chunk's genomes from a
-  table other scripts treat as authoritative. Cached chunks are skipped, so a
-  rerun only redoes the failures.
+  It also establishes the expected chunk and genome set from `accessions/`
+  rather than from whichever TSVs exist, and rejects outstanding `.failures`,
+  so aggregating mid-run cannot publish a domain summary that quietly omits
+  chunks. `--allow-partial` publishes deliberately.
+- `12_genome_cds_counts.pbs` refuses to publish unless every *expected* chunk
+  produced a cache entry, since a missing one drops a whole chunk's genomes
+  from a table other scripts treat as authoritative. The expected set comes
+  from `accessions/`, so a chunk whose archive `04` deleted and which was never
+  cached is caught rather than leaving no trace. Cached chunks are skipped, so
+  a rerun only redoes the failures. `ALLOW_PARTIAL=1` overrides.
+- `02_download_genomes.pbs` writes `<chunk>.missing` when NCBI serves fewer
+  genomes than requested. Suppressed and withdrawn accessions cannot be
+  recovered by retrying, so this is not a chunk failure; the file is instead
+  the authorised-absence list that `05` subtracts from the expected set. An
+  accession absent *without* being listed there fails `05`'s coverage check.
+  Confirm the contents are genuinely unavailable rather than a transient
+  shortfall; re-running `02` for the chunk clears the file if they arrive.
 
 `12` reads the GenBank archives, so run it before `04` deletes them
 (`DELETE_GENBANK_AFTER=1`) or re-download with `02`. Its table is what
