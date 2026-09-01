@@ -1,0 +1,114 @@
+#!/bin/bash
+#PBS -N ge_missed
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=48
+#PBS -l mem=190GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# Candidate missed genes across every completed chunk (issue #92, step 1).
+#
+# 10_missed_genes.py established the analysis on two chunks and printed
+# statistics. This runs it over all of them and keeps the table: the
+# Foldseek search needs to know *which* ORFs to pull out of the JSON
+# archives, so genome + input_id + orf_id have to be written down.
+#
+# WHY PER-CHUNK IS SOUND:
+#   Both questions the analysis asks -- does this genome carry any annotated
+#   CDS, and does this ORF overlap one -- are answerable inside a chunk,
+#   because each genome lives in exactly one chunk. Verified against
+#   genome_annotation_status_bac.tsv, where all 189,715 genomes are unique.
+#
+# WHY normal AND NOT copyq/gpuvolta:
+#   Reading and parsing ~133 GB of gzipped TSV is CPU-bound and needs no
+#   internet and no GPU. gzip is single-threaded per file, so one worker per
+#   core.
+#
+# Writes <out>/<tag>.candidates.tsv.gz, <tag>.controls.tsv.gz and
+# <tag>.stats.tsv per chunk, so a re-run skips finished chunks and the
+# aggregate report can be recomputed in seconds without re-reading the TSVs.
+#
+#   qsub -v DOMAIN=bac 13_missed_gene_candidates.pbs
+#
+# Then, on a login node, for the report alone:
+#   python3 10_missed_genes.py --aggregate --out-dir <out>
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+: "${THRESHOLD:=2.5}"
+: "${CONTROLS:=2000}"
+
+ENV_PREFIX="/g/data/ob80/re3494/conda/genome_entropy"
+GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
+RESULTS="${GDATA_ROOT}/entropy_3di_results/${DOMAIN}"
+OUT="${GDATA_ROOT}/missed_genes/${DOMAIN}"
+ANNSTATUS="${ANNSTATUS:-${GDATA_ROOT}/genome_cds_counts_${DOMAIN}.tsv}"
+CDSDIR="${CDSDIR:-${GDATA_ROOT}/cds_intervals/${DOMAIN}}"
+mkdir -p "${OUT}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+# 10_missed_genes.py places every ORF on the forward genomic axis with
+# genome_entropy.io.genbank.normalise_orf_interval. An environment predating
+# that helper fails identically in all 48 workers, several minutes in, so
+# check once here. Note the version string did not change when the helper
+# landed: import it rather than comparing versions.
+if ! python3 -c "from genome_entropy.io.genbank import normalise_orf_interval" 2>/dev/null; then
+    echo "ERROR: ${ENV_PREFIX} has no normalise_orf_interval." >&2
+    echo "       Reinstall genome_entropy from a current checkout before" >&2
+    echo "       running this: the negative-strand coordinate fix lives there," >&2
+    echo "       and without it this job reproduces the confound it corrects." >&2
+    exit 1
+fi
+
+if [ ! -s "${ANNSTATUS}" ]; then
+    echo "ERROR: ${ANNSTATUS} not found -- run 12_genome_cds_counts.pbs for" >&2
+    echo "       DOMAIN=${DOMAIN} first. Annotation presence must come from the" >&2
+    echo "       GenBank records; in_genbank only over-counts unannotated genomes." >&2
+    exit 1
+fi
+if [ ! -d "${CDSDIR}" ] || [ -z "$(ls -A "${CDSDIR}" 2>/dev/null)" ]; then
+    echo "ERROR: ${CDSDIR} is missing or empty -- run 13_cds_intervals.pbs for" >&2
+    echo "       the chunks being analysed. The shadow test needs the deposited" >&2
+    echo "       CDS coordinates, not the spans of ORFs that happened to match." >&2
+    exit 1
+fi
+
+cat > "${PBS_JOBFS}/one_chunk.sh" <<EOF
+#!/bin/bash
+f="\$1"
+tag="\$(basename "\${f}" .tsv.gz)"
+# Resume only over output from the CURRENT classification. Stats written
+# before the coordinate fix have no cds_parts column, and skipping them
+# would republish the confounded split under a clean exit status.
+if [ -s "${OUT}/\${tag}.stats.tsv" ] && \
+   head -1 "${OUT}/\${tag}.stats.tsv" | grep -q cds_parts; then
+    exit 0
+fi
+python3 ${PBS_O_WORKDIR}/10_missed_genes.py \\
+    --chunk-tsv "\${f}" --out-dir "${OUT}" \\
+    --annotation-status "${ANNSTATUS}" --cds-intervals "${CDSDIR}" \\
+    --threshold ${THRESHOLD} --controls-per-chunk ${CONTROLS} --quiet
+EOF
+chmod +x "${PBS_JOBFS}/one_chunk.sh"
+
+ls "${RESULTS}"/${DOMAIN}_*.tsv.gz > "${PBS_JOBFS}/files.txt" 2>/dev/null || true
+echo "chunks present : $(wc -l < "${PBS_JOBFS}/files.txt")"
+echo "already done   : $(grep -l cds_parts "${OUT}"/*.stats.tsv 2>/dev/null | wc -l)"
+echo "stale (redone) : $(grep -L cds_parts "${OUT}"/*.stats.tsv 2>/dev/null | wc -l)"
+
+# One worker per core. Measured peak RSS is 965 MB on the largest chunk
+# tried (bac_051, 3.87 M ORF rows) at ~100 s, so 48 workers need ~45 GB of
+# the 190 GB requested; raise mem before raising this.
+xargs -a "${PBS_JOBFS}/files.txt" -n1 -P "${PBS_NCPUS:-48}" "${PBS_JOBFS}/one_chunk.sh"
+
+echo ""
+echo "=== ${DOMAIN}: candidates over all chunks ==="
+python3 10_missed_genes.py --aggregate --out-dir "${OUT}" --threshold "${THRESHOLD}"
