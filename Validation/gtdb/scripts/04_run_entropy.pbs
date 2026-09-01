@@ -298,12 +298,54 @@ echo "Encoding ${total} genomes, ${PARALLEL} at a time ..."
 # it exists to handle. Blocking in `wait` instead lets it fire immediately.
 xargs -a "${WORK}/gbff_paths.txt" -n1 -P "${PARALLEL}" "${WORK}/encode_one.sh" &
 XARGS_PID=$!
-wait "${XARGS_PID}" || true
+# Keep the status rather than discarding it. encode_one.sh always exits 0,
+# so a non-zero status here is an infrastructure failure -- xargs could not
+# invoke a worker, or a worker shell was killed -- and in that case the
+# genome appends nothing to failures.txt.
+xargs_rc=0
+wait "${XARGS_PID}" || xargs_rc=$?
 XARGS_PID=""
 
 done_count=$(find "${OUT_DIR}" -name "*.json" | wc -l)
 fail_count=$(sort -u "${WORK}/failures.txt" | tee "${WORK}/failures_uniq.txt" | wc -l)
 mv "${WORK}/failures_uniq.txt" "${WORK}/failures.txt"
+
+# Neither the xargs status nor failures.txt proves every genome was
+# accounted for: a worker killed between starting and recording its label
+# leaves its genome in neither OUT_DIR nor the file. The chunk would then
+# publish as clean, exit 0, and -- with DELETE_GENBANK_AFTER=1 -- delete the
+# GenBank archive the genome would have to be recovered from. Reconcile the
+# worklist against what actually landed and count any gap as a failure, so
+# the chunk is retried rather than silently short.
+#
+# Safe to do here because the walltime path never reaches it: flush_partial
+# exits 143 before publication, where a shortfall is expected rather than a
+# defect.
+while read -r path; do
+    [ -n "${path}" ] || continue
+    genome_label "${path}"
+done < "${WORK}/gbff_paths.txt" | sort -u > "${WORK}/expected.txt"
+
+find "${OUT_DIR}" -name '*.json' -printf '%f\n' \
+    | sed 's/\.json$//' > "${WORK}/accounted.txt"
+cat "${WORK}/failures.txt" >> "${WORK}/accounted.txt"
+sort -u -o "${WORK}/accounted.txt" "${WORK}/accounted.txt"
+comm -23 "${WORK}/expected.txt" "${WORK}/accounted.txt" > "${WORK}/unaccounted.txt"
+
+if [ -s "${WORK}/unaccounted.txt" ]; then
+    n_unaccounted=$(wc -l < "${WORK}/unaccounted.txt")
+    echo "ERROR: chunk ${TAG}: ${n_unaccounted} genome(s) produced neither a" >&2
+    echo "       result nor a recorded failure (xargs exit ${xargs_rc})." >&2
+    echo "       Counting them as failures so the chunk is retried and its" >&2
+    echo "       GenBank archive is kept:" >&2
+    head -5 "${WORK}/unaccounted.txt" | sed 's/^/         /' >&2
+    cat "${WORK}/unaccounted.txt" >> "${WORK}/failures.txt"
+    sort -u -o "${WORK}/failures.txt" "${WORK}/failures.txt"
+    fail_count=$(wc -l < "${WORK}/failures.txt")
+elif [ "${xargs_rc}" -ne 0 ]; then
+    echo "WARNING: xargs exited ${xargs_rc}, but every genome in the chunk is" >&2
+    echo "         accounted for; treating the chunk as complete." >&2
+fi
 
 echo "Chunk ${TAG}: ${done_count} complete (${resumed} restored, \
 $((done_count - resumed)) encoded here), ${fail_count} failed."

@@ -141,10 +141,24 @@ do_chunk () {
     find "${data_dir}" -mindepth 2 -iname "*.gbff" -printf '%h\n' \
         | xargs -r -n1 basename | sort > "${manifest}"
 
+    # A short rehydrate is not necessarily an error: NCBI permanently
+    # withholds suppressed and withdrawn accessions, and this run hit 47 of
+    # them, so failing the chunk would create a retry that can never
+    # succeed. It must not be silent either. The .missing file is therefore
+    # the authorised-absence list: 05_aggregate_results.py subtracts it from
+    # the expected genome set, so an accession that is absent without being
+    # listed here fails the coverage check instead of vanishing.
     if [ "${n_found}" -ne "${n_want}" ]; then
         echo "WARNING: chunk ${tag}: ${n_want} requested, ${n_found} rehydrated." >&2
         comm -23 <(sort "${chunk_file}") "${manifest}" \
             > "${ARCHIVE_DIR}/${tag}.missing" || true
+        echo "         recorded $(wc -l < "${ARCHIVE_DIR}/${tag}.missing") \
+absent accession(s) in ${tag}.missing" >&2
+    else
+        # A previous short download may have left one behind. A chunk that
+        # is now complete must not keep an authorised-absence list, or those
+        # genomes stay excused from the coverage check for good.
+        rm -f "${ARCHIVE_DIR}/${tag}.missing"
     fi
 
     # Write to .partial and rename only on success, so an interrupted job
@@ -185,6 +199,20 @@ for (( idx=PBS_ARRAY_INDEX; idx<TOTAL_CHUNKS; idx+=STRIDE )); do
 done
 
 echo "Subjob ${PBS_ARRAY_INDEX} finished: ${n_done} downloaded, ${n_skip} skipped, ${n_fail} failed."
+
+# Surface the authorised absences for this domain in the job log. They are
+# consumed by 05_aggregate_results.py, but a number nobody ever reads is how
+# a permanently omitted genome stops being noticed.
+n_missing_files=$(find "${ARCHIVE_DIR}" -maxdepth 1 -name "${DOMAIN}_*.missing" | wc -l)
+if [ "${n_missing_files}" -gt 0 ]; then
+    n_missing_acc=$(cat "${ARCHIVE_DIR}/${DOMAIN}"_*.missing 2>/dev/null | wc -l)
+    echo "Authorised absences so far for ${DOMAIN}: ${n_missing_acc} accession(s)" \
+         "across ${n_missing_files} chunk(s) (${DOMAIN}_*.missing in ${ARCHIVE_DIR})."
+    echo "These are subtracted from the expected set by 05_aggregate_results.py."
+    echo "Confirm they are genuinely unavailable from NCBI rather than a"
+    echo "transient rehydrate shortfall; re-running 02 for the chunk clears"
+    echo "the file if they arrive."
+fi
 
 # Non-zero exit so a subjob that lost chunks is visible in qstat -x rather
 # than being mistaken for a clean run.

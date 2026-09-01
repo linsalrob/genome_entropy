@@ -94,6 +94,38 @@ class Accumulator:
         return math.sqrt(var) if var > 0 else 0.0
 
 
+def load_manifest(args):
+    """Expected chunks, expected genomes, and the accessions excused from both.
+
+    The expected set comes from the accession lists 01b_make_chunks.sh
+    verified against the domain's full accession file, not from whichever
+    results happen to be on disk. Excused accessions come from the
+    <chunk>.missing files 02_download_genomes.pbs writes when NCBI no longer
+    serves a genome: those cannot be recovered by re-running anything, so
+    holding the summary hostage to them would make the check useless, while
+    ignoring them entirely would excuse every other kind of loss too.
+    """
+    acc_dir = args.accessions_dir or os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "accessions")
+    gb_dir = args.genbank_dir or os.path.join(
+        os.path.dirname(os.path.abspath(args.results_dir)), "genbank")
+
+    chunks, genomes = set(), set()
+    for path in sorted(glob.glob(os.path.join(acc_dir, f"{args.domain}_*.txt"))):
+        chunks.add(os.path.basename(path)[:-4])
+        with open(path) as fh:
+            genomes.update(line.strip() for line in fh if line.strip())
+
+    excused = set()
+    for path in sorted(glob.glob(os.path.join(gb_dir, f"{args.domain}_*.missing"))):
+        with open(path) as fh:
+            excused.update(line.strip() for line in fh if line.strip())
+    if excused:
+        print(f"authorised absences: {len(excused):,} accession(s) NCBI no "
+              f"longer serves, from {gb_dir}")
+    return chunks, genomes, excused
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results-dir",
@@ -102,6 +134,21 @@ def main():
                     help="aggregate one domain at a time; bacteria and "
                          "archaea are kept separate end to end")
     ap.add_argument("--output", default=None)
+    ap.add_argument("--accessions-dir", default=None,
+                    help="directory of per-chunk accession lists written by "
+                         "01b_make_chunks.sh; defaults to accessions/ beside "
+                         "this script. Used to establish the expected chunk "
+                         "and genome set, so aggregating mid-run cannot "
+                         "publish a summary that silently omits chunks.")
+    ap.add_argument("--genbank-dir", default=None,
+                    help="directory holding <chunk>.missing, the authorised "
+                         "absences written by 02_download_genomes.pbs for "
+                         "accessions NCBI no longer serves; defaults to "
+                         "genbank/ beside the results directory.")
+    ap.add_argument("--allow-partial", action="store_true",
+                    help="publish even though chunks or genomes are missing. "
+                         "For deliberately partial aggregation only; the "
+                         "shortfall is still reported.")
     ap.add_argument("--annotation-status", default=None,
                     help="genome_cds_counts_<domain>.tsv from "
                          "12_genome_cds_counts.pbs. Without it the "
@@ -138,6 +185,39 @@ def main():
         print(f"No files matched {pattern} — has 04_run_entropy.pbs finished?",
               file=sys.stderr)
         return 1
+
+    expected_chunks, expected_genomes, excused = load_manifest(args)
+    present_chunks = {os.path.basename(f).split(".")[0] for f in files}
+    shortfall = []
+
+    if expected_chunks:
+        absent = sorted(expected_chunks - present_chunks)
+        extra = sorted(present_chunks - expected_chunks)
+        print(f"chunks: {len(present_chunks):,} present of "
+              f"{len(expected_chunks):,} expected")
+        if absent:
+            shortfall.append(
+                f"{len(absent)} expected chunk(s) have no TSV: "
+                + ", ".join(absent[:10]) + (" ..." if len(absent) > 10 else ""))
+        if extra:
+            print(f"WARNING: {len(extra)} chunk(s) present but not in the "
+                  f"manifest: {', '.join(extra[:10])}", file=sys.stderr)
+    else:
+        print("WARNING: no chunk manifest found; the files present are being "
+              "treated as the complete input set. Pass --accessions-dir to "
+              "check coverage.", file=sys.stderr)
+
+    # A chunk that published with recorded failures is short some genomes.
+    # Aggregating it is fine only if that is a deliberate choice.
+    failures = sorted(glob.glob(os.path.join(
+        args.results_dir, args.domain, f"{args.domain}_*.failures")))
+    if failures:
+        n_failed = sum(sum(1 for line in open(f) if line.strip())
+                       for f in failures)
+        shortfall.append(
+            f"{len(failures)} chunk(s) have outstanding .failures covering "
+            f"{n_failed} genome(s); re-run them with 04_run_entropy.pbs "
+            "(RETRY_PUBLISHED=1)")
 
     # genome -> metric -> Accumulator, kept twice: over all called ORFs,
     # and over only those matched to a GenBank CDS. Many GTDB
@@ -209,6 +289,31 @@ def main():
               "04_run_entropy.pbs, or move the damaged file aside if the "
               "genomes in it are being abandoned deliberately.", file=sys.stderr)
         return 1
+
+    if expected_genomes:
+        wanted = expected_genomes - excused
+        seen = set(orf_counts)
+        absent = sorted(wanted - seen)
+        print(f"genomes: {len(seen):,} seen of {len(wanted):,} expected "
+              f"({len(expected_genomes):,} in the manifest less "
+              f"{len(excused):,} authorised absence(s))")
+        if absent:
+            shortfall.append(
+                f"{len(absent)} expected genome(s) contributed no rows: "
+                + ", ".join(absent[:10]) + (" ..." if len(absent) > 10 else ""))
+
+    if shortfall:
+        print("", file=sys.stderr)
+        for item in shortfall:
+            print(f"ERROR: {item}", file=sys.stderr)
+        if not args.allow_partial:
+            print("\nRefusing to publish a domain summary from an incomplete "
+                  "input set: nothing downstream can tell one that covers "
+                  "every genome from one that quietly omits a chunk. Finish "
+                  "or re-run the outstanding work, or pass --allow-partial to "
+                  "publish deliberately.", file=sys.stderr)
+            return 1
+        print("\n--allow-partial given; publishing anyway.", file=sys.stderr)
 
     # matcher_matched_a_cds, not "annotated": it says whether any called ORF
     # passed genome_entropy's coordinate/frame/translation match, which is
