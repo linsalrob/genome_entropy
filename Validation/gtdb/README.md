@@ -65,8 +65,29 @@ re-run the thing.
 | `13_cds_intervals.pbs` | `normal` | deposited CDS coordinates for named chunks, for the shadow test |
 | `cds_intervals.py` | (called by 13) | GenBank CDS locations → interval TSV |
 | `08_plot_entropy_scatter.py` | login | four-panel scatter |
-| `09_plot_density.py` | login | hexbin and 2D-KDE figures |
-| `10_missed_genes.py` | login | candidate genes missed by annotation; needs `--annotation-status` from `12` and `--cds-intervals` from `13` |
+| `08b_sample_for_figures.pbs` | `normal` | strided sample of every chunk, joined to annotation status |
+| `09_plot_density.py` | login | hexbin and 2D-KDE figures, with log2(k) ceilings |
+| `figstyle.py` | (imported by 08/09) | shared sample loader and ceiling lines |
+| `10_missed_genes.py` | `normal` (via 13) | shadow/intergenic classification; needs `--annotation-status` from `12_genome_cds_counts` and `--cds-intervals` from `13_cds_intervals` |
+
+### Missed-gene analysis and the structural pilot
+
+Issue #92. These consume the tables above and are numbered independently of
+them, so **`12` and `13` each name two different scripts** — the pipeline pair
+(`12_genome_cds_counts.pbs`, `13_cds_intervals.pbs`) and the analysis pair
+below. Always write the full filename; the bare number is ambiguous.
+
+| script | queue | role |
+|---|---|---|
+| `05b_aggregate_results.pbs` | `normal` | wrapper running `05` for one domain with an absolute `--output` |
+| `12_foldseek_databases.pbs` | `copyq` | stage PDB100, Swiss-Prot, CATH50, BFVD, AFDB50 and ProstT5 weights |
+| `13_missed_gene_candidates.pbs` | `normal` | drive `10_missed_genes.py` over every chunk, then aggregate |
+| `14_pilot_queryset.py` | login | four pilot arms, nearest-length matched without replacement |
+| `14b_extract_orf_seqs.py` / `.pbs` | `normal` | pull AA and 3Di for named ORFs back out of the JSON archives |
+| `15_build_query_db.py` | login | paired AA + 3Di Foldseek query DB (Phold's `tsv2db` route) |
+| `16_candidate_burden.py` | login | candidates per genome against assembly and lineage |
+| `17_pilot_search.pbs` | `normal` | the Foldseek searches and the shuffled-3Di nulls |
+| `18_pilot_analysis.py` | login | hit rates, evidence classes, coverage, stratification |
 
 ### Order
 
@@ -136,13 +157,24 @@ the recovery path in each case:
 ```bash
 qsub -v DOMAIN=bac,CHUNKS="000 051" 13_cds_intervals.pbs
 
+# one chunk at a time; 13_missed_gene_candidates.pbs runs this over all 760
 python3 10_missed_genes.py \
+    --chunk-tsv         /g/data/.../entropy_3di_results/bac/bac_000.tsv.gz \
+    --out-dir           /g/data/.../missed_genes/bac \
     --annotation-status /g/data/.../genome_cds_counts_bac.tsv \
     --cds-intervals     /g/data/.../cds_intervals/bac
+
+# then the whole-domain report over those per-chunk outputs
+python3 10_missed_genes.py --aggregate --out-dir /g/data/.../missed_genes/bac
 ```
 
-`13` parses records properly rather than grepping, so it is run only over the
-chunks an analysis needs; `12` stays cheap enough for the whole corpus. The
+Both arguments are mandatory on the chunk path. Deriving either from
+`in_genbank` is what produced the confounded classification described in
+`scientific_report.md` §6, so the script refuses rather than falling back.
+
+`13_cds_intervals.pbs` parses records properly rather than grepping, so it is
+run only over the chunks an analysis needs; `12_genome_cds_counts.pbs` stays
+cheap enough for the whole corpus. The
 shadow test needs `13` because the spans of ORFs that happened to match a CDS
 are not the CDS set: a CDS the matcher rejected is missing from them, and a
 matched ORF runs stop to stop and can extend past the deposited CDS.

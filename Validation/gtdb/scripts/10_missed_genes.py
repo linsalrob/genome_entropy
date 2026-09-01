@@ -36,6 +36,14 @@ the matcher rejected is absent from them, so an ORF sitting on a real gene
 reads as intergenic, and a matched ORF runs stop to stop and can extend past
 the deposited CDS, so its overhang manufactures shadows.
 
+Both sides of that test are placed on the forward genomic axis first. ORF
+coordinates arrive one-based inclusive and, on the negative strand, indexing
+the reverse complement; comparing such a span directly against a plus-strand
+one compares two different coordinate systems, inventing overlaps between
+distant spans and missing the real cross-strand ones. Since the question is
+whether an ORF coincides with coding sequence in ANY frame or orientation,
+that conversion cannot be skipped.
+
 That gives three groups among unmatched ORFs in annotated genomes:
   shadow      overlaps an annotated CDS -> explained, not a missed gene
   intergenic  overlaps nothing annotated -> the actual candidate pool
@@ -45,107 +53,184 @@ Length is the independent check. Real bacterial proteins have a
 characteristic length distribution; spurious ORF calls skew short. If the
 high-3Di intergenic ORFs are missed genes, their lengths should resemble
 the annotated CDS population rather than the short-ORF background.
+
+Two modes:
+
+  --chunk-tsv <file>   one chunk at a time, writing the candidate table and
+                       a one-line stats file. This is what the PBS driver
+                       (13_missed_gene_candidates.pbs) runs 760 times.
+  --aggregate          read those per-chunk outputs back and print the
+                       report over the whole domain.
+
+A chunk can be processed alone because each genome lives in exactly one
+chunk, so "does this genome have annotated CDS" and "does this ORF overlap
+one" are both answerable within a chunk given that chunk's CDS intervals.
+
+The candidate table carries genome, input_id and orf_id because that triple
+is what identifies an ORF inside the per-chunk JSON archives -- the
+downstream Foldseek work has to pull amino acids and 3Di back out of them
+(issue #92). The entropy TSVs alone cannot serve that search: they keep the
+numbers, not the sequences.
+
+Controls are sampled here rather than in a second pass over all 2.57
+billion rows: --controls-per-chunk rows of each control group, chosen with
+a fixed seed, are written alongside the candidates. Sampled counts must not
+be used as population counts -- the stats file keeps the exact totals.
 """
 import argparse
-import glob
+import gzip
 import os
 import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-from genome_entropy.io.genbank import normalise_orf_interval
-
-# Working directory for intermediate samples. Session-scratch on the
-# machine this was run on; set SCRATCH in the environment, or edit, to
-# point somewhere writable on yours.
-SCRATCH = os.environ.get("GE_SCRATCH", "./work")
-
-# Full ORF complement for whole chunks. Overlap testing needs every ORF of
-# a genome, so these are complete chunks rather than a sampled subset.
-# Produce them with, per chunk:
-#   zcat <results>/bac_NNN.tsv.gz | awk -F'\t' 'NR>1 && $12!="" && $13!="" \
-#     {print $3"\t"$4"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"\t"$12"\t"$13"\t"$16}' \
-#     > $GE_SCRATCH/missed/bac_NNN.tsv
-#
-# $16 is contig_length, appended to the chunk TSV by extract_entropy_rows.py.
-# TSVs written before that column existed cannot be used here: without the
-# contig length a negative-strand ORF cannot be placed on the genomic axis.
-# Regenerate them from the JSON archives rather than dropping the column.
-FILES = sorted(glob.glob(os.path.join(SCRATCH, "missed", "*.tsv")))
-COLS = ["genome", "contig", "start", "end", "strand", "aa_length",
-        "in_genbank", "protein_entropy", "three_di_entropy", "contig_length"]
 THRESH = 2.5
+
+# Columns of the per-chunk entropy TSV written by extract_entropy_rows.py.
+# Only these are read; the other entropies are not part of this analysis.
+#
+# contig_length is required. Without it a negative-strand ORF cannot be
+# placed on the genomic axis, so TSVs written before extract_entropy_rows.py
+# appended that column cannot be used here -- regenerate them from the JSON
+# archives rather than dropping the column.
+USECOLS = ["domain", "chunk", "genome", "input_id", "orf_id", "start", "end",
+           "strand", "aa_length", "in_genbank", "protein_entropy",
+           "three_di_entropy", "contig_length"]
+DTYPES = {
+    "domain": "str", "chunk": "str", "genome": "str", "input_id": "str",
+    "orf_id": "str", "strand": "str", "in_genbank": "str",
+    "start": "int64", "end": "int64", "aa_length": "int32",
+    "protein_entropy": "float32", "three_di_entropy": "float32",
+    # float, not int: the column is empty when the encoder wrote no record
+    # length, and that has to survive to the check in add_genomic_coordinates
+    # rather than blowing up in the parser.
+    "contig_length": "float64",
+}
+OUT_COLS = ["domain", "chunk", "genome", "input_id", "orf_id", "start", "end",
+            "strand", "aa_length", "protein_entropy", "three_di_entropy",
+            "group"]
+STATS_COLS = ["chunk", "genomes", "genomes_annotated",
+              "genomes_annotated_matcher_proxy", "orfs",
+              "orfs_annotated_genomes", "unmatched", "unmatched_hi",
+              "unmatched_hi_shadow", "candidates", "intergenic_lo",
+              "annotated_cds", "cds_parts", "unparseable_in_genbank"]
 
 
 def add_genomic_coordinates(df):
-    """Place every ORF on the forward genomic axis.
+    """Place every ORF on the forward genomic axis, as g_start/g_end.
 
-    get_orfs reports one-based inclusive coordinates, and on the negative
-    strand they index the reverse complement rather than the forward
-    sequence. Comparing a minus-strand span directly against a plus-strand
-    one therefore compares two different coordinate systems: it invents
-    overlaps between spans that are far apart and misses the real
-    cross-strand ones. Since the whole question here is whether an unmatched
-    ORF coincides with coding sequence "in any frame or orientation", that
-    conversion cannot be skipped.
+    Vectorised equivalent of genome_entropy.io.genbank.normalise_orf_interval,
+    which is the same helper the GenBank CDS matcher uses, so this analysis
+    and the in_genbank flag it reads agree on where an ORF is. Row-at-a-time
+    calls are correct but this runs over billions of rows, so the two cases
+    are evaluated as whole arrays:
 
-    normalise_orf_interval is the same helper the GenBank CDS matcher uses,
-    so this analysis and the in_genbank flag it reads agree on where an ORF
-    is. It returns zero-based half-open intervals, which also removes the
-    off-by-one that inclusive coordinates introduce into overlap lengths.
+        +   (start - 1, end)
+        -   (L - end, L - start + 1)
+
+    Results are zero-based half-open, which also removes the off-by-one that
+    inclusive coordinates introduce into overlap lengths. Every validation
+    the scalar helper performs is kept, because a silently mis-placed ORF
+    changes the shadow/intergenic split this script exists to produce.
     """
-    missing = df.contig_length.isna().sum()
+    if len(df) == 0:
+        out = df.copy()
+        out["g_start"] = np.zeros(0, dtype=np.int64)
+        out["g_end"] = np.zeros(0, dtype=np.int64)
+        return out
+
+    start = df.start.to_numpy(dtype=np.int64)
+    end = df.end.to_numpy(dtype=np.int64)
+    strand = df.strand.to_numpy(dtype=object)
+    length = df.contig_length.to_numpy(dtype="float64")
+
+    missing = int(np.isnan(length).sum())
     if missing:
         raise SystemExit(
             f"{missing:,} rows have no contig_length, so their negative-strand "
             "coordinates cannot be placed on the genomic axis. Regenerate the "
             "chunk TSVs with a current extract_entropy_rows.py."
         )
+    length = length.astype(np.int64)
 
-    starts = np.empty(len(df), dtype=np.int64)
-    ends = np.empty(len(df), dtype=np.int64)
-    bad = []
-    for i, (s, e, strand, length) in enumerate(
-        zip(df.start, df.end, df.strand, df.contig_length)
-    ):
-        try:
-            interval = normalise_orf_interval(int(s), int(e), str(strand),
-                                              int(length))
-        except ValueError as exc:
-            bad.append(f"{s}-{e}{strand} on a contig of {int(length)}: {exc}")
-            continue
-        starts[i], ends[i] = interval.start, interval.end
+    is_plus = strand == "+"
+    is_minus = strand == "-"
+    bad_strand = ~(is_plus | is_minus)
+    bad_coords = (start < 1) | (end < start)
+    # Only the minus strand consults the record length, exactly as the
+    # scalar helper does; a plus-strand ORF running past it is not this
+    # function's error to raise.
+    bad_length = is_minus & (end > length)
 
+    bad = bad_strand | bad_coords | bad_length
     # Refuse to report a shadow/intergenic split computed from a partial
-    # coordinate set: dropping annotated ORFs would silently inflate the
-    # candidate pool, which is the number this script exists to produce.
-    if bad:
+    # coordinate set: dropping ORFs would silently inflate the candidate
+    # pool, which is the number this script exists to produce.
+    if bad.any():
+        i = int(np.flatnonzero(bad)[0])
         raise SystemExit(
-            f"{len(bad):,} ORF(s) could not be placed on the genomic axis, "
-            f"e.g. {bad[0]}. Fix the inputs rather than analysing a subset."
+            f"{int(bad.sum()):,} ORF(s) could not be placed on the genomic "
+            f"axis, e.g. {start[i]}-{end[i]}{strand[i]} on a contig of "
+            f"{length[i]}. Fix the inputs rather than analysing a subset."
         )
 
+    g_start = np.where(is_plus, start - 1, length - end)
+    g_end = np.where(is_plus, end, length - start + 1)
+
     out = df.copy()
-    out["g_start"] = starts
-    out["g_end"] = ends
+    out["g_start"] = g_start.astype(np.int64)
+    out["g_end"] = g_end.astype(np.int64)
     return out
 
 
-def load_cds_intervals(directory, genomes):
-    """Return deposited CDS intervals per contig, for the contigs given.
+def load_annotation_status(path):
+    """Return the table and the set of genomes carrying >=1 GenBank CDS.
 
-    Read from 13_cds_intervals.pbs. These are the actual GenBank CDS
-    coordinates, zero-based half-open on the forward strand, one row per
-    contiguous part of a compound location.
+    Read from 12_genome_cds_counts.pbs, which counts CDS features in the
+    source GenBank records. Deliberately not derived from in_genbank: see
+    the module docstring.
     """
-    files = sorted(glob.glob(os.path.join(directory, "*.tsv")))
+    status = pd.read_csv(path, sep="\t", dtype={"genome": "str"})
+    for column in ("genome", "has_annotation", "n_cds"):
+        if column not in status.columns:
+            raise SystemExit(
+                f"{path} has no '{column}' column; expected the output of "
+                "12_genome_cds_counts.pbs."
+            )
+    if status.has_annotation.dtype != bool:
+        status["has_annotation"] = status.has_annotation.astype(str) == "True"
+    return status, set(status.loc[status.has_annotation, "genome"])
+
+
+def load_cds_intervals(directory, genomes, tag=None):
+    """Return deposited CDS intervals for the genomes given.
+
+    Read from 13_cds_intervals.pbs: the actual GenBank CDS coordinates,
+    zero-based half-open on the forward strand, one row per contiguous part
+    of a compound location. Its 'contig' is Biopython's record.id, which is
+    the same value the entropy TSVs carry as input_id, so the two join
+    directly.
+
+    In per-chunk mode only that chunk's file is read; a chunk's genomes
+    cannot appear in another chunk's intervals.
+    """
+    directory = Path(directory)
+    if tag is not None and (directory / f"{tag}.tsv").exists():
+        files = [directory / f"{tag}.tsv"]
+    else:
+        files = sorted(directory.glob("*.tsv"))
     if not files:
         raise SystemExit(
-            f"No CDS interval TSVs under {directory}. Run "
-            "13_cds_intervals.pbs for the chunks being analysed."
+            f"No CDS interval TSVs under {directory}"
+            + (f" for chunk {tag}" if tag else "")
+            + ". Run 13_cds_intervals.pbs for the chunks being analysed."
         )
     frame = pd.concat(
-        [pd.read_csv(f, sep="\t") for f in files], ignore_index=True
+        [pd.read_csv(f, sep="\t", dtype={"genome": "str", "contig": "str"})
+         for f in files],
+        ignore_index=True,
     )
     for column in ("genome", "contig", "start", "end"):
         if column not in frame.columns:
@@ -153,6 +238,7 @@ def load_cds_intervals(directory, genomes):
                 f"CDS interval files in {directory} have no '{column}' "
                 "column; expected the output of 13_cds_intervals.pbs."
             )
+    frame = frame[frame.genome.isin(genomes)]
 
     # Checked per genome, not per contig: a genome whose chromosome is
     # annotated can legitimately have a plasmid or short contig carrying no
@@ -185,9 +271,11 @@ def overlaps_annotated(df, cds):
     can extend past the deposited CDS, so its overhang invents shadows.
     """
     flag = np.zeros(len(df), dtype=bool)
+    if len(df) == 0 or len(cds) == 0:
+        return flag
     cds_by_contig = dict(tuple(cds.groupby("contig", sort=False)))
 
-    for contig, g in df.groupby("contig", sort=False):
+    for contig, g in df.groupby("input_id", sort=False):
         f = g[~g.in_genbank]
         annotated = cds_by_contig.get(contig)
         if len(f) == 0 or annotated is None or len(annotated) == 0:
@@ -208,146 +296,260 @@ def overlaps_annotated(df, cds):
     return flag
 
 
-def load_annotation_status(path):
-    """Return the set of genomes that carry at least one GenBank CDS.
+def load_chunk(path):
+    """Read one chunk TSV, returning the frame and a malformed-row count.
 
-    Read from 12_genome_cds_counts.pbs, which counts CDS features in the
-    source GenBank records. This is deliberately not derived from
-    in_genbank: see the module docstring.
+    in_genbank is written as the strings True/False. Anything else is a
+    parse failure worth reporting rather than silently reading as False,
+    which would inflate the candidate pool.
     """
-    status = pd.read_csv(path, sep="\t")
-    for column in ("genome", "has_annotation", "n_cds"):
-        if column not in status.columns:
-            raise SystemExit(
-                f"{path} has no '{column}' column; expected the output of "
-                "12_genome_cds_counts.pbs."
-            )
-    if status.has_annotation.dtype != bool:
-        status["has_annotation"] = status.has_annotation.astype(str) == "True"
-    return status, set(status.loc[status.has_annotation, "genome"])
+    try:
+        df = pd.read_csv(path, sep="\t", usecols=USECOLS, dtype=DTYPES)
+    except ValueError as exc:
+        raise SystemExit(
+            f"{path}: {exc}\n"
+            "If contig_length is the missing column, this TSV predates it. "
+            "Regenerate the chunk TSVs from the JSON archives with a current "
+            "extract_entropy_rows.py: without the contig length a "
+            "negative-strand ORF cannot be placed on the genomic axis."
+        )
+    mapped = df.in_genbank.map({"True": True, "False": False})
+    n_bad = int(mapped.isna().sum())
+    df = df.loc[mapped.notna()].copy()
+    df["in_genbank"] = mapped.loc[mapped.notna()].to_numpy(dtype=bool)
+    return df.reset_index(drop=True), n_bad
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument(
-        "--annotation-status", required=True,
-        help="genome_cds_counts_<domain>.tsv from 12_genome_cds_counts.pbs. "
-             "Required: annotation presence must come from the GenBank "
-             "records, not from in_genbank.")
-    ap.add_argument(
-        "--cds-intervals", required=True,
-        help="directory of per-chunk CDS interval TSVs from "
-             "13_cds_intervals.pbs. Required: the shadow test needs the "
-             "deposited CDS coordinates, not the spans of ORFs that happened "
-             "to match.")
-    args = ap.parse_args()
+def classify(df, with_cds, cds_dir, tag, thresh=THRESH):
+    """Split one chunk into the groups described in the module docstring.
 
-    if not FILES:
-        print(f"No chunk TSVs under {SCRATCH}/missed -- see the comment on "
-              f"FILES for how to produce them.", file=sys.stderr)
-        return 1
-    df = pd.concat([pd.read_csv(f, sep="\t", header=None, names=COLS)
-                    for f in FILES], ignore_index=True)
-    # pandas infers a column of "True"/"False" as bool, so comparing it to
-    # the string "True" silently yields all-False. Handle either dtype.
-    if df.in_genbank.dtype != bool:
-        df["in_genbank"] = df.in_genbank.astype(str) == "True"
-    print(f"ORFs loaded: {len(df):,} from {df.genome.nunique()} genomes\n")
-
-    # --- confounder 1: genomes with no annotation at all ---
-    status, with_cds = load_annotation_status(args.annotation_status)
-
+    Returns (groups, stats). groups maps a label to a frame; stats holds the
+    exact population counts, which the sampled control frames cannot give.
+    """
     present = set(df.genome.unique())
-    unknown = present - set(status.genome)
+    annotated = present & with_cds
+
+    # The old in_genbank proxy, kept only to measure how far it was off.
+    # Any genome in the difference has real CDS features that no called ORF
+    # matched, so the proxy would have discarded its ORFs as never annotated.
+    proxy = set(df.groupby("genome").in_genbank.any().pipe(lambda s: s[s].index))
+
+    d = df[df.genome.isin(annotated)].reset_index(drop=True)
+    d = add_genomic_coordinates(d)
+
+    if len(d):
+        cds = load_cds_intervals(cds_dir, set(d.genome.unique()), tag=tag)
+        d["shadow"] = overlaps_annotated(d, cds)
+    else:
+        cds = d.iloc[:0]
+        d["shadow"] = np.zeros(0, dtype=bool)
+
+    unm = d[~d.in_genbank]
+    hi = unm[unm.three_di_entropy >= thresh]
+    candidates = hi[~hi.shadow]
+
+    groups = {
+        "candidate": candidates,
+        "shadow_hi": hi[hi.shadow],
+        "intergenic_lo": unm[(unm.three_di_entropy < thresh) & (~unm.shadow)],
+        "annotated_cds": d[d.in_genbank],
+    }
+    stats = {
+        "genomes": int(df.genome.nunique()),
+        "genomes_annotated": len(annotated),
+        "genomes_annotated_matcher_proxy": len(present & proxy),
+        "orfs": len(df),
+        "orfs_annotated_genomes": len(d),
+        "unmatched": len(unm),
+        "unmatched_hi": len(hi),
+        "unmatched_hi_shadow": int(hi.shadow.sum()),
+        "candidates": len(candidates),
+        "intergenic_lo": len(groups["intergenic_lo"]),
+        "annotated_cds": len(groups["annotated_cds"]),
+        "cds_parts": len(cds),
+    }
+    return groups, stats
+
+
+def write_chunk(path, out_dir, annotation_status, cds_dir, thresh,
+                n_controls, seed, quiet):
+    tag = os.path.basename(path).split(".tsv")[0]
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    cand_path = out_dir / f"{tag}.candidates.tsv.gz"
+    ctrl_path = out_dir / f"{tag}.controls.tsv.gz"
+    stats_path = out_dir / f"{tag}.stats.tsv"
+
+    df, n_bad = load_chunk(path)
+
+    status, with_cds = load_annotation_status(annotation_status)
+    # Only a genome absent from the table altogether is an error; one that is
+    # present and marked False is a legitimate "carries no annotation".
+    unknown = set(df.genome.unique()) - set(status.genome)
     if unknown:
         raise SystemExit(
-            f"{len(unknown):,} genome(s) in the chunk TSVs are absent from "
-            f"{args.annotation_status}, e.g. {sorted(unknown)[0]}. Rerun "
+            f"{len(unknown):,} genome(s) in {tag} are absent from "
+            f"{annotation_status}, e.g. {sorted(unknown)[0]}. Rerun "
             "12_genome_cds_counts.pbs over the same chunks rather than "
             "assuming their annotation status."
         )
 
-    annotated = present & with_cds
-    n_all, n_ann = len(present), len(annotated)
+    groups, stats = classify(df, with_cds, cds_dir, tag, thresh)
+    stats["chunk"] = tag
+    stats["unparseable_in_genbank"] = n_bad
+
+    cand = groups["candidate"].assign(group="candidate")
+    _write(cand_path, cand)
+
+    # Controls are a fixed-seed sample: the full annotated-CDS population of
+    # a chunk is ~1.5 M rows and is not worth writing 760 times over.
+    rng = np.random.default_rng(seed)
+    parts = []
+    for label in ("annotated_cds", "intergenic_lo", "shadow_hi"):
+        g = groups[label]
+        if len(g) > n_controls:
+            take = rng.choice(len(g), size=n_controls, replace=False)
+            g = g.iloc[np.sort(take)]
+        parts.append(g.assign(group=label))
+    _write(ctrl_path, pd.concat(parts, ignore_index=True) if parts else None)
+
+    pd.DataFrame([stats])[STATS_COLS].to_csv(stats_path, sep="\t", index=False)
+
+    if not quiet:
+        print(f"{tag}: {stats['candidates']:,} candidates from "
+              f"{stats['orfs']:,} ORFs in {stats['genomes']} genomes"
+              f"{f', {n_bad} unparseable in_genbank' if n_bad else ''}")
+    return 0
+
+
+def _write(path, frame):
+    if frame is None or len(frame) == 0:
+        # An empty table still has to exist, or the driver cannot tell a
+        # finished chunk from an unstarted one.
+        with gzip.open(path, "wt") as fh:
+            fh.write("\t".join(OUT_COLS) + "\n")
+        return
+    frame[OUT_COLS].to_csv(path, sep="\t", index=False, compression="gzip")
+
+
+def aggregate(out_dir, thresh):
+    out_dir = Path(out_dir)
+    stats_files = sorted(out_dir.glob("*.stats.tsv"))
+    if not stats_files:
+        print(f"ERROR: no per-chunk stats under {out_dir}", file=sys.stderr)
+        return 1
+    s = pd.concat([pd.read_csv(f, sep="\t", dtype={"chunk": "str"})
+                   for f in stats_files], ignore_index=True)
+    tot = s.drop(columns=["chunk"]).sum()
+
+    print(f"chunks aggregated: {len(s)}")
+    if int(tot.unparseable_in_genbank):
+        print(f"  unparseable in_genbank rows: {int(tot.unparseable_in_genbank):,}")
+    print(f"ORFs loaded: {int(tot.orfs):,} from {int(tot.genomes):,} genomes\n")
+
     print("STEP 1 - remove genomes that were never annotated")
-    print(f"  genomes with >=1 GenBank CDS   : {n_ann} of {n_all} ({n_ann/n_all*100:.0f}%)")
+    print(f"  genomes with >=1 GenBank CDS   : {int(tot.genomes_annotated):,} of "
+          f"{int(tot.genomes):,} ({tot.genomes_annotated/tot.genomes*100:.0f}%)")
+    if "genomes_annotated_matcher_proxy" in tot:
+        delta = int(tot.genomes_annotated) - int(tot.genomes_annotated_matcher_proxy)
+        if delta:
+            print(f"  of which no ORF matched a CDS  : {delta:,} "
+                  f"({delta/tot.genomes_annotated*100:.1f}% of annotated) "
+                  f"<- counted as unannotated by the old in_genbank proxy")
+    print(f"  ORFs in those genomes          : {int(tot.orfs_annotated_genomes):,}")
+    print(f"  deposited CDS parts read       : {int(tot.cds_parts):,}\n")
 
-    # How far the old in_genbank proxy was off, on this sample. Any genome
-    # here has real CDS features that no called ORF matched, so the proxy
-    # would have discarded its ORFs as "never annotated".
-    matcher_says = set(df.groupby("genome").in_genbank.any().pipe(lambda s: s[s].index))
-    proxy_missed = annotated - matcher_says
-    if proxy_missed:
-        print(f"  of which no ORF matched a CDS  : {len(proxy_missed)} "
-              f"({len(proxy_missed)/n_ann*100:.1f}% of annotated) "
-              f"<- counted as unannotated by the old in_genbank proxy")
-
-    hi_all = df[(~df.in_genbank) & (df.three_di_entropy >= THRESH)]
-    hi_ann = hi_all[hi_all.genome.isin(annotated)]
-    print(f"  unmatched ORFs with 3Di >= {THRESH}      : {len(hi_all):,}")
-    print(f"    of which in annotated genomes  : {len(hi_ann):,} "
-          f"({len(hi_ann)/len(hi_all)*100:.1f}%)")
-    print(f"    of which in UNannotated genomes: {len(hi_all)-len(hi_ann):,} "
-          f"({(1-len(hi_ann)/len(hi_all))*100:.1f}%)  <- not 'missed', never annotated\n")
-
-    d = add_genomic_coordinates(df[df.genome.isin(annotated)]).reset_index(drop=True)
-
-    # --- confounder 2: shadow ORFs over real CDS ---
     print("STEP 2 - within annotated genomes, separate shadows from intergenic")
-    cds = load_cds_intervals(args.cds_intervals, set(d.genome.unique()))
-    cds = cds[cds.genome.isin(annotated)]
-    print(f"  deposited CDS parts read       : {len(cds):,}")
-    d["shadow"] = overlaps_annotated(d, cds)
-    unm = d[~d.in_genbank]
-    hi = unm[unm.three_di_entropy >= THRESH]
-    print(f"  unmatched ORFs                  : {len(unm):,}")
-    print(f"    3Di >= {THRESH}                     : {len(hi):,}")
-    print(f"      overlapping an annotated CDS : {hi.shadow.sum():,} "
-          f"({hi.shadow.mean()*100:.1f}%)  <- shadow of a real gene")
-    cand = hi[~hi.shadow]
-    print(f"      intergenic                   : {len(cand):,} "
-          f"({(~hi.shadow).mean()*100:.1f}%)  <- CANDIDATE missed genes\n")
+    print(f"  unmatched ORFs                  : {int(tot.unmatched):,}")
+    print(f"    3Di >= {thresh}                     : {int(tot.unmatched_hi):,}")
+    print(f"      overlapping an annotated CDS : {int(tot.unmatched_hi_shadow):,} "
+          f"({tot.unmatched_hi_shadow/tot.unmatched_hi*100:.1f}%)  <- shadow of a real gene")
+    print(f"      intergenic                   : {int(tot.candidates):,} "
+          f"({tot.candidates/tot.unmatched_hi*100:.1f}%)  <- CANDIDATE missed genes\n")
 
-    # --- length check ---
+    cand = _read_all(out_dir, "*.candidates.tsv.gz")
+    ctrl = _read_all(out_dir, "*.controls.tsv.gz")
+    if cand is None:
+        return 0
+
+    merged = out_dir / f"candidates_{cand.domain.iloc[0]}.tsv.gz"
+    cand.to_csv(merged, sep="\t", index=False, compression="gzip")
+    print(f"  candidate table -> {merged}  ({len(cand):,} rows)\n")
+
     print("STEP 3 - does the candidate pool look like real protein?")
-    matched = d[d.in_genbank]
-    lo = unm[(unm.three_di_entropy < THRESH) & (~unm.shadow)]
-    groups = [
-        ("annotated CDS (in_genbank=True)", matched),
-        ("candidate: intergenic, 3Di >= 2.5", cand),
-        ("intergenic, 3Di < 2.5", lo),
-        ("shadow of a CDS, 3Di >= 2.5", hi[hi.shadow]),
-    ]
-    print(f"  {'group':<36}{'n':>10}{'med aa':>8}{'%>=100aa':>10}{'med 3Di':>9}")
-    for name, g in groups:
+    print("  candidates are the full population; control rows are a per-chunk")
+    print("  sample, so read their n as a sample size and not a count.")
+    print(f"  {'group':<36}{'n':>12}{'med aa':>8}{'%>=100aa':>10}{'med 3Di':>9}")
+    rows = [("candidate: intergenic, 3Di >= %.1f" % thresh, cand)]
+    if ctrl is not None:
+        for label, name in (("annotated_cds", "annotated CDS (sampled)"),
+                            ("intergenic_lo", "intergenic, 3Di < %.1f (sampled)" % thresh),
+                            ("shadow_hi", "shadow of a CDS, 3Di >= %.1f (sampled)" % thresh)):
+            rows.append((name, ctrl[ctrl.group == label]))
+    for name, g in rows:
         if len(g) == 0:
             continue
-        print(f"  {name:<36}{len(g):>10,}{g.aa_length.median():>8.0f}"
-              f"{(g.aa_length >= 100).mean()*100:>9.1f}%{g.three_di_entropy.median():>9.2f}")
+        print(f"  {name:<36}{len(g):>12,}{g.aa_length.median():>8.0f}"
+              f"{(g.aa_length >= 100).mean()*100:>9.1f}%"
+              f"{g.three_di_entropy.median():>9.2f}")
 
-    # The denominator is the deposited CDS count, not the number of ORFs the
-    # matcher accepted. Using matched ORFs undercounts every genome with a
-    # partial, compound, or short CDS the matcher rejected, which inflates
-    # the miss rate -- the same proxy this script now avoids elsewhere.
-    #
-    # Indexed over every annotated genome, so genomes that yielded no
-    # candidates count as zero in the medians instead of dropping out.
+    per = cand.groupby("genome").size()
     print("\n  per annotated genome:")
-    cds_per_genome = status.set_index("genome").n_cds
-    j = pd.DataFrame(index=sorted(annotated))
-    j["cand"] = cand.groupby("genome").size().reindex(j.index).fillna(0)
-    j["cds"] = pd.to_numeric(cds_per_genome.reindex(j.index), errors="coerce")
-    print(f"    deposited CDS per genome (median)      : {j.cds.median():.0f}")
-    print(f"    candidate missed genes per genome (med): {j.cand.median():.0f}")
-    print(f"    candidates as % of deposited CDS (med) : "
-          f"{(j.cand / j.cds.replace(0, np.nan)).median() * 100:.1f}%")
-
-    # How far the matched-ORF denominator was off, on this sample.
-    matched_per_genome = matched.groupby("genome").size().reindex(j.index).fillna(0)
-    shortfall = (j.cds - matched_per_genome)
-    print(f"    (matched-ORF denominator would have been "
-          f"{matched_per_genome.median():.0f}, short by {shortfall.median():.0f})")
+    print(f"    genomes carrying >=1 candidate         : {len(per):,} of "
+          f"{int(tot.genomes_annotated):,}")
+    print(f"    candidates per such genome (median)    : {per.median():.0f}")
+    print(f"    candidates per annotated genome (mean) : "
+          f"{len(cand)/tot.genomes_annotated:.1f}")
     return 0
+
+
+def _read_all(out_dir, pattern):
+    files = sorted(Path(out_dir).glob(pattern))
+    frames = [f for f in (pd.read_csv(p, sep="\t", dtype={"chunk": "str"})
+                          for p in files) if len(f)]
+    return pd.concat(frames, ignore_index=True) if frames else None
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--chunk-tsv", help="one per-chunk entropy TSV (.tsv.gz)")
+    ap.add_argument("--aggregate", action="store_true",
+                    help="report over the per-chunk outputs already written")
+    ap.add_argument("--out-dir", required=True)
+    ap.add_argument(
+        "--annotation-status",
+        help="genome_cds_counts_<domain>.tsv from 12_genome_cds_counts.pbs. "
+             "Required with --chunk-tsv: annotation presence must come from "
+             "the GenBank records, not from in_genbank.")
+    ap.add_argument(
+        "--cds-intervals",
+        help="directory of per-chunk CDS interval TSVs from "
+             "13_cds_intervals.pbs. Required with --chunk-tsv: the shadow "
+             "test needs the deposited CDS coordinates, not the spans of "
+             "ORFs that happened to match.")
+    ap.add_argument("--threshold", type=float, default=THRESH)
+    ap.add_argument("--controls-per-chunk", type=int, default=2000)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--quiet", action="store_true")
+    args = ap.parse_args()
+
+    if args.aggregate:
+        return aggregate(args.out_dir, args.threshold)
+    if not args.chunk_tsv:
+        ap.error("pass --chunk-tsv <file> or --aggregate")
+    # Required for the chunk path only: --aggregate re-reads finished output.
+    missing = [n for n, v in (("--annotation-status", args.annotation_status),
+                              ("--cds-intervals", args.cds_intervals))
+               if not v]
+    if missing:
+        ap.error(
+            f"{' and '.join(missing)} required with --chunk-tsv. The "
+            "annotated-genome set and the shadow test must come from the "
+            "GenBank records; deriving either from in_genbank reproduces the "
+            "defect this script was corrected for.")
+    return write_chunk(args.chunk_tsv, args.out_dir, args.annotation_status,
+                       args.cds_intervals, args.threshold,
+                       args.controls_per_chunk, args.seed, args.quiet)
 
 
 if __name__ == "__main__":
