@@ -1,0 +1,43 @@
+#!/bin/bash
+#PBS -N ge_agg
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=1
+#PBS -l mem=32GB
+#PBS -l walltime=06:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# 05_aggregate_results.py under the scheduler.
+#
+# WHY A WRAPPER:
+#   The README lists 05 as a login-node script, which was fine at two or
+#   three chunks. It is single-threaded and measured at ~87 s per chunk, so
+#   a domain is an hour (archaea, 41 chunks) or ~18 h (bacteria, 760) of
+#   solid CPU -- not something to leave running on a login node. The script
+#   itself is unchanged; parallelising it is still outstanding work
+#   (report section 11, item 8) and would turn the bacterial run from
+#   ~18 h into minutes, since chunks are independent.
+#
+#   qsub -v DOMAIN=arc 05b_aggregate_results.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+
+ENV_PREFIX="/g/data/ob80/re3494/conda/genome_entropy"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+# 05's --output defaults to a bare filename, which lands in the job's
+# working directory -- i.e. among the pipeline scripts, and outside the
+# directory the OneDrive backup copies. Name the destination explicitly.
+OUT="/g/data/ob80/re3494/gtdb_entropy/summary_per_genome_${DOMAIN}.tsv"
+
+echo "aggregating ${DOMAIN} at $(date -Is)"
+python3 05_aggregate_results.py --domain "${DOMAIN}" --output "${OUT}"
+echo "done at $(date -Is)"

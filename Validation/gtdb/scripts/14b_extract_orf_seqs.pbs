@@ -1,0 +1,97 @@
+#!/bin/bash
+#PBS -N ge_extract
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=16
+#PBS -l mem=64GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# Amino acids and 3Di for a wanted list of ORFs (issue #92, step 2).
+#
+# WHY THIS EXISTS AT ALL:
+#   The per-ORF TSVs keep the numbers and the archives keep the sequences.
+#   Foldseek needs the sequences, so the candidate table has to be resolved
+#   back through the archives.
+#
+# WHY ONE WORKER PER CHUNK AND NOT PER GENOME:
+#   Each archive is a zstd stream: no random access, so pulling any genome
+#   costs a walk through the chunk. One pass per archive extracts every
+#   wanted ORF in it at once, and stops as soon as they are all accounted
+#   for.
+#
+# Chunks come from the wanted list itself, so a pilot over two chunks and a
+# full run over 760 differ only in the file passed in. Concurrency is capped
+# by ncpus; each worker holds one decompressed JSON at a time, so peak
+# memory is a few GB even on the largest genome (140 MB of JSON).
+#
+#   qsub -v WANTED=/g/data/.../pilot/wanted.tsv,OUT=/g/data/.../pilot/seqs \
+#        14b_extract_orf_seqs.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${WANTED:?Pass WANTED=<wanted list tsv> via qsub -v}"
+: "${OUT:?Pass OUT=<output directory> via qsub -v}"
+
+ENV_PREFIX="/g/data/ob80/re3494/conda/genome_entropy"
+RESULTS_ROOT="/g/data/ob80/re3494/gtdb_entropy/entropy_3di_results"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+mkdir -p "${OUT}"
+
+# domain + chunk -> archive tag, from the wanted list.
+awk -F'\t' 'NR==1 {for (i=1;i<=NF;i++) c[$i]=i; next}
+            {print $c["domain"] "_" $c["chunk"]}' "${WANTED}" \
+    | sort -u > "${PBS_JOBFS}/tags.txt"
+echo "ORFs wanted   : $(( $(wc -l < "${WANTED}") - 1 ))"
+echo "chunks to read: $(wc -l < "${PBS_JOBFS}/tags.txt")"
+
+cat > "${PBS_JOBFS}/one_archive.sh" <<EOF
+#!/bin/bash
+tag="\$1"
+domain="\${tag%%_*}"
+archive="${RESULTS_ROOT}/\${domain}/\${tag}.tar.zst"
+if [ ! -s "\${archive}" ]; then
+    echo "WARNING: no archive \${archive}" >&2
+    exit 0
+fi
+[ -s "${OUT}/\${tag}.aa.fasta" ] && exit 0        # already extracted
+python3 ${PBS_O_WORKDIR}/14b_extract_orf_seqs.py \\
+    --archive "\${archive}" --wanted "${WANTED}" --out-dir "${OUT}"
+EOF
+chmod +x "${PBS_JOBFS}/one_archive.sh"
+
+xargs -a "${PBS_JOBFS}/tags.txt" -n1 -P "${PBS_NCPUS:-16}" \
+      "${PBS_JOBFS}/one_archive.sh"
+
+# Concatenate in a fixed order. 15_build_query_db.py pairs by id rather than
+# by position, but a deterministic order keeps the database reproducible.
+: > "${OUT}/pilot.aa.fasta"
+: > "${OUT}/pilot.3di.fasta"
+while read -r tag; do
+    [ -s "${OUT}/${tag}.aa.fasta" ]  && cat "${OUT}/${tag}.aa.fasta"  >> "${OUT}/pilot.aa.fasta"
+    [ -s "${OUT}/${tag}.3di.fasta" ] && cat "${OUT}/${tag}.3di.fasta" >> "${OUT}/pilot.3di.fasta"
+done < "${PBS_JOBFS}/tags.txt"
+
+n_aa=$(grep -c '^>' "${OUT}/pilot.aa.fasta" || true)
+n_ss=$(grep -c '^>' "${OUT}/pilot.3di.fasta" || true)
+echo ""
+echo "=== extracted ==="
+echo "  amino-acid records : ${n_aa}"
+echo "  3Di records        : ${n_ss}"
+if [ "${n_aa}" != "${n_ss}" ]; then
+    echo "ERROR: paired FASTAs disagree in record count" >&2
+    exit 1
+fi
+if compgen -G "${OUT}/*.missing.tsv" > /dev/null; then
+    echo "  wanted but not found: $(cat "${OUT}"/*.missing.tsv | grep -vc '^genome' || true)"
+    echo "  (listed per chunk in ${OUT}/*.missing.tsv)"
+fi
+awk '/^>/ {n=split($0,a,"|"); print a[n]}' "${OUT}/pilot.aa.fasta" \
+    | sort | uniq -c | awk '{printf "  %-16s %s\n", $2, $1}'

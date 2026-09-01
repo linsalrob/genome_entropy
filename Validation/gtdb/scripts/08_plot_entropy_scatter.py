@@ -11,11 +11,17 @@ C and D contain identical data and differ only in draw order. Whatever
 changes between them is an artefact of overplotting, not of biology, which
 is the point of showing them side by side.
 
-The full table is ~1.35 billion ORFs, so this plots a systematic sample:
-every 300th row from 20 chunks spread across the completed range, which
-spans many taxa rather than a few related genomes. The sample preserves the
-population's True fraction (11.8% sampled vs 12.03% actual), so the density
-difference between the classes in C and D is real and not a sampling choice.
+The full table is 2.57 billion bacterial ORFs, so this plots a systematic
+sample: every 300th row of every chunk in the domain, written by
+08b_sample_for_figures.pbs. Earlier versions of this figure sampled 20
+chunks because that was all that existed while the run was going. Scatter
+panels are then capped with --max-points, since a mark per point stops
+carrying information long before eight million of them; the density figures
+in 09 use the whole sample.
+
+Dotted horizontal lines mark log2(k) for k distinct 3Di states. The hard
+boundary at 1.585 is log2(3) -- a mechanical ceiling on ORFs that encode to
+three states, not a biological threshold. Section 5 of the report.
 
 Colours are the categorical blue/orange pair, checked for colour-vision
 separation before use: OKLab dE 33.6 normal, 46.7 deuteranopia, 24.7
@@ -31,13 +37,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-# Working directory for intermediate samples. Session-scratch on the
-# machine this was run on; set SCRATCH in the environment, or edit, to
-# point somewhere writable on yours.
-SCRATCH = os.environ.get("GE_SCRATCH", "./work")
+import figstyle
 
-SAMPLE = os.path.join(SCRATCH, "plotdata/sample_clean.tsv")
 OUTDIR = "/g/data/ob80/re3494/gtdb_entropy/figures"
+DOMAIN_NAME = {"bac": "bacterial", "arc": "archaeal"}
 
 TRUE_C  = "#2a78d6"   # categorical slot 1
 FALSE_C = "#eb6834"   # categorical slot 2
@@ -54,22 +57,27 @@ XLIM, YLIM = (2.35, 4.35), (-0.15, 4.25)
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sample", default=SAMPLE)
-    ap.add_argument("--out", default="protein_vs_3di_entropy.png")
+    ap.add_argument("--domain", default="bac", choices=("bac", "arc"))
+    ap.add_argument("--sample", default=None,
+                    help="default: the sample for --domain")
+    ap.add_argument("--out", default=None,
+                    help="default: protein_vs_3di_entropy_<domain>.png")
+    ap.add_argument("--max-points", type=int, default=250_000,
+                    help="cap on marks drawn; 0 plots every sampled row")
+    ap.add_argument("--include-unannotated", action="store_true",
+                    help="diagnostic only: keep genomes with no CDS "
+                         "annotation, in which every ORF is False by "
+                         "construction")
+    ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--note", default="", help="extra line under the title")
     args = ap.parse_args()
 
-    df = pd.read_csv(args.sample, sep="\t", header=None,
-                     names=["in_genbank", "protein_entropy", "three_di_entropy"],
-                     dtype={"in_genbank": str})
-    n_raw = len(df)
-    # The sampler was interrupted mid-write, leaving one truncated line.
-    df = df[df["in_genbank"].isin(["True", "False"])]
-    df = df.dropna(subset=["protein_entropy", "three_di_entropy"])
-    for c in ("protein_entropy", "three_di_entropy"):
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    df = df.dropna()
-    print(f"rows: {n_raw} read, {len(df)} usable ({n_raw - len(df)} malformed)")
+    sample = args.sample or figstyle.default_sample(args.domain)
+    out_name = args.out or f"protein_vs_3di_entropy_{args.domain}.png"
+    full = figstyle.load_sample(sample,
+                                annotated_only=not args.include_unannotated)
+    n_sampled = len(full)
+    df = figstyle.subsample(full, args.max_points, args.seed)
 
     t = df[df.in_genbank == "True"]
     f = df[df.in_genbank == "False"]
@@ -111,6 +119,9 @@ def main():
             ax.spines[s].set_color("#c3c2b7")
         ax.tick_params(colors=MUTED, labelsize=9)
         ax.set_xlim(XLIM); ax.set_ylim(YLIM)
+        # Labelled on the right-hand panels only: on the left they collide
+        # with the y-axis ticks.
+        figstyle.log2_ceilings(ax, label=ax in (axes[0, 1], axes[1, 1]))
 
     for ax in axes[1, :]:
         ax.set_xlabel("Protein entropy (bits)", fontsize=11, color=INK)
@@ -123,14 +134,28 @@ def main():
                           color=c, label=l)
                for c, l in ((TRUE_C, "in_genbank = True (matched to a GenBank CDS)"),
                             (FALSE_C, "in_genbank = False (ORF call only)"))]
-    fig.legend(handles=handles, loc="lower center", ncol=2, frameon=False,
+    handles.append(plt.Line2D([], [], color="#52514e", linewidth=1,
+                              linestyle=(0, (1, 2.5)),
+                              label="log$_2$(k) ceiling for k distinct 3Di states"))
+    fig.legend(handles=handles, loc="lower center", ncol=3, frameon=False,
                fontsize=10, bbox_to_anchor=(0.5, 0.005), labelcolor=INK)
 
-    fig.suptitle("Protein vs 3Di entropy of bacterial ORFs, by GenBank CDS support",
+    domain_word = DOMAIN_NAME.get(args.domain, args.domain)
+    fig.suptitle(f"Protein vs 3Di entropy of {domain_word} ORFs, "
+                 "by GenBank CDS support",
                  fontsize=14, color=INK, x=0.02, ha="left", y=0.985)
-    sub = (f"Systematic sample of {len(df):,} ORFs from 20 chunks of GTDB r232 "
-           f"bacterial representatives ({frac:.1f}% True). "
+    drawn = (f"{len(df):,} of them drawn" if len(df) < n_sampled
+             else "all of them drawn")
+    scope = ("ALL genomes, including unannotated — diagnostic view"
+             if args.include_unannotated
+             else "genomes with at least one annotated CDS only")
+    sub = (f"Every 300th ORF of every GTDB r232 {domain_word} representative "
+           f"chunk, {scope}: {n_sampled:,} sampled, {drawn} here "
+           f"({frac:.1f}% True). "
            + (args.note + " " if args.note else "")
+           + "Dotted lines are log$_2$(k) for k distinct 3Di states; the edge at "
+             "1.585 is log$_2$(3), a ceiling on three-state ORFs rather than a "
+             "biological threshold. "
            + "Panels C and D contain identical data and differ only in draw "
              "order, so any difference between them is an overplotting artefact.")
     # Wrapped rather than one long line: an unwrapped subtitle runs off the
@@ -140,7 +165,7 @@ def main():
 
     fig.tight_layout(rect=[0, 0.035, 1, 0.905])
     os.makedirs(OUTDIR, exist_ok=True)
-    out = os.path.join(OUTDIR, args.out)
+    out = os.path.join(OUTDIR, out_name)
     fig.savefig(out, dpi=200, facecolor=SURFACE)
     print(f"wrote {out}")
     return 0

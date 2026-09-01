@@ -1,0 +1,137 @@
+#!/bin/bash
+#PBS -N ge_fsdb
+#PBS -q copyq
+#PBS -P ob80
+#PBS -l ncpus=1
+#PBS -l mem=8GB
+#PBS -l walltime=10:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# Fetch a Foldseek target database for the missed-gene homology search.
+#
+# WHY copyq:
+#   Only copyq reaches the internet, the same reason the ProstT5/modernprost
+#   model had to be cached from a login node before any GPU job could run.
+#
+# WHY THE TARBALL IS STAGED HERE AND NOT BY FOLDSEEK:
+#   `foldseek databases` downloads with
+#       aria2c --allow-overwrite=true ...        (data/structdatabases.sh)
+#   and no --continue, so a transfer killed at the 10 h copyq cap restarts
+#   from byte zero on the next attempt. Its download is however guarded by
+#   `if notExists "${TMP_PATH}/<tarball>"`, so staging the tarball ourselves
+#   with `aria2c -c` makes the whole thing resumable: foldseek then skips
+#   the download and only unpacks and renames. The tarball name must be
+#   exactly the one upstream looks for -- note PDB's is pdb.tar.gz, not
+#   pdb100.tar.gz, and BFVD's is bfvd.tar.gz.
+#
+# WHY TMP IS UNDER THE DB DIRECTORY:
+#   The last step is `mmseqs mvdb`, which renames. With TMP_PATH on another
+#   filesystem every part of a 100 GB+ database would be copied instead.
+#
+#   qsub -v DBSEL=Alphafold/UniProt50-minimal 12_foldseek_databases.pbs
+#   qsub -v DBSEL=PDB     12_foldseek_databases.pbs
+#   qsub -v DBSEL=ProstT5 12_foldseek_databases.pbs
+#
+# Re-run with the same DBSEL until it reports the database is present; each
+# run resumes. Nothing here is picked up by the OneDrive backup, which
+# copies entropy_3di_results/, genbank/, figures/ and depth-1 *.tsv only --
+# a public database is a re-download, not a result.
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DBSEL:?Pass DBSEL=<foldseek databases selection> via qsub -v}"
+
+ENV_PREFIX="/g/data/ob80/re3494/conda/foldseek"
+FSROOT="/g/data/ob80/re3494/gtdb_entropy/foldseek_db"
+
+# Selection -> output database name, and the tarball(s) upstream expects to
+# find already staged. Names taken from data/structdatabases.sh of the
+# installed foldseek; keep them in step if that file changes.
+case "${DBSEL}" in
+    "Alphafold/UniProt50-minimal")
+        TAG=afdb50
+        FILES="https://foldseek.steineggerlab.workers.dev/afdb50.tar.gz afdb50.tar.gz"
+        ;;
+    "Alphafold/UniProt50")
+        TAG=afdb50_clu
+        FILES="https://foldseek.steineggerlab.workers.dev/afdb50.tar.gz afdb50.tar.gz
+https://foldseek.steineggerlab.workers.dev/afdb50clusearch.tar.gz afdb50clusearch.tar.gz"
+        ;;
+    "Alphafold/UniProt")
+        TAG=afdb
+        FILES="https://foldseek.steineggerlab.workers.dev/afdb.tar.gz afdb.tar.gz"
+        ;;
+    "Alphafold/Swiss-Prot")
+        TAG=afdb_swissprot
+        FILES="https://foldseek.steineggerlab.workers.dev/afdb_swissprot.tar.gz afdb_swissprot.tar.gz"
+        ;;
+    "PDB")
+        TAG=pdb100
+        FILES="https://foldseek.steineggerlab.workers.dev/pdb100.tar.gz pdb.tar.gz"
+        ;;
+    "CATH50")
+        TAG=cath50
+        FILES="https://foldseek.steineggerlab.workers.dev/cath50.tar.gz cath50.tar.gz"
+        ;;
+    "BFVD")
+        TAG=bfvd
+        FILES="https://bfvd.steineggerlab.workers.dev/bfvd_foldseekdb.tar.gz bfvd.tar.gz"
+        ;;
+    "BFMD")
+        TAG=bfmd
+        FILES="https://foldseek.steineggerlab.workers.dev/bfmd.tar.gz bfmd.tar.gz"
+        ;;
+    "ProstT5")
+        TAG=prostt5
+        FILES="https://foldseek.steineggerlab.workers.dev/prostt5-f16-gguf.tar.gz prostt5-f16-gguf.tar.gz"
+        ;;
+    *)
+        echo "ERROR: no staging rule for DBSEL='${DBSEL}'." >&2
+        echo "Add one from data/structdatabases.sh, or drop the staging step" >&2
+        echo "and accept a non-resumable download." >&2
+        exit 2
+        ;;
+esac
+
+OUTDB="${FSROOT}/${TAG}"
+TMP="${FSROOT}/tmp_${TAG}"
+mkdir -p "${TMP}"
+
+# ProstT5 is model weights in a directory, every other selection is a DB
+# whose presence is marked by <db>.dbtype.
+if [ "${TAG}" = "prostt5" ]; then
+    [ -s "${OUTDB}/model.gguf" ] && { echo "${DBSEL}: already present at ${OUTDB}"; exit 0; }
+elif [ -e "${OUTDB}.dbtype" ]; then
+    echo "${DBSEL}: already present at ${OUTDB}"
+    exit 0
+fi
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+foldseek version
+
+echo "=== staging tarballs for ${DBSEL} into ${TMP} ==="
+df -h "${FSROOT}" | tail -1
+printf '%s\n' "${FILES}" | while read -r url name; do
+    [ -z "${url}" ] && continue
+    # -c resumes a part-transferred file, which is the whole point of doing
+    # this here; 8 connections because a single stream to the Cloudflare
+    # worker does not saturate the link and copyq gives us one core anyway.
+    aria2c -c -x8 -s8 --max-connection-per-server=8 --summary-interval=300 \
+           --dir="${TMP}" -o "${name}" "${url}"
+done
+
+echo "=== foldseek databases ${DBSEL} -> ${OUTDB} ==="
+# Unpack and rename only: the tarball is already there, so upstream's own
+# non-resumable download is skipped.
+foldseek databases "${DBSEL}" "${OUTDB}" "${TMP}" --remove-tmp-files 0
+
+echo "=== result ==="
+ls -la "${OUTDB}"* 2>/dev/null | head -30
+du -sh "${OUTDB}"* 2>/dev/null | tail -1
+echo "Tarballs left in ${TMP} for resumability; remove them once the"
+echo "database is confirmed good:  rm -rf ${TMP}"

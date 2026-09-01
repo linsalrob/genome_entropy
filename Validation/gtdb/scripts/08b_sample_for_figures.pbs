@@ -1,0 +1,133 @@
+#!/bin/bash
+#PBS -N ge_figsample
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=48
+#PBS -l mem=96GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# Entropy sample for the figures, over every chunk of a domain.
+#
+# The figures published in the report drew on every 300th row of 20 chunks,
+# which was what existed while the run was still going. This samples the
+# whole domain instead -- all 760 bacterial chunks, all 41 archaeal -- so
+# the figures stop being a sample of a sample.
+#
+# WHY awk AND NOT pandas:
+#   Only four numbers per row are wanted out of fifteen columns, and the
+#   work is one pass of decompression. awk streams it at zcat speed with no
+#   parse of the columns we discard.
+#
+# WHY SYSTEMATIC AND NOT RANDOM:
+#   Taking every STRIDEth row needs no index and no memory, and the rows
+#   within a chunk are in genome and then ORF order, so a fixed stride walks
+#   across genomes rather than clustering inside one. It does mean the
+#   sample inherits any periodicity in ORF order; nothing in the pipeline
+#   writes ORFs with period 300.
+#
+# WHY THE ANNOTATION FLAG IS CARRIED:
+#   Roughly half of GTDB representatives carry no CDS annotation at all, and
+#   every ORF in those genomes is in_genbank=False by construction. Mixed
+#   into a figure they inflate the unmatched class with rows that say
+#   nothing about whether an ORF is a gene -- the same confounder section 6
+#   has to remove before it can say anything. The genome-level status comes
+#   from genome_annotation_status_<domain>.tsv, joined here on the genome
+#   column, so the figures can restrict to those genomes. That flag records
+#   that some ORF matched a CDS, which is why it is named
+#   matcher_matched_a_cds and not genome_annotated: it is a conservative
+#   proxy for annotation presence, and 12_genome_cds_counts.pbs is the
+#   authoritative answer. It is carried
+#   as a column rather than filtered here: the unfiltered view is still
+#   worth being able to draw as a diagnostic, just not worth publishing.
+#
+# STRIDE defaults differ by domain on purpose: bacteria have ~2.57 billion
+# ORF rows and archaea far fewer, so equal strides would give the archaeal
+# panels a hundredth of the points. Distributions are compared, not counts,
+# so per-domain rates are fine -- but they are why the counts in the two
+# panels must not be read against each other.
+#
+#   qsub -v DOMAIN=bac 08b_sample_for_figures.pbs
+#   qsub -v DOMAIN=arc 08b_sample_for_figures.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+if [ -z "${STRIDE:-}" ]; then
+    case "${DOMAIN}" in
+        bac) STRIDE=300 ;;
+        arc) STRIDE=30  ;;
+        *)   STRIDE=300 ;;
+    esac
+fi
+
+RESULTS="/g/data/ob80/re3494/gtdb_entropy/entropy_3di_results/${DOMAIN}"
+ANNSTATUS="/g/data/ob80/re3494/gtdb_entropy/genome_annotation_status_${DOMAIN}.tsv"
+# Samples live beside the figures, not in them: figures/ is what gets
+# published and backed up, and a 200 MB derived sample is neither.
+SAMPLEDIR="/g/data/ob80/re3494/gtdb_entropy/figure_samples"
+PARTS="${SAMPLEDIR}/sample_parts_${DOMAIN}"
+mkdir -p "${PARTS}"
+
+if [ ! -s "${ANNSTATUS}" ]; then
+    echo "ERROR: ${ANNSTATUS} not found -- run 11_genome_annotation_status.pbs" >&2
+    echo "for DOMAIN=${DOMAIN} first; without it the annotated-genome filter" >&2
+    echo "cannot be applied and the figures would mix the two populations." >&2
+    exit 2
+fi
+
+# Columns of the per-chunk TSV: 1 domain, 3 genome, 9 aa_length,
+# 10 in_genbank, 12 protein_entropy, 13 three_di_entropy. Rows whose
+# entropies are blank (legacy nulls), whose in_genbank is neither True nor
+# False, or whose genome is absent from the annotation-status table are
+# dropped and counted, not written as zeros or guessed at.
+cat > "${PBS_JOBFS}/one_chunk.sh" <<EOF
+#!/bin/bash
+f="\$1"
+tag="\$(basename "\${f}" .tsv.gz)"
+out="${PARTS}/\${tag}.tsv"
+[ -s "\${out}" ] && exit 0
+zcat "\${f}" | awk -F'\t' -v stride=${STRIDE} '
+    # First file: genome -> matcher_matched_a_cds. Column 6 of the status
+    # table, read positionally; 11_genome_annotation_status.pbs renamed the
+    # header from "annotated" without moving it.
+    NR == FNR { if (FNR > 1) ann[\$1] = \$6; next }
+    FNR > 1 && (FNR - 1) % stride == 0 {
+        if ((\$10 == "True" || \$10 == "False") && \$12 != "" && \$13 != "" \
+            && (\$3 in ann)) {
+            print \$1 "\t" \$10 "\t" \$12 "\t" \$13 "\t" \$9 "\t" ann[\$3]
+        } else {
+            bad++
+        }
+    }
+    END { if (bad > 0) printf "%s: %d sampled rows dropped\n", "\${tag}", bad > "/dev/stderr" }
+' "${ANNSTATUS}" - > "\${out}.tmp" && mv "\${out}.tmp" "\${out}"
+EOF
+chmod +x "${PBS_JOBFS}/one_chunk.sh"
+
+ls "${RESULTS}"/${DOMAIN}_*.tsv.gz > "${PBS_JOBFS}/files.txt" 2>/dev/null || true
+echo "domain        : ${DOMAIN}"
+echo "stride        : every ${STRIDE}th ORF row"
+echo "chunks present: $(wc -l < "${PBS_JOBFS}/files.txt")"
+echo "already done  : $(ls "${PARTS}"/*.tsv 2>/dev/null | wc -l)"
+
+xargs -a "${PBS_JOBFS}/files.txt" -n1 -P "${PBS_NCPUS:-48}" "${PBS_JOBFS}/one_chunk.sh"
+
+OUT="${SAMPLEDIR}/sample_${DOMAIN}.tsv.gz"
+{
+    printf 'domain\tin_genbank\tprotein_entropy\tthree_di_entropy\taa_length\tmatcher_matched_a_cds\n'
+    cat "${PARTS}"/*.tsv
+} | gzip -c > "${OUT}.tmp" && mv "${OUT}.tmp" "${OUT}"
+
+n=$(zcat "${OUT}" | tail -n +2 | wc -l)
+ntrue=$(zcat "${OUT}" | awk -F'\t' 'NR>1 && $2=="True"' | wc -l)
+nann=$(zcat "${OUT}" | awk -F'\t' 'NR>1 && $6=="True"' | wc -l)
+echo ""
+echo "=== ${OUT} ==="
+echo "  sampled ORFs        : ${n}"
+echo "  in_genbank T        : ${ntrue} ($(awk -v a="${ntrue}" -v b="${n}" 'BEGIN{printf "%.2f", 100*a/b}')%)"
+echo "  in annotated genomes: ${nann} ($(awk -v a="${nann}" -v b="${n}" 'BEGIN{printf "%.2f", 100*a/b}')%)"
+echo "  parts kept in ${PARTS} so a re-run resamples nothing"

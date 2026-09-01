@@ -1,0 +1,138 @@
+#!/bin/bash
+#PBS -N ge_fssearch
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=48
+#PBS -l mem=190GB
+#PBS -l walltime=10:00:00
+#PBS -l jobfs=100GB
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# The pilot search (issue #92, step 5).
+#
+# Four biological arms -- candidate, shadow_hi, annotated_cds,
+# intergenic_lo -- searched against each target database twice:
+#
+#   foldseek search       3Di + amino acid  (--alignment-type 2)
+#   foldseek base:search  amino acid only   (inherited MMseqs2)
+#
+# Running both against the SAME target database is the point: structure-only
+# homology is then a set difference on identical targets, not a comparison
+# across two differently built databases. A fifth query set, the candidates
+# with their own 3Di shuffled, is the technical null -- same amino acids,
+# same length, same 3Di composition, order destroyed.
+#
+# WHY NOT AFDB50 YET:
+#   Small, well-annotated databases first, per the plan on #92. PDB,
+#   Swiss-Prot, CATH50 and BFVD establish the discriminating comparison
+#   cheaply and their hits are interpretable; AFDB50 is 54M entries and is
+#   worth spending only once the candidate-vs-shadow contrast is known.
+#
+# WHY jobfs IS REQUESTED EXPLICITLY:
+#   foldseek's prefilter and result databases are staged on $PBS_JOBFS, and
+#   Gadi's default allocation is 100 MB. The first attempt was killed at
+#   485 MB three minutes in, having already built both query databases. Ask
+#   for the space: it is node-local and free, and the alternative is
+#   hammering the shared filesystem with intermediate files.
+#
+# WHY --sort-by-structure-bits 0:
+#   Our queries have no Cα, so foldseek disables this by itself and says so.
+#   Passing it explicitly makes the intent visible and keeps the memory
+#   requirement at the without-Cα figure (README: 35 GB rather than 151 GB
+#   for AFDB50) when that database is added.
+#
+#   qsub -v SEQS=/g/data/.../pilot/seqs4,OUT=/g/data/.../pilot/search \
+#        17_pilot_search.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${SEQS:?Pass SEQS=<dir with pilot.aa.fasta and pilot.3di.fasta> via qsub -v}"
+: "${OUT:?Pass OUT=<output directory> via qsub -v}"
+: "${DBS:=pdb100 afdb_swissprot cath50 bfvd}"
+: "${EVALUE:=0.001}"
+
+FS_ENV="/g/data/ob80/re3494/conda/foldseek"
+PY_ENV="/g/data/ob80/re3494/conda/genome_entropy"
+DBROOT="/g/data/ob80/re3494/gtdb_entropy/foldseek_db"
+FIELDS="query,target,fident,alnlen,qlen,tlen,qcov,tcov,evalue,bits,taxid,taxname"
+
+mkdir -p "${OUT}"
+TMP="${PBS_JOBFS}/fstmp"
+mkdir -p "${TMP}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${FS_ENV}"
+foldseek version
+
+# --- query databases ------------------------------------------------------
+if [ ! -e "${OUT}/qdb.dbtype" ]; then
+    echo "=== building the four-arm query database ==="
+    "${PY_ENV}/bin/python" 15_build_query_db.py \
+        --aa "${SEQS}/pilot.aa.fasta" --3di "${SEQS}/pilot.3di.fasta" \
+        --db-dir "${OUT}" --prefix qdb --foldseek "$(command -v foldseek)"
+fi
+
+# The null is the candidate arm only: shuffling the controls' 3Di would
+# answer a question nobody asked.
+if [ ! -e "${OUT}/qnull.dbtype" ]; then
+    echo "=== building the shuffled-3Di null database (candidates only) ==="
+    for kind in aa 3di; do
+        awk '/^>/ {keep = ($0 ~ /\|candidate$/)} keep' \
+            "${SEQS}/pilot.${kind}.fasta" > "${PBS_JOBFS}/cand.${kind}.fasta"
+    done
+    echo "  candidate records: $(grep -c '^>' "${PBS_JOBFS}/cand.aa.fasta")"
+    "${PY_ENV}/bin/python" 15_build_query_db.py \
+        --aa "${PBS_JOBFS}/cand.aa.fasta" --3di "${PBS_JOBFS}/cand.3di.fasta" \
+        --db-dir "${OUT}" --prefix qnull --shuffle-3di 0 \
+        --foldseek "$(command -v foldseek)"
+fi
+
+# --- searches -------------------------------------------------------------
+run_search () {                      # qdb tag target mode
+    local q="$1" qtag="$2" db="$3" mode="$4"
+    local out="${OUT}/${qtag}.${db}.${mode}.m8"
+    [ -s "${out}" ] && { echo "  ${qtag} vs ${db} (${mode}): already done"; return 0; }
+    local res="${PBS_JOBFS}/res_${qtag}_${db}_${mode}"
+    local t0=$SECONDS
+    if [ "${mode}" = "struct" ]; then
+        foldseek search "${q}" "${DBROOT}/${db}" "${res}" "${TMP}" \
+            --alignment-type 2 --sort-by-structure-bits 0 \
+            -e "${EVALUE}" --threads "${PBS_NCPUS}" -v 1
+    else
+        foldseek base:search "${q}" "${DBROOT}/${db}" "${res}" "${TMP}" \
+            -e "${EVALUE}" --threads "${PBS_NCPUS}" -v 1
+    fi
+    foldseek convertalis "${q}" "${DBROOT}/${db}" "${res}" "${out}" \
+        --format-output "${FIELDS}" --threads "${PBS_NCPUS}" -v 1
+    printf '  %-22s %-16s %-6s %6ss  %10s hits  %7s queries\n' \
+        "${qtag}" "${db}" "${mode}" "$((SECONDS - t0))" \
+        "$(wc -l < "${out}")" "$(cut -f1 "${out}" | sort -u | wc -l)"
+    rm -rf "${res}"* "${TMP:?}"/* 2>/dev/null || true
+}
+
+echo ""
+echo "=== searching ==="
+for db in ${DBS}; do
+    if [ ! -e "${DBROOT}/${db}.dbtype" ]; then
+        echo "  WARNING: no target database ${DBROOT}/${db}, skipped" >&2
+        continue
+    fi
+    run_search "${OUT}/qdb"   query "${db}" struct
+    run_search "${OUT}/qdb"   query "${db}" seq
+    run_search "${OUT}/qnull" null  "${db}" struct
+done
+
+echo ""
+echo "=== per-arm query counts with at least one hit ==="
+for f in "${OUT}"/*.m8; do
+    [ -s "${f}" ] || continue
+    printf '%s\n' "$(basename "${f}" .m8)"
+    cut -f1 "${f}" | sort -u | awk -F'|' '{print "  " $NF}' | sort | uniq -c \
+        | awk '{printf "    %-16s %s\n", $2, $1}'
+done
+echo ""
+echo "Analyse with 18_pilot_analysis.py once this completes."
