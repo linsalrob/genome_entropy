@@ -40,8 +40,22 @@ Installation and offline jobs
 The files in ``slurm/nvidia`` and ``slurm/rocm`` are Pawsey-oriented examples,
 not portable cluster profiles. Review every ``#SBATCH`` directive and path.
 Model download jobs require outbound internet unless the cache is already
-populated. ``get_orfs`` compilation requires Rust/Cargo according to that
-project's installation instructions.
+populated. ``get_orfs`` is a C project built with CMake; it needs a C
+compiler, CMake 3.16 or newer, and zlib, and no Rust toolchain.
+
+``PBS`` holds the equivalent PBS Pro examples, written against NCI Gadi, with
+site install instructions in ``PBS/README.md``. They are not interchangeable
+with the SLURM files: PBS Pro identifies the project with ``-P``, requires an
+explicit ``-l storage`` directive for every filesystem a job touches, and
+exposes array indices as ``PBS_ARRAY_INDEX``. Multi-GPU discovery finds no
+SLURM variables under PBS, and on Gadi ``CUDA_VISIBLE_DEVICES`` is unset inside
+a GPU job as well -- the scheduler restricts visibility by cgroup instead -- so
+discovery falls through to PyTorch's device count, which reports exactly the
+allocated GPUs. Pass ``--gpu-ids`` only as local indices. Where no queue offers
+both GPUs and outbound internet, as on
+Gadi, install the environment and populate the model cache from a login node
+first and set ``HF_HUB_OFFLINE=1`` in the job, so a cache miss fails
+immediately instead of hanging on an unreachable network.
 
 Monitoring
 ----------

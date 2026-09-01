@@ -1,0 +1,53 @@
+#!/bin/bash
+#PBS -N genome_entropy_pipeline
+#PBS -q gpuvolta
+#PBS -P YOUR_NCI_PROJECT
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=05:00:00
+#PBS -l storage=gdata/YOUR_NCI_PROJECT
+#PBS -l wd
+#PBS -j oe
+#
+# Run the full pipeline on one GenBank file on NCI Gadi.
+#
+#   qsub -v INPUT=/g/data/.../genome.gbff,OUTPUT=/g/data/.../genome.json \
+#        PBS/pipeline.pbs
+#
+# gpuvolta allocates 12 CPUs per GPU and will reject a smaller ncpus. Every
+# /g/data and /scratch filesystem the job touches must appear in -l storage
+# or it is simply not mounted in the job.
+
+set -euo pipefail
+trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+
+: "${INPUT:?Pass INPUT=<genbank file> via qsub -v}"
+: "${OUTPUT:?Pass OUTPUT=<results json> via qsub -v}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
+HF_CACHE="${HF_CACHE:-/g/data/YOUR_NCI_PROJECT/hf_cache}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+# get_orfs is an external executable, not a Python dependency.
+export GET_ORFS_PATH="${GET_ORFS_PATH:-/g/data/YOUR_NCI_PROJECT/bin/get_orfs}"
+
+# GPU nodes have no route to Hugging Face. Fail loudly on a cache miss
+# rather than hanging on a connection that cannot succeed.
+export HF_HOME="${HF_CACHE}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+export TORCH_DISABLE_DYNAMO=1
+
+nvidia-smi
+
+genome_entropy run \
+    -g "${INPUT}" \
+    -o "${OUTPUT}" \
+    --model gbouras13/modernprost-50M \
+    --encoding-size 10000

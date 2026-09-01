@@ -28,6 +28,8 @@ PROJECT_PKGS=(
   tqdm
   pandas
   scikit-learn
+  matplotlib
+  seaborn
   protobuf
   sentencepiece
   "biopython>=1.80"

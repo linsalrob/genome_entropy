@@ -120,13 +120,36 @@ ENTROPY_OUT="${ENTROPY_OUT}/${DOMAIN}"
 OUT_TAR="${ENTROPY_OUT}/${TAG}.tar.zst"
 OUT_TSV="${ENTROPY_OUT}/${TAG}.tsv.gz"
 
-if [ ! -f "${ARCHIVE}" ]; then
-    echo "ERROR: ${ARCHIVE} not found — did the matching download chunk finish?" >&2
-    exit 1
-fi
+FAILURES_FILE="${ENTROPY_OUT}/${TAG}.failures"
+
+# A chunk that published with failures is not finished. Its outputs are on
+# /g/data so the encoded genomes are not lost, but the genomes named in
+# .failures are still missing from both, and skipping on the presence of
+# OUT_TAR alone meant a resubmission exited 0 without retrying them -- so
+# the GenBank archive kept back for exactly that recovery was never used.
+RETRY_PUBLISHED=0
 if [ -f "${OUT_TAR}" ]; then
-    echo "Chunk ${TAG}: ${OUT_TAR} already exists — nothing to do."
-    exit 0
+    if [ -s "${FAILURES_FILE}" ]; then
+        echo "Chunk ${TAG}: published, but ${TAG}.failures lists"
+        echo "  $(wc -l < "${FAILURES_FILE}") genome(s) still missing — retrying those."
+        RETRY_PUBLISHED=1
+    else
+        echo "Chunk ${TAG}: ${OUT_TAR} already exists — nothing to do."
+        exit 0
+    fi
+fi
+
+# Checked after the completed-chunk exit, not before: DELETE_GENBANK_AFTER=1
+# removes the archive of a chunk that finished cleanly, and resubmitting the
+# block that contains it must still report that index as done rather than as
+# a missing input. A retry does need the archive, and reaches here.
+if [ ! -f "${ARCHIVE}" ]; then
+    echo "ERROR: ${ARCHIVE} not found — did the matching download chunk" >&2
+    echo "       finish, or was it removed by DELETE_GENBANK_AFTER=1?" >&2
+    if [ "${RETRY_PUBLISHED}" = "1" ]; then
+        echo "       Retrying ${TAG} needs it back: re-download with 02." >&2
+    fi
+    exit 1
 fi
 
 mkdir -p "${ENTROPY_OUT}"
@@ -134,7 +157,11 @@ mkdir -p "${ENTROPY_OUT}"
 WORK="${PBS_JOBFS}/${TAG}"
 IN_DIR="${WORK}/genbank"
 OUT_DIR="${WORK}/json"
-mkdir -p "${IN_DIR}" "${OUT_DIR}"
+# Encoding writes here and is moved into OUT_DIR only on success, so
+# OUT_DIR never holds a half-written JSON for the signal handler to pack or
+# for a resumed run to mistake for a finished genome.
+TMP_DIR="${WORK}/incomplete"
+mkdir -p "${IN_DIR}" "${OUT_DIR}" "${TMP_DIR}"
 
 # PBS sends SIGTERM before killing a job at its walltime. Flush whatever
 # has been encoded so far to /g/data under a .partial name rather than
@@ -142,11 +169,23 @@ mkdir -p "${IN_DIR}" "${OUT_DIR}"
 # reconciled against it instead of starting from zero.
 flush_partial () {
     local n
+    # Stop dispatching new genomes. Encoders already running write into
+    # TMP_DIR and only move into OUT_DIR on success, so whatever they are
+    # midway through cannot end up in the archive.
+    [ -n "${XARGS_PID:-}" ] && kill "${XARGS_PID}" 2>/dev/null
     n=$(find "${OUT_DIR}" -name "*.json" | wc -l)
     if [ "${n}" -gt 0 ]; then
         echo "Flushing ${n} completed genomes to ${OUT_TAR}.partial" >&2
-        tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial" || true
+        # -f because a resumed run started from an earlier .partial and
+        # zstd refuses to overwrite an existing -o target.
+        tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -f -o "${OUT_TAR}.partial" || true
     fi
+    # Exit rather than fall through to the packing step. Continuing would
+    # publish OUT_TAR and OUT_TSV for a chunk that only encoded part of its
+    # genomes, and the "output already exists" check at the top means no
+    # resubmission would ever revisit it.
+    echo "Chunk ${TAG}: terminated at walltime; resubmit this index to resume." >&2
+    exit 143
 }
 trap 'flush_partial' TERM
 
@@ -160,7 +199,40 @@ echo "=== unpacking ${ARCHIVE} to node-local jobfs ==="
 zstd -dq -c "${ARCHIVE}" | tar -xf - -C "${IN_DIR}"
 find "${IN_DIR}" -mindepth 2 -iname "*.gbff" | sort > "${WORK}/gbff_paths.txt"
 total=$(wc -l < "${WORK}/gbff_paths.txt")
-echo "Chunk ${TAG}: ${total} genomes to encode"
+echo "Chunk ${TAG}: ${total} genomes in this chunk"
+
+# A previous attempt that hit walltime flushed its completed genomes to
+# OUT_TAR.partial. Restore them before building the worklist, so this run
+# re-encodes only what is missing; encode_one.sh already skips a genome
+# whose JSON is present. Without this the flush preserved nothing and the
+# chunk restarted from zero, which is the opposite of what it promises.
+resumed=0
+
+# Retrying a published chunk: unpack what succeeded, then drop the JSON of
+# every genome named in .failures. Encode failures have no JSON to drop;
+# genomes whose JSON was unreadable do, and leaving it would make
+# encode_one.sh skip them and the extraction fail again identically.
+if [ "${RETRY_PUBLISHED}" = "1" ]; then
+    echo "=== restoring ${TAG}.tar.zst before retrying its failures ==="
+    zstd -dq -c "${OUT_TAR}" | tar -xf - -C "${OUT_DIR}"
+    while read -r label; do
+        [ -n "${label}" ] || continue
+        rm -f "${OUT_DIR}/${label}.json"
+    done < "${FAILURES_FILE}"
+    resumed=$(find "${OUT_DIR}" -name '*.json' | wc -l)
+    echo "Chunk ${TAG}: kept ${resumed} genomes, retrying the rest."
+fi
+
+if [ -f "${OUT_TAR}.partial" ]; then
+    echo "=== resuming from $(basename "${OUT_TAR}.partial") ==="
+    if zstd -dq -c "${OUT_TAR}.partial" | tar -xf - -C "${OUT_DIR}"; then
+        resumed=$(find "${OUT_DIR}" -name '*.json' | wc -l)
+        echo "Chunk ${TAG}: recovered ${resumed} genomes."
+    else
+        echo "WARNING: ${OUT_TAR}.partial is unreadable; re-encoding the chunk." >&2
+        rm -rf "${OUT_DIR}"; mkdir -p "${OUT_DIR}"
+    fi
+fi
 
 # NCBI datasets names every GenBank file "genomic.gbff" and puts the
 # accession in the parent directory:
@@ -192,12 +264,17 @@ else
     label="\${base%.gbff}"
 fi
 out="${OUT_DIR}/\${label}.json"
+tmp="${TMP_DIR}/\${label}.json"
 [ -f "\${out}" ] && exit 0
 if genome_entropy run --genbank "\${gbff}" --model "${MODEL}" \
         --encoding-size ${ENCODING_SIZE} \
-        --output "\${out}" >> "${WORK}/logs/\${label}.log" 2>&1; then
+        --output "\${tmp}" >> "${WORK}/logs/\${label}.log" 2>&1; then
+    # Same filesystem, so this is atomic: only a complete JSON ever appears
+    # in OUT_DIR, which is what the flush packs and the resume trusts.
+    mv "\${tmp}" "\${out}"
     exit 0
 fi
+rm -f "\${tmp}"
 echo "\${label}" >> "${WORK}/failures.txt"
 echo "FAILED: \${label}" >&2
 # Keep the reason. PBS -o files collide when several arrays share an array
@@ -215,13 +292,21 @@ mkdir -p "${WORK}/logs"
 : > "${WORK}/failures.txt"
 
 echo "Encoding ${total} genomes, ${PARALLEL} at a time ..."
-xargs -a "${WORK}/gbff_paths.txt" -n1 -P "${PARALLEL}" "${WORK}/encode_one.sh"
+# Backgrounded, then waited on. Bash defers a trap while it is blocked in a
+# foreground command, so with a plain foreground xargs the TERM handler
+# would not run until encoding finished -- i.e. never, for the walltime kill
+# it exists to handle. Blocking in `wait` instead lets it fire immediately.
+xargs -a "${WORK}/gbff_paths.txt" -n1 -P "${PARALLEL}" "${WORK}/encode_one.sh" &
+XARGS_PID=$!
+wait "${XARGS_PID}" || true
+XARGS_PID=""
 
 done_count=$(find "${OUT_DIR}" -name "*.json" | wc -l)
 fail_count=$(sort -u "${WORK}/failures.txt" | tee "${WORK}/failures_uniq.txt" | wc -l)
 mv "${WORK}/failures_uniq.txt" "${WORK}/failures.txt"
 
-echo "Chunk ${TAG}: ${done_count} encoded, ${fail_count} failed."
+echo "Chunk ${TAG}: ${done_count} complete (${resumed} restored, \
+$((done_count - resumed)) encoded here), ${fail_count} failed."
 
 if [ "${done_count}" -eq 0 ]; then
     echo "ERROR: nothing encoded; not writing an archive." >&2
@@ -230,10 +315,35 @@ fi
 
 # Per-ORF entropy rows, so downstream work never needs the JSON archive.
 echo "=== extracting entropy rows ==="
+# A genome whose JSON cannot be read back exits this non-zero. Downstream
+# aggregation reads only the TSV, so such a genome would otherwise vanish
+# from the experiment while the chunk reported clean -- and, with
+# DELETE_GENBANK_AFTER=1, its GenBank archive would be deleted too. Count it
+# against the chunk exactly like an encoding failure.
+extract_rc=0
 python3 "${PBS_O_WORKDIR}/extract_entropy_rows.py" \
     --input-dir "${OUT_DIR}" \
     --chunk "${CHUNK_ID}" --domain "${DOMAIN}" \
-    --output "${WORK}/${TAG}.tsv"
+    --output "${WORK}/${TAG}.tsv" \
+    --failures "${WORK}/unparseable.txt" || extract_rc=$?
+
+if [ "${extract_rc}" -ne 0 ]; then
+    if [ -s "${WORK}/unparseable.txt" ]; then
+        n_unparseable=$(wc -l < "${WORK}/unparseable.txt")
+        echo "ERROR: ${n_unparseable} genome(s) produced unreadable JSON; the" >&2
+        echo "       TSV for chunk ${TAG} is incomplete." >&2
+        cat "${WORK}/unparseable.txt" >> "${WORK}/failures.txt"
+        fail_count=$((fail_count + n_unparseable))
+    else
+        echo "ERROR: entropy extraction failed for chunk ${TAG}." >&2
+        exit 1
+    fi
+fi
+
+# Still published: these hold real encoded genomes, and discarding them
+# would waste the GPU time. The non-zero exit at the end and the .failures
+# file are what stop the chunk reading as clean, and the raised fail_count
+# is what stops the GenBank archive being deleted below.
 gzip -c "${WORK}/${TAG}.tsv" > "${OUT_TSV}.partial"
 mv "${OUT_TSV}.partial" "${OUT_TSV}"
 
@@ -241,11 +351,15 @@ mv "${OUT_TSV}.partial" "${OUT_TSV}"
 # on success so a truncated archive is never mistaken for a finished chunk.
 echo "=== packing JSON archive ==="
 trap - TERM
-tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -o "${OUT_TAR}.partial"
+tar -cf - -C "${OUT_DIR}" . | zstd -3 -T4 -q -f -o "${OUT_TAR}.partial"
 mv "${OUT_TAR}.partial" "${OUT_TAR}"
 
 if [ "${fail_count}" -gt 0 ]; then
-    cp "${WORK}/failures.txt" "${ENTROPY_OUT}/${TAG}.failures"
+    cp "${WORK}/failures.txt" "${FAILURES_FILE}"
+else
+    # Clear a marker left by an earlier attempt, or the next submission
+    # would keep retrying a chunk that is now complete.
+    rm -f "${FAILURES_FILE}"
 fi
 
 echo "Chunk ${TAG} complete."

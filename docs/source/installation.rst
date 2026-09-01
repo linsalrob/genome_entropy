@@ -64,8 +64,16 @@ External ``get_orfs`` dependency
 
 ORF discovery invokes an external executable from
 https://github.com/linsalrob/get_orfs. It is not bundled or installed by
-``pip``. Follow that project's Rust/Cargo build instructions, place the binary
-on ``PATH``, or set an explicit path before running:
+``pip``. It is a C project built with CMake, requiring a C compiler, CMake
+3.16 or newer, and zlib:
+
+.. code-block:: bash
+
+   git clone https://github.com/linsalrob/get_orfs
+   cd get_orfs && mkdir build && cd build
+   cmake .. && make && cmake --install . --prefix ..
+
+Then place the binary on ``PATH``, or set an explicit path before running:
 
 .. code-block:: bash
 

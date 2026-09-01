@@ -23,6 +23,21 @@
 # Status cannot be taken from a sampled subset: a sparsely annotated genome
 # can show zero matched ORFs by chance. This does a full pass per chunk.
 #
+# WHAT THIS DOES AND DOES NOT MEASURE
+#
+# The column below is named matcher_matched_a_cds, not "annotated", because
+# it is derived from in_genbank: it says whether any called ORF passed
+# genome_entropy's coordinate, frame, and translation match. A genome with
+# real CDS features whose annotations all fail that strict match -- partial
+# or compound features, CDSs below the ORF length threshold, disagreeing
+# translations -- reads False here while being annotated.
+#
+# Zero here is therefore not evidence that a genome lacks annotation. For
+# that, run 12_genome_cds_counts.pbs, which counts CDS features in the
+# GenBank records themselves. Comparing the two tables is what separates
+# "annotation declined this ORF" from "the matcher declined this
+# annotation".
+#
 # Results are cached one file per chunk, so re-running after more chunks
 # finish only reads the new ones. Safe to run while encoding is still going.
 #
@@ -75,7 +90,7 @@ xargs -a "${PBS_JOBFS}/files.txt" -n1 -P "${PBS_NCPUS:-24}" \
 # Single sorted table. Written to .partial and renamed so a reader never
 # sees a half-written file.
 {
-    printf 'genome\tdomain\tchunk\tn_orfs\tn_orfs_in_genbank\tannotated\n'
+    printf 'genome\tdomain\tchunk\tn_orfs\tn_orfs_in_genbank\tmatcher_matched_a_cds\n'
     cat "${CACHE}"/*.tsv | sort -k1,1
 } > "${OUT}.partial"
 mv "${OUT}.partial" "${OUT}"
@@ -86,13 +101,15 @@ awk -F'\t' 'NR>1 {
     g++; orfs+=$4; cds+=$5
     if ($6=="True") { a++; a_orfs+=$4 } else { u++; u_orfs+=$4 }
 } END {
-    printf "  genomes            : %d\n", g
-    printf "    annotated        : %d (%.1f%%)\n", a, 100*a/g
-    printf "    unannotated      : %d (%.1f%%)\n", u, 100*u/g
-    printf "  ORFs               : %d\n", orfs
-    printf "    in annotated     : %d (%.1f%%)\n", a_orfs, 100*a_orfs/orfs
-    printf "    in unannotated   : %d (%.1f%%)  <- in_genbank=False by construction\n", u_orfs, 100*u_orfs/orfs
-    printf "  matched to a CDS   : %d (%.2f%% of all ORFs, %.2f%% within annotated)\n", cds, 100*cds/orfs, 100*cds/a_orfs
+    printf "  genomes                  : %d\n", g
+    printf "    >=1 ORF matched a CDS  : %d (%.1f%%)\n", a, 100*a/g
+    printf "    no ORF matched a CDS   : %d (%.1f%%)\n", u, 100*u/g
+    printf "  ORFs                     : %d\n", orfs
+    printf "    in matched genomes     : %d (%.1f%%)\n", a_orfs, 100*a_orfs/orfs
+    printf "    in unmatched genomes   : %d (%.1f%%)  <- in_genbank=False throughout\n", u_orfs, 100*u_orfs/orfs
+    printf "  matched to a CDS         : %d (%.2f%% of all ORFs, %.2f%% within matched)\n", cds, 100*cds/orfs, 100*cds/a_orfs
+    printf "\n  \"no ORF matched a CDS\" is not \"unannotated\": run\n"
+    printf "  12_genome_cds_counts.pbs for annotation presence.\n"
 }' "${OUT}"
 echo ""
 echo "rows: $(( $(wc -l < "${OUT}") - 1 ))"

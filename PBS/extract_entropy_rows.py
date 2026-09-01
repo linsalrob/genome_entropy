@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extract per-ORF entropy rows from genome_entropy JSON into one TSV.
 
-Run inside 04_run_entropy.pbs, on node-local jobfs, before the JSON is
+Run inside pipeline_array.pbs, on node-local jobfs, before the JSON is
 packed into a chunk archive. The point is that downstream analysis reads
 these TSVs and never has to unpack a multi-gigabyte JSON archive: the JSON
 keeps the sequences and encodings, the TSV keeps the numbers.
@@ -28,7 +28,6 @@ ENTROPY_FIELDS = (
 )
 
 COLUMNS = (
-    "domain",
     "chunk",
     "genome",
     "input_id",
@@ -39,14 +38,6 @@ COLUMNS = (
     "aa_length",
     "in_genbank",
     *ENTROPY_FIELDS,
-    # Appended, not inserted: 07_count_orfs.pbs and
-    # 11_genome_annotation_status.pbs address this file by column number.
-    #
-    # Length of the contig this ORF was called on. Needed downstream because
-    # negative-strand start/end index the reverse complement, so placing an
-    # ORF on the forward genomic axis is impossible without it -- see
-    # 10_missed_genes.py.
-    "contig_length",
 )
 
 
@@ -57,11 +48,10 @@ def load(path):
     return [data] if isinstance(data, dict) else data
 
 
-def rows_for(path, chunk, domain):
+def rows_for(path, chunk):
     genome = os.path.basename(path).split(".json")[0]
     for record in load(path):
         input_id = record.get("input_id", "")
-        contig_length = record.get("input_dna_length")
         for orf_id, feat in record.get("features", {}).items():
             if not isinstance(feat, dict):
                 continue
@@ -70,7 +60,6 @@ def rows_for(path, chunk, domain):
             meta = feat.get("metadata") or {}
             entropy = feat.get("entropy") or {}
             row = {
-                "domain": domain,
                 "chunk": chunk,
                 "genome": genome,
                 "input_id": input_id,
@@ -80,7 +69,6 @@ def rows_for(path, chunk, domain):
                 "strand": loc.get("strand"),
                 "aa_length": protein.get("length"),
                 "in_genbank": meta.get("in_genbank"),
-                "contig_length": "" if contig_length is None else contig_length,
             }
             for field in ENTROPY_FIELDS:
                 value = entropy.get(field)
@@ -95,9 +83,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input-dir", required=True)
     ap.add_argument("--chunk", required=True)
-    ap.add_argument("--domain", required=True,
-                    help="bac or arc; carried on every row so the two "
-                         "domains stay distinguishable after any merge")
     ap.add_argument("--output", required=True)
     ap.add_argument("--failures",
                     help="write the label of every unparseable genome here, "
@@ -120,7 +105,7 @@ def main():
             try:
                 # Buffer the genome so a file that fails partway through
                 # cannot leave half its ORFs in an otherwise complete TSV.
-                genome_rows = list(rows_for(path, args.chunk, args.domain))
+                genome_rows = list(rows_for(path, args.chunk))
             except (json.JSONDecodeError, OSError, ValueError) as e:
                 # Count and name it rather than dropping it silently; a
                 # chunk that quietly lost genomes is worse than one that
@@ -137,14 +122,12 @@ def main():
             for label in bad:
                 fh.write(f"{label}\n")
 
-    print(f"chunk {args.domain}_{args.chunk}: {len(files) - len(bad)} genomes, {n_rows} ORF rows"
+    print(f"chunk {args.chunk}: {len(files) - len(bad)} genomes, {n_rows} ORF rows"
           f"{f', {len(bad)} unparseable' if bad else ''}")
 
     # Any unreadable genome means this TSV is missing science the chunk was
-    # supposed to produce, and downstream aggregation reads only the TSV.
-    # Exit non-zero for even one, so the caller cannot finalise the chunk as
-    # clean -- which in 04_run_entropy.pbs would also let it delete the
-    # GenBank archive the genome would have to be recovered from.
+    # supposed to produce. Exit non-zero so the caller cannot publish it as
+    # a clean result; the caller decides whether to keep the partial output.
     return 1 if bad else 0
 
 

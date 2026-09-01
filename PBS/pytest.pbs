@@ -1,0 +1,36 @@
+#!/bin/bash
+#PBS -N genome_entropy_pytest
+#PBS -q gpuvolta
+#PBS -P YOUR_NCI_PROJECT
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=01:00:00
+#PBS -l storage=gdata/YOUR_NCI_PROJECT
+#PBS -l wd
+#PBS -j oe
+#
+# Run the test suite inside a GPU allocation. Most unit tests do not need a
+# GPU and can be run on a login node instead; this exists to exercise the
+# GPU-dependent paths on the hardware the production jobs use.
+#
+# Unlike the SLURM equivalent this does not pip install anything: Gadi
+# compute nodes have no internet access, so the environment must already be
+# complete before submission.
+
+set -euo pipefail
+trap 's=$?; echo "$0: Error on line "$LINENO": $BASH_COMMAND"; exit $s' ERR
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/YOUR_NCI_PROJECT/conda/genome_entropy}"
+HF_CACHE="${HF_CACHE:-/g/data/YOUR_NCI_PROJECT/hf_cache}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export HF_HOME="${HF_CACHE}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+
+pytest tests
