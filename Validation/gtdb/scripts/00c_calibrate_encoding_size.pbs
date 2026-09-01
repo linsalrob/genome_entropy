@@ -1,0 +1,124 @@
+#!/bin/bash
+#PBS -N ge_calib
+#PBS -q gpuvolta
+#PBS -P ob80
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=01:30:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/calibrate.log
+#
+# Sweep --encoding-size to find the largest batch budget that fits
+# comfortably on a V100, and see what it buys in throughput.
+#
+# The first smoke test ran at the default 10000 and reported 48% GPU
+# utilisation using 2.1 GB of the V100's 32 GB, so the device was half
+# idle and nearly empty. encoding-size is a per-batch token budget in
+# amino acids, so raising it makes each forward pass wider.
+#
+# Memory does not scale linearly from that 2.1 GB baseline -- model
+# weights, CUDA context and activation peaks all behave differently -- so
+# this measures rather than extrapolates. Peak device memory is sampled
+# from nvidia-smi during each run, which captures the true footprint
+# including the CUDA context, not just tensors PyTorch has allocated.
+
+set -euo pipefail
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export GET_ORFS_PATH="${GET_ORFS_PATH:-/g/data/ob80/re3494/Projects/genome_entropy/get_orfs/bin/get_orfs}"
+export HF_HOME="${HF_HOME:-/g/data/ob80/re3494/gtdb_entropy/hf_cache}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export TORCH_DISABLE_DYNAMO=1
+
+MODEL="gbouras13/modernprost-50M"
+WORKDIR="/g/data/ob80/re3494/Projects/genome_entropy/claude"
+
+# The largest smoke-test genome: 110k GenBank lines, 16127 ORFs. Enough
+# proteins that a large batch budget is actually reachable.
+GBFF="${WORKDIR}/smoke_test/five_genomes/ncbi_dataset/data/GCA_051745525.1/genomic.gbff"
+
+WORK="${PBS_JOBFS}/calib"
+mkdir -p "${WORK}"
+
+TOTAL_MIB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -1)
+echo "GPU: $(nvidia-smi --query-gpu=name --format=csv,noheader | head -1), ${TOTAL_MIB} MiB total"
+echo "Target ceiling: 80% = $(( TOTAL_MIB * 80 / 100 )) MiB"
+echo ""
+printf '%-14s %-10s %-12s %-10s %s\n' "encoding_size" "status" "peak_MiB" "pct_of_gpu" "seconds"
+
+RESULTS="${WORK}/results.tsv"
+: > "${RESULTS}"
+
+for ENC in 10000 25000 50000 100000 200000 400000 800000; do
+    PEAK_FILE="${WORK}/peak_${ENC}"
+    echo 0 > "${PEAK_FILE}"
+
+    # Sample device memory while the run proceeds. 0.2s is fine: batches
+    # here take far longer than that, so the peak is not missed.
+    (
+        peak=0
+        while :; do
+            u=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 || echo 0)
+            [ -n "${u}" ] && [ "${u}" -gt "${peak}" ] 2>/dev/null && { peak=${u}; echo "${peak}" > "${PEAK_FILE}"; }
+            sleep 0.2
+        done
+    ) &
+    POLLER=$!
+
+    start=$(date +%s)
+    if genome_entropy run --genbank "${GBFF}" --model "${MODEL}" \
+            --encoding-size "${ENC}" \
+            --output "${WORK}/out_${ENC}.json" > "${WORK}/log_${ENC}.txt" 2>&1; then
+        status=ok
+    else
+        # Out-of-memory is an expected outcome at the top of the sweep and
+        # is not a script failure; record it and keep going.
+        if grep -qiE "out of memory|CUDA error" "${WORK}/log_${ENC}.txt"; then
+            status=OOM
+        else
+            status=FAILED
+        fi
+    fi
+    elapsed=$(( $(date +%s) - start ))
+
+    kill "${POLLER}" 2>/dev/null || true
+    wait "${POLLER}" 2>/dev/null || true
+
+    peak=$(cat "${PEAK_FILE}")
+    pct=$(( peak * 100 / TOTAL_MIB ))
+    printf '%-14s %-10s %-12s %-10s %s\n' "${ENC}" "${status}" "${peak}" "${pct}%" "${elapsed}"
+    printf '%s\t%s\t%s\t%s\t%s\n' "${ENC}" "${status}" "${peak}" "${pct}" "${elapsed}" >> "${RESULTS}"
+
+    rm -f "${WORK}/out_${ENC}.json"
+
+    if [ "${status}" != "ok" ]; then
+        echo "Stopping sweep at ${ENC} (${status})."
+        break
+    fi
+done
+
+echo ""
+echo "=== recommendation ==="
+awk -F'\t' -v total="${TOTAL_MIB}" '
+    $2=="ok" && $4<=80 { best=$1; bestpct=$4; bestsec=$5; bestmib=$3 }
+    $2=="ok" && $1==10000 { base=$5 }
+    END {
+        if (best=="") { print "No setting stayed under 80%; keep the default 10000."; exit }
+        printf "Largest safe --encoding-size: %s\n", best
+        printf "  peak memory : %s MiB (%s%% of %s MiB)\n", bestmib, bestpct, total
+        printf "  time        : %ss vs %ss at the default 10000\n", bestsec, base
+        if (base>0) printf "  speedup     : %.2fx\n", base/bestsec
+    }
+' "${RESULTS}"
+
+cp "${RESULTS}" "${WORKDIR}/logs/calibration_results.tsv"
+echo ""
+echo "Raw results copied to logs/calibration_results.tsv"

@@ -1,0 +1,148 @@
+#!/bin/bash
+#PBS -N ge_calib_par
+#PBS -q gpuvolta
+#PBS -P ob80
+#PBS -l ngpus=1
+#PBS -l ncpus=12
+#PBS -l mem=90GB
+#PBS -l jobfs=50GB
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/calibrate_par.log
+#
+# How many genome_entropy processes should share one V100?
+#
+# Three separate resources are being left idle by one-genome-at-a-time:
+#   - GPU memory: 1.5 GB of 32 GB at encoding-size 25000
+#   - GPU compute: 48% utilisation, i.e. the device is idle half the time
+#     waiting on CPU-side work (get_orfs, GenBank parsing, JSON writing)
+#   - CPUs: the smoke test reported cpupercent=99, one core busy of the 12
+#     that gpuvolta bills per GPU whether or not they are used
+#
+# Running P genomes concurrently should fill the GPU's idle gaps with other
+# processes' CPU work and use cores already paid for. How far that scales
+# is an empirical question -- the processes contend for the same SMs, and
+# nvidia-smi "utilisation" measures time-any-kernel-is-running rather than
+# occupancy, so 48% does not straightforwardly mean "room for two".
+#
+# Measures wall time for the SAME set of genomes at each P, so the
+# comparison is throughput on identical work.
+#
+# Memory headroom check: P x ~1.5 GB device and P x ~3.7 GB host, against
+# 32 GB and 90 GB. P=12 is around 18 GB device and 44 GB host, so the sweep
+# should not OOM; if it does, that is itself the answer.
+
+set -euo pipefail
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+export GET_ORFS_PATH="${GET_ORFS_PATH:-/g/data/ob80/re3494/Projects/genome_entropy/get_orfs/bin/get_orfs}"
+export HF_HOME="${HF_HOME:-/g/data/ob80/re3494/gtdb_entropy/hf_cache}"
+export HF_HUB_OFFLINE=1
+export TRANSFORMERS_OFFLINE=1
+export TORCH_DISABLE_DYNAMO=1
+
+MODEL="gbouras13/modernprost-50M"
+ENC="${ENC:-25000}"
+NGENOMES="${NGENOMES:-12}"
+WORKDIR="/g/data/ob80/re3494/Projects/genome_entropy/claude"
+ARCHIVE="/g/data/ob80/re3494/gtdb_entropy/genbank/bac_001.tar.zst"
+
+WORK="${PBS_JOBFS}/par"
+IN="${WORK}/genbank"
+mkdir -p "${IN}" "${WORK}/out"
+
+echo "=== extracting bacterial genomes ==="
+zstd -dq -c "${ARCHIVE}" | tar -xf - -C "${IN}"
+
+# Take a contiguous slice from the middle of the size distribution so every
+# P is timed on the same, reasonably typical, workload.
+find "${IN}" -mindepth 2 -iname "*.gbff" -printf '%s\t%p\n' | sort -n > "${WORK}/all.txt"
+total=$(wc -l < "${WORK}/all.txt")
+start_line=$(( (total - NGENOMES) / 2 ))
+sed -n "${start_line},$(( start_line + NGENOMES - 1 ))p" "${WORK}/all.txt" \
+    | cut -f2 > "${WORK}/sample.txt"
+
+echo "Using ${NGENOMES} genomes of ${total}, encoding-size ${ENC}"
+awk '{ printf "  %s\n", $0 }' "${WORK}/sample.txt" | head -3
+echo "  ..."
+total_mb=$(while read -r g; do stat -c%s "${g}"; done < "${WORK}/sample.txt" \
+           | awk '{s+=$1} END {printf "%.0f", s/1048576}')
+echo "Total input: ${total_mb} MB"
+
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+
+# One genome. Runs in a subshell under xargs, so it must be self-contained.
+cat > "${WORK}/one.sh" <<EOF
+#!/bin/bash
+gbff="\$1"
+label="\$(basename "\$(dirname "\${gbff}")")"
+genome_entropy run --genbank "\${gbff}" --model "${MODEL}" \\
+    --encoding-size ${ENC} \\
+    --output "${WORK}/out/\${label}.json" > "${WORK}/out/\${label}.log" 2>&1
+EOF
+chmod +x "${WORK}/one.sh"
+
+RESULTS="${WORK}/results.tsv"
+: > "${RESULTS}"
+
+echo ""
+printf '%-4s %-10s %-12s %-14s %-12s %s\n' "P" "wall_s" "genomes/hr" "peak_gpu_MiB" "speedup" "status"
+
+baseline=0
+for P in 1 2 4 6 12; do
+    rm -rf "${WORK}/out"; mkdir -p "${WORK}/out"
+
+    PEAK="${WORK}/peak_${P}"; echo 0 > "${PEAK}"
+    (
+        peak=0
+        while :; do
+            u=$(nvidia-smi --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 || echo 0)
+            [ -n "${u}" ] && [ "${u}" -gt "${peak}" ] 2>/dev/null && { peak=${u}; echo "${peak}" > "${PEAK}"; }
+            sleep 0.5
+        done
+    ) &
+    poller=$!
+
+    start=$(date +%s)
+    set +e
+    xargs -a "${WORK}/sample.txt" -n1 -P "${P}" "${WORK}/one.sh"
+    rc=$?
+    set -e
+    elapsed=$(( $(date +%s) - start ))
+
+    kill "${poller}" 2>/dev/null || true; wait "${poller}" 2>/dev/null || true
+    peak=$(cat "${PEAK}")
+
+    produced=$(find "${WORK}/out" -name "*.json" | wc -l)
+    if [ "${rc}" -eq 0 ] && [ "${produced}" -eq "${NGENOMES}" ]; then
+        status=ok
+    else
+        status="INCOMPLETE(${produced}/${NGENOMES})"
+        grep -ihE "out of memory|CUDA error" "${WORK}/out"/*.log 2>/dev/null | head -2 >&2 || true
+    fi
+
+    [ "${P}" -eq 1 ] && baseline="${elapsed}"
+    rate=$(python3 -c "print(f'{${NGENOMES}/${elapsed}*3600:.0f}')")
+    speed=$(python3 -c "print(f'{${baseline}/${elapsed}:.2f}x')")
+    printf '%-4s %-10s %-12s %-14s %-12s %s\n' "${P}" "${elapsed}" "${rate}" "${peak}" "${speed}" "${status}"
+    printf '%s\t%s\t%s\t%s\t%s\n' "${P}" "${elapsed}" "${rate}" "${peak}" "${status}" >> "${RESULTS}"
+done
+
+echo ""
+echo "=== cost implication for 189,801 bacterial genomes ==="
+awk -F'\t' -v n=189801 -v su=36 '
+    $5=="ok" {
+        rate=$3
+        gpu_h = n/rate
+        printf "  P=%-3s %8.0f genomes/hr -> %7.0f GPU-hours -> %9.0f SU\n", $1, rate, gpu_h, gpu_h*su
+    }
+' "${RESULTS}"
+
+cp "${RESULTS}" "${WORKDIR}/logs/calibration_par_results.tsv"
+echo ""
+echo "Raw results copied to logs/calibration_par_results.tsv"

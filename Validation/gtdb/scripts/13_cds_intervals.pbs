@@ -1,0 +1,97 @@
+#!/bin/bash
+#PBS -N gtdb_cds_intervals
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=24
+#PBS -l mem=96GB
+#PBS -l jobfs=200GB
+#PBS -l walltime=04:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/cds_intervals.log
+#
+# Extract the coordinates of every GenBank CDS, for the chunks named on the
+# command line.
+#
+# WHY THIS EXISTS
+#
+# 10_missed_genes.py asks whether an unmatched ORF overlaps coding sequence.
+# It used the spans of in_genbank=True ORFs as a stand-in for the annotated
+# CDS set, which is wrong in both directions:
+#
+#   - a CDS the matcher rejected is absent from that set, so an unmatched
+#     ORF sitting on top of a real gene is reported as intergenic;
+#   - a matched ORF runs stop to stop and can extend well past the deposited
+#     CDS, so its overhang manufactures shadows.
+#
+# Only the deposited coordinates answer the question. This writes them.
+#
+# 12_genome_cds_counts.pbs stays separate on purpose: it answers "does this
+# genome have annotation at all" for the whole corpus with a cheap grep,
+# while this job parses records properly and is therefore run over the few
+# chunks an analysis actually needs.
+#
+# Output, one file per chunk under ${GDATA_ROOT}/cds_intervals/<domain>/:
+#   genome  contig  start  end  strand  cds_id
+#
+# start/end are zero-based half-open on the forward strand, the same
+# convention normalise_orf_interval produces, so the two are directly
+# comparable. Compound locations (join(...), origin-crossing) contribute one
+# row per contiguous part, which is what overlap testing wants.
+#
+# Submit as:
+#   qsub -v DOMAIN=bac,CHUNKS="000 051" 13_cds_intervals.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+: "${CHUNKS:?Pass CHUNKS=\"000 051\" via qsub -v}"
+case "${DOMAIN}" in bac|arc) ;; *) echo "DOMAIN must be bac or arc" >&2; exit 2 ;; esac
+
+GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
+GENBANK_DIR="${GENBANK_DIR:-${GDATA_ROOT}/genbank}"
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+OUT_DIR="${GDATA_ROOT}/cds_intervals/${DOMAIN}"
+mkdir -p "${OUT_DIR}"
+
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+for chunk in ${CHUNKS}; do
+    tag="${DOMAIN}_${chunk}"
+    archive="${GENBANK_DIR}/${tag}.tar.zst"
+    out="${OUT_DIR}/${tag}.tsv"
+
+    if [ -s "${out}" ]; then
+        echo "${tag}: already extracted — skipping."
+        continue
+    fi
+    if [ ! -f "${archive}" ]; then
+        echo "ERROR: ${archive} not found. 04_run_entropy.pbs removes consumed" >&2
+        echo "       archives when DELETE_GENBANK_AFTER=1; re-download with 02." >&2
+        exit 1
+    fi
+
+    work="${PBS_JOBFS}/${tag}"
+    rm -rf "${work}"; mkdir -p "${work}"
+    echo "${tag}: unpacking GenBank members ..."
+    zstd -dq -c "${archive}" | tar -xf - -C "${work}" --wildcards '*.gbff'
+
+    find "${work}" -mindepth 2 -iname '*.gbff' | sort > "${work}/paths.txt"
+    echo "${tag}: $(wc -l < "${work}/paths.txt") genomes"
+
+    python3 "${PBS_O_WORKDIR}/cds_intervals.py" \
+        --paths "${work}/paths.txt" \
+        --output "${out}.partial" \
+        --workers "${PBS_NCPUS:-24}"
+    mv "${out}.partial" "${out}"
+
+    echo "${tag}: $(( $(wc -l < "${out}") - 1 )) CDS parts -> ${out}"
+    rm -rf "${work}"
+done
+
+echo ""
+echo "CDS intervals under ${OUT_DIR}"
+echo "Pass that directory to 10_missed_genes.py --cds-intervals."

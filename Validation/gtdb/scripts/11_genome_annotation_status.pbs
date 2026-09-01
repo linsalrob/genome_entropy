@@ -1,0 +1,116 @@
+#!/bin/bash
+#PBS -N ge_annstatus
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=24
+#PBS -l mem=48GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/annotation_status.log
+#
+# Build a per-genome annotation-status table, for filtering later analyses.
+#
+# Whether a genome carries CDS annotation is the single most important
+# covariate in this dataset and the easiest to get wrong. 46% of GTDB
+# bacterial representatives are unannotated assemblies, and every ORF in
+# them is in_genbank=False by construction -- not because an annotation
+# pipeline missed it, but because none was ever run. Pooling those with
+# genuinely unmatched ORFs inflated the "high 3Di entropy, unmatched"
+# population by a factor of about twenty in an earlier analysis.
+#
+# Status cannot be taken from a sampled subset: a sparsely annotated genome
+# can show zero matched ORFs by chance. This does a full pass per chunk.
+#
+# WHAT THIS DOES AND DOES NOT MEASURE
+#
+# The column below is named matcher_matched_a_cds, not "annotated", because
+# it is derived from in_genbank: it says whether any called ORF passed
+# genome_entropy's coordinate, frame, and translation match. A genome with
+# real CDS features whose annotations all fail that strict match -- partial
+# or compound features, CDSs below the ORF length threshold, disagreeing
+# translations -- reads False here while being annotated.
+#
+# Zero here is therefore not evidence that a genome lacks annotation. For
+# that, run 12_genome_cds_counts.pbs, which counts CDS features in the
+# GenBank records themselves. Comparing the two tables is what separates
+# "annotation declined this ORF" from "the matcher declined this
+# annotation".
+#
+# Results are cached one file per chunk, so re-running after more chunks
+# finish only reads the new ones. Safe to run while encoding is still going.
+#
+#   qsub -v DOMAIN=bac 11_genome_annotation_status.pbs
+#   qsub -v DOMAIN=arc 11_genome_annotation_status.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+GDATA_ROOT="/g/data/ob80/re3494/gtdb_entropy"
+RESULTS="${GDATA_ROOT}/entropy_3di_results/${DOMAIN}"
+CACHE="${RESULTS}/annstatus"
+OUT="${GDATA_ROOT}/genome_annotation_status_${DOMAIN}.tsv"
+mkdir -p "${CACHE}"
+
+# Per chunk: one row per genome with its ORF count and matched-CDS count.
+cat > "${PBS_JOBFS}/one.sh" <<'EOS'
+#!/bin/bash
+f="$1"; cache="$2"
+tag="$(basename "${f}" .tsv.gz)"
+out="${cache}/${tag}.tsv"
+[ -s "${out}" ] && exit 0
+# cols: 1=domain 2=chunk 3=genome 10=in_genbank
+zcat "${f}" | awk -F'\t' -v tag="${tag}" '
+    NR>1 {
+        key = $3
+        dom[key] = $1
+        n[key]++
+        if ($10 == "True") cds[key]++
+    }
+    END {
+        for (g in n)
+            printf "%s\t%s\t%s\t%d\t%d\t%s\n", \
+                   g, dom[g], tag, n[g], cds[g]+0, (cds[g]+0 > 0 ? "True" : "False")
+    }
+' > "${out}.tmp" && mv "${out}.tmp" "${out}"
+EOS
+chmod +x "${PBS_JOBFS}/one.sh"
+
+ls "${RESULTS}"/${DOMAIN}_*.tsv.gz > "${PBS_JOBFS}/files.txt" 2>/dev/null || true
+n_chunks=$(wc -l < "${PBS_JOBFS}/files.txt")
+echo "chunks present : ${n_chunks}"
+echo "already cached : $(ls "${CACHE}"/*.tsv 2>/dev/null | wc -l)"
+[ "${n_chunks}" -eq 0 ] && { echo "nothing to do"; exit 0; }
+
+xargs -a "${PBS_JOBFS}/files.txt" -n1 -P "${PBS_NCPUS:-24}" \
+      -I{} "${PBS_JOBFS}/one.sh" {} "${CACHE}"
+
+# Single sorted table. Written to .partial and renamed so a reader never
+# sees a half-written file.
+{
+    printf 'genome\tdomain\tchunk\tn_orfs\tn_orfs_in_genbank\tmatcher_matched_a_cds\n'
+    cat "${CACHE}"/*.tsv | sort -k1,1
+} > "${OUT}.partial"
+mv "${OUT}.partial" "${OUT}"
+
+echo ""
+echo "=== ${OUT} ==="
+awk -F'\t' 'NR>1 {
+    g++; orfs+=$4; cds+=$5
+    if ($6=="True") { a++; a_orfs+=$4 } else { u++; u_orfs+=$4 }
+} END {
+    printf "  genomes                  : %d\n", g
+    printf "    >=1 ORF matched a CDS  : %d (%.1f%%)\n", a, 100*a/g
+    printf "    no ORF matched a CDS   : %d (%.1f%%)\n", u, 100*u/g
+    printf "  ORFs                     : %d\n", orfs
+    printf "    in matched genomes     : %d (%.1f%%)\n", a_orfs, 100*a_orfs/orfs
+    printf "    in unmatched genomes   : %d (%.1f%%)  <- in_genbank=False throughout\n", u_orfs, 100*u_orfs/orfs
+    printf "  matched to a CDS         : %d (%.2f%% of all ORFs, %.2f%% within matched)\n", cds, 100*cds/orfs, 100*cds/a_orfs
+    printf "\n  \"no ORF matched a CDS\" is not \"unannotated\": run\n"
+    printf "  12_genome_cds_counts.pbs for annotation presence.\n"
+}' "${OUT}"
+echo ""
+echo "rows: $(( $(wc -l < "${OUT}") - 1 ))"
+head -3 "${OUT}"
