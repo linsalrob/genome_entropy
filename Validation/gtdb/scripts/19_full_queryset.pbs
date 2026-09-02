@@ -1,0 +1,213 @@
+#!/bin/bash
+#PBS -N ge_fullqset
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=48
+#PBS -l mem=190GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/full_queryset.log
+#
+# Build the FULL-POPULATION query set (issue #97, deliverables 1-4).
+#
+# WHY THIS EXISTS RATHER THAN JUST RUNNING 14_pilot_queryset.pbs BIGGER
+#
+# 14_pilot_queryset.py's match_2d is O(n_candidates x pool): for every
+# candidate it scores the whole unused pool with numpy, and the pool scan is
+# a fresh np.flatnonzero each time. At the pilot's 8,712 candidates against
+# 26,000 shadows that is minutes. At 523,346 candidates against 1.5 M
+# shadows it is roughly 3,600x that work in one single-threaded process --
+# days, not hours. Raising --chunks to all 760 does not scale, it hangs.
+#
+# The fix is not a faster matcher, it is a smaller matching problem. Chunks
+# are arbitrary groupings of 250 genomes, so matching WITHIN a chunk is not
+# a compromise -- it is strictly better than pooling, because a candidate's
+# partner is then drawn from a genome set 760x closer to its own. Each chunk
+# matches ~633 candidates against a 2,000-row pool per arm in seconds, and
+# 760 of those run in parallel across 48 cores.
+#
+# WHY THE CANDIDATE ARM IS 100% AND THE CONTROLS ARE NOT
+#
+# They answer different questions. Ranking candidates and counting the ones
+# with strong direct evidence are PER-CANDIDATE statements: a subsample makes
+# them extrapolations, which is exactly the weakness of the 13-chunk pilot
+# that this run exists to remove. A control arm only has to pin down a RATE,
+# and 152,000 draws put a 5% background rate inside +/-0.11 points. Sizing
+# the controls at 200 per chunk also makes them match BETTER: 200 draws from
+# a pool of 2,000 finds closer partners than 633 draws do.
+#
+# shadow_hi keeps 1:1 anyway. It is the principal control, it is what the
+# whole result rests on, and at 0.021 s/query it costs about 45 minutes of
+# node time to be able to say "every candidate was searched alongside its own
+# length- and 3Di-matched shadow from the same genome".
+#
+#   qsub -v DOMAIN=bac 19_full_queryset.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+: "${NSHARDS:=4}"
+: "${SHADOW_CAP:=0}"
+: "${CONTROL_CAP:=200}"
+: "${SEED:=0}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
+GROUP_DIR="${GROUP_DIR:-${GDATA_ROOT}/missed_genes/${DOMAIN}}"
+OUT_DIR="${OUT_DIR:-${GDATA_ROOT}/missed_genes/full_${DOMAIN}}"
+# The authoritative chunk set. NOT "whatever candidates tables happen to be
+# present": that is the defect that has bitten this pipeline five times --
+# a stage verifies its own inputs and publishes an artefact downstream
+# consumers read as covering the whole domain. entropy_rows/ is the set
+# 13_missed_gene_candidates.pbs classified, and 04b verified its row counts
+# chunk by chunk against the originals.
+ROWS_DIR="${ROWS_DIR:-${GDATA_ROOT}/entropy_rows/${DOMAIN}}"
+
+PERCHUNK="${OUT_DIR}/perchunk"
+mkdir -p "${PERCHUNK}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+python3 -c "from genome_entropy.io.genbank import normalise_orf_interval" || {
+    echo "ERROR: this environment predates normalise_orf_interval, so the" >&2
+    echo "       tables being read may carry the confounded arm split." >&2
+    exit 1
+}
+
+# --- the expected chunk set, and proof the classification covers it -------
+ls "${ROWS_DIR}"/${DOMAIN}_*.tsv.gz 2>/dev/null \
+    | sed 's#.*/##; s#\.tsv\.gz$##' | sort > "${PBS_JOBFS}/expected.txt"
+n_expected=$(wc -l < "${PBS_JOBFS}/expected.txt")
+if [ "${n_expected}" -eq 0 ]; then
+    echo "ERROR: no ${DOMAIN}_*.tsv.gz under ${ROWS_DIR}" >&2
+    exit 1
+fi
+echo "expected chunks : ${n_expected}  (from ${ROWS_DIR})"
+
+missing=0
+: > "${PBS_JOBFS}/missing.txt"
+while read -r tag; do
+    for part in candidates controls; do
+        [ -s "${GROUP_DIR}/${tag}.${part}.tsv.gz" ] \
+            || { echo "${tag}.${part}" >> "${PBS_JOBFS}/missing.txt"; missing=1; }
+    done
+    [ -s "${GROUP_DIR}/${tag}.stats.tsv" ] \
+        || { echo "${tag}.stats" >> "${PBS_JOBFS}/missing.txt"; missing=1; }
+done < "${PBS_JOBFS}/expected.txt"
+if [ "${missing}" -ne 0 ]; then
+    echo "ERROR: the classification does not cover every expected chunk." >&2
+    echo "       $(wc -l < "${PBS_JOBFS}/missing.txt") missing tables:" >&2
+    head -20 "${PBS_JOBFS}/missing.txt" >&2
+    echo "       Run 13_missed_gene_candidates.pbs for DOMAIN=${DOMAIN} first." >&2
+    exit 1
+fi
+
+# The number every later count has to reconcile with, taken from the stats
+# tables rather than from the wanted lists this job is about to write.
+cand_expected=$(awk -F'\t' 'FNR>1 {s+=$10} END {print s+0}' \
+                "${GROUP_DIR}"/*.stats.tsv)
+echo "candidates      : ${cand_expected} (summed over stats tables)"
+echo "shadow cap      : ${SHADOW_CAP} (0 = one shadow per candidate)"
+echo "control cap     : ${CONTROL_CAP} per chunk, per arm"
+
+# --- one wanted list per chunk, in parallel ------------------------------
+cat > "${PBS_JOBFS}/one_chunk.sh" <<EOF
+#!/bin/bash
+tag="\$1"
+out="${PERCHUNK}/\${tag}.wanted.tsv"
+log="${PERCHUNK}/\${tag}.log"
+# Resume on the OUTPUT, and only when it is non-empty and has a header, so a
+# job killed mid-write is redone rather than trusted.
+if [ -s "\${out}" ] && head -1 "\${out}" | grep -q group; then
+    exit 0
+fi
+python3 ${PBS_O_WORKDIR}/14_pilot_queryset.py \\
+    --group-dir "${GROUP_DIR}" --chunks "\${tag}" --out "\${out}" \\
+    --shadow-cap ${SHADOW_CAP} --control-cap ${CONTROL_CAP} \\
+    --seed ${SEED} > "\${log}" 2>&1
+EOF
+chmod +x "${PBS_JOBFS}/one_chunk.sh"
+
+echo ""
+echo "=== matching, ${PBS_NCPUS:-48} chunks at a time ==="
+t0=$SECONDS
+xargs -a "${PBS_JOBFS}/expected.txt" -n1 -P "${PBS_NCPUS:-48}" \
+      "${PBS_JOBFS}/one_chunk.sh"
+echo "matched in $((SECONDS - t0))s"
+
+# --- verify before publishing anything ----------------------------------
+absent=0
+while read -r tag; do
+    [ -s "${PERCHUNK}/${tag}.wanted.tsv" ] || { echo "  no wanted list: ${tag}" >&2; absent=$((absent+1)); }
+done < "${PBS_JOBFS}/expected.txt"
+if [ "${absent}" -ne 0 ]; then
+    echo "ERROR: ${absent} of ${n_expected} chunks produced no wanted list." >&2
+    echo "       Per-chunk stderr is in ${PERCHUNK}/<tag>.log" >&2
+    exit 1
+fi
+
+cand_got=$(awk -F'\t' 'FNR>1 && $6=="candidate" {n++} END {print n+0}' \
+           "${PERCHUNK}"/*.wanted.tsv)
+echo ""
+echo "candidate rows  : ${cand_got} (expected ${cand_expected})"
+if [ "${cand_got}" != "${cand_expected}" ]; then
+    echo "ERROR: the candidate arm does not contain every candidate. This run" >&2
+    echo "       exists precisely to stop being a subsample, so a shortfall" >&2
+    echo "       here is fatal rather than a warning." >&2
+    exit 1
+fi
+
+# Pool exhaustion truncates a control arm in ASCENDING LENGTH order, so it
+# does not lose a random subset -- it loses the longest members. Surface it.
+if grep -h "^WARNING" "${PERCHUNK}"/*.log > "${OUT_DIR}/match_warnings.txt" 2>/dev/null \
+   && [ -s "${OUT_DIR}/match_warnings.txt" ]; then
+    echo ""
+    echo "=== $(wc -l < "${OUT_DIR}/match_warnings.txt") match warnings ==="
+    sort "${OUT_DIR}/match_warnings.txt" | uniq -c | sort -rn | head -10
+    echo "(full list in ${OUT_DIR}/match_warnings.txt)"
+else
+    echo "no pool-exhaustion warnings: every arm matched its full target set"
+fi
+
+# --- publish: one combined list, plus contiguous shards -----------------
+# Contiguous blocks, NOT round-robin. 14b_extract_orf_seqs.pbs walks one zstd
+# stream per chunk to pull the sequences, so a shard that spans all 760
+# chunks would make every archive be read four times instead of once.
+hdr=$(head -1 "${PERCHUNK}/$(head -1 "${PBS_JOBFS}/expected.txt").wanted.tsv")
+publish () {                       # outfile  tagfile
+    local out="$1" tags="$2"
+    printf '%s\n' "${hdr}" > "${out}.partial"
+    while read -r tag; do
+        tail -n +2 "${PERCHUNK}/${tag}.wanted.tsv" >> "${out}.partial"
+    done < "${tags}"
+    mv "${out}.partial" "${out}"
+}
+
+publish "${OUT_DIR}/wanted.tsv" "${PBS_JOBFS}/expected.txt"
+
+per=$(( (n_expected + NSHARDS - 1) / NSHARDS ))
+split -l "${per}" -d -a 1 "${PBS_JOBFS}/expected.txt" "${PBS_JOBFS}/shard."
+s=1
+for f in "${PBS_JOBFS}"/shard.*; do
+    publish "${OUT_DIR}/wanted.shard${s}.tsv" "${f}"
+    cp "${f}" "${OUT_DIR}/chunks.shard${s}.txt"
+    printf 'shard %d: %4d chunks  %9d ORFs  %9d candidates\n' "${s}" \
+        "$(wc -l < "${f}")" \
+        "$(( $(wc -l < "${OUT_DIR}/wanted.shard${s}.tsv") - 1 ))" \
+        "$(awk -F'\t' 'FNR>1 && $6=="candidate" {n++} END {print n+0}' "${OUT_DIR}/wanted.shard${s}.tsv")"
+    s=$((s+1))
+done
+
+echo ""
+echo "=== combined query set: ${OUT_DIR}/wanted.tsv ==="
+awk -F'\t' 'NR>1 {n[$6]++; len[$6]+=$7} END {
+    for (g in n) printf "  %-16s %10d  mean %6.1f aa\n", g, n[g], len[g]/n[g]
+}' "${OUT_DIR}/wanted.tsv" | sort
+echo "  TOTAL           $(( $(wc -l < "${OUT_DIR}/wanted.tsv") - 1 ))"
+echo ""
+echo "Next: 14b_extract_orf_seqs.pbs per shard, then 17_pilot_search.pbs."

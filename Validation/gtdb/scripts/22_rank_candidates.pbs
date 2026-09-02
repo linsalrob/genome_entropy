@@ -1,0 +1,39 @@
+#!/bin/bash
+#PBS -N ge_rank
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=4
+#PBS -l mem=190GB
+#PBS -l walltime=04:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# 22_rank_candidates.py under the scheduler.
+#
+# WHY 190 GB: it holds the candidate AND matched-shadow arms with every
+# Foldseek column for four databases in two modes -- for bacteria that is
+# ~1.05 M rows by ~70 columns, plus eight hit tables, in pandas. Peak is well
+# above what a login node should be asked for.
+#
+#   qsub -v DOMAIN=bac,CONTEXT=<...>/context,SEARCH=<...>/search_pooled/best,\
+#           PREFIX=<...>/ranked 22_rank_candidates.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:=bac}"
+: "${CONTEXT:?Pass CONTEXT=<context dir> via qsub -v}"
+: "${SEARCH:?Pass SEARCH=<best/ dir, or comma-separated dirs> via qsub -v}"
+: "${PREFIX:?Pass PREFIX=<output path prefix> via qsub -v}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+python3 -u 22_rank_candidates.py \
+    --domain "${DOMAIN}" \
+    --context "${CONTEXT}" \
+    --search-dirs "${SEARCH}" \
+    --out-prefix "${PREFIX}"

@@ -1,0 +1,214 @@
+#!/bin/bash
+#PBS -N ge_regen_rows
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=48
+#PBS -l mem=190GB
+#PBS -l jobfs=20GB
+#PBS -l walltime=06:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/regen_rows.log
+#
+# Regenerate the per-chunk entropy TSVs so they carry contig_length.
+#
+# WHY THIS EXISTS
+#
+# The 760 bacterial TSVs in entropy_3di_results/<domain>/ were written
+# before extract_entropy_rows.py appended contig_length. 10_missed_genes.py
+# cannot use them: a negative-strand ORF's start/end index the reverse
+# complement, so without the record length it cannot be placed on the
+# forward genomic axis, and mixing coordinate systems is the exact defect
+# the reclassification exists to fix. The value is only in the JSON
+# archives, as each record's input_dna_length.
+#
+# The archives are streamed, not unpacked. A chunk is 1.6 GB compressed and
+# ~6.9 GB of JSON, so unpacking at 48 workers would want ~330 GB of jobfs.
+# extract_entropy_rows.py --archive walks the zstd/tar stream in place and
+# buffers one genome at a time.
+#
+# Output goes to a NEW directory. The existing TSVs are still read by
+# 05_aggregate_results.py, 07_count_orfs.pbs, 08b_sample_for_figures.pbs and
+# 11_genome_annotation_status.pbs, some of which address columns by number;
+# overwriting them in place would change that schema underneath those
+# scripts while this job was still running.
+#
+# INTEGRITY
+#
+# Every regenerated TSV must hold exactly as many rows as the one it
+# replaces -- same archives, same parser, one extra column. That equality is
+# checked per chunk and a mismatch fails the chunk, because a short TSV here
+# would silently shrink the candidate pool downstream. The expected chunk
+# set comes from accessions/, not from whatever archives are on disk, for
+# the same reason 12_genome_cds_counts.pbs does it that way.
+#
+# Submit as:
+#   qsub -v DOMAIN=bac 04b_regenerate_entropy_rows.pbs
+#
+# Resume is free: a chunk whose new TSV already exists, carries the
+# contig_length header and matches the old row count is skipped.
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${DOMAIN:?Pass DOMAIN=bac or DOMAIN=arc via qsub -v}"
+case "${DOMAIN}" in bac|arc) ;; *) echo "DOMAIN must be bac or arc" >&2; exit 2 ;; esac
+
+GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
+OLD="${GDATA_ROOT}/entropy_3di_results/${DOMAIN}"
+NEW="${NEW_ROWS_DIR:-${GDATA_ROOT}/entropy_rows/${DOMAIN}}"
+mkdir -p "${NEW}"
+
+cat > "${PBS_JOBFS}/one_chunk.sh" <<EOF
+#!/bin/bash
+set -euo pipefail
+tag="\$1"
+chunk="\${tag#${DOMAIN}_}"
+archive="${OLD}/\${tag}.tar.zst"
+old_tsv="${OLD}/\${tag}.tsv.gz"
+new_tsv="${NEW}/\${tag}.tsv.gz"
+
+# Row count of the TSV being replaced, minus its header.
+old_rows=\$(zcat "\${old_tsv}" | tail -n +2 | wc -l)
+
+# Resume: an existing output that carries the column and matches the old
+# row count is finished. Checked rather than assumed, so a TSV left behind
+# by a walltime kill mid-write is redone instead of published.
+# Header read via command substitution, not \`zcat | head -1 | grep -q\`:
+# head closes the pipe, zcat dies of SIGPIPE, and under pipefail the
+# pipeline reports failure even on a match -- which would silently redo
+# every already-finished chunk instead of skipping it.
+new_hdr=\$(zcat "\${new_tsv}" 2>/dev/null | head -1 || true)
+if [ -s "\${new_tsv}" ] && [ "\${new_hdr#*contig_length}" != "\${new_hdr}" ]; then
+    have=\$(zcat "\${new_tsv}" | tail -n +2 | wc -l)
+    if [ "\${have}" -eq "\${old_rows}" ]; then
+        exit 0
+    fi
+    echo "REDO \${tag}: existing output has \${have} rows, expected \${old_rows}" >&2
+fi
+
+# Write beside the target and move it into place, so an interrupted worker
+# cannot leave a short TSV that the resume check above would then have to
+# tell apart from a complete one. The .partial suffix also keeps
+# rclone_fixed.pbs from backing up a file that is still being written.
+tmp="\${new_tsv}.partial"
+# Cleanup via trap, not an inline rm after each check: this script runs
+# under \`set -e\`, so a failing check aborts BEFORE any rm on the next line
+# and leaves the staging file behind. That is exactly what happened on job
+# 177970150 -- 760 orphaned partials, 416 GB.
+trap 'rm -f "\${tmp}"' EXIT
+
+rc=0
+python3 "${PBS_O_WORKDIR}/extract_entropy_rows.py" \\
+    --archive "\${archive}" \\
+    --chunk "\${chunk}" --domain "${DOMAIN}" \\
+    --output "\${tmp}" --gzip \\
+    --failures "${NEW}/\${tag}.unparseable" || rc=\$?
+
+if [ "\${rc}" -ne 0 ]; then
+    echo "ERROR \${tag}: extract_entropy_rows.py exited \${rc}" >&2
+    exit 1
+fi
+
+# The staging name does not end in .gz, so the writer has to be told to
+# compress. Check that it did rather than trusting the flag: a plain-text
+# file renamed to .tsv.gz is unreadable by every downstream pandas call and
+# would only surface much later.
+if [ "\$(head -c2 "\${tmp}" | od -An -tx1 | tr -d ' ')" != "1f8b" ]; then
+    echo "ERROR \${tag}: staging file is not gzip; refusing to publish it" >&2
+    exit 1
+fi
+
+new_rows=\$(zcat "\${tmp}" | tail -n +2 | wc -l)
+if [ "\${new_rows}" -ne "\${old_rows}" ]; then
+    # Same archives and the same parser, so the row sets must be identical.
+    # A difference means this TSV is not the chunk it claims to be.
+    echo "ERROR \${tag}: \${new_rows} rows, but the TSV it replaces has \${old_rows}" >&2
+    exit 1
+fi
+
+mv "\${tmp}" "\${new_tsv}"
+trap - EXIT
+EOF
+chmod +x "${PBS_JOBFS}/one_chunk.sh"
+
+# The expected chunk set comes from the accession manifest, which
+# 01b_make_chunks.sh already verifies accounts for every accession.
+ls "${PBS_O_WORKDIR}/accessions/${DOMAIN}"_*.txt \
+    > "${PBS_JOBFS}/expected.txt" 2>/dev/null || true
+if [ ! -s "${PBS_JOBFS}/expected.txt" ]; then
+    echo "ERROR: no accessions/${DOMAIN}_*.txt under ${PBS_O_WORKDIR}." >&2
+    echo "       Run 01b_make_chunks.sh first; without the manifest this job" >&2
+    echo "       cannot tell a complete regeneration from a partial one." >&2
+    exit 1
+fi
+n_expected=$(wc -l < "${PBS_JOBFS}/expected.txt")
+
+: > "${PBS_JOBFS}/tags.txt"
+: > "${PBS_JOBFS}/unrecoverable.txt"
+while read -r acc_file; do
+    tag="$(basename "${acc_file}" .txt)"
+    if [ -s "${OLD}/${tag}.tar.zst" ] && [ -s "${OLD}/${tag}.tsv.gz" ]; then
+        echo "${tag}" >> "${PBS_JOBFS}/tags.txt"
+    else
+        echo "${tag}" >> "${PBS_JOBFS}/unrecoverable.txt"
+    fi
+done < "${PBS_JOBFS}/expected.txt"
+
+echo "chunks expected : ${n_expected}"
+echo "to regenerate   : $(wc -l < "${PBS_JOBFS}/tags.txt")"
+
+if [ -s "${PBS_JOBFS}/unrecoverable.txt" ]; then
+    n_unrec=$(wc -l < "${PBS_JOBFS}/unrecoverable.txt")
+    echo "ERROR: ${n_unrec} of ${n_expected} chunk(s) lack an archive or the" >&2
+    echo "       TSV to check against:" >&2
+    head -10 "${PBS_JOBFS}/unrecoverable.txt" | sed 's/^/         /' >&2
+    if [ "${ALLOW_PARTIAL:-0}" != "1" ]; then
+        echo "       Refusing to regenerate a set that 10_missed_genes.py" >&2
+        echo "       would then treat as the whole domain." >&2
+        echo "       Pass ALLOW_PARTIAL=1 to proceed deliberately." >&2
+        exit 1
+    fi
+    echo "       ALLOW_PARTIAL=1 given; proceeding without them." >&2
+fi
+
+# One worker per core. Each buffers a single genome's rows, not a chunk's,
+# so peak RSS is set by the largest genome rather than the largest chunk.
+xargs_rc=0
+xargs -a "${PBS_JOBFS}/tags.txt" -n1 -P "${PBS_NCPUS:-48}" \
+      "${PBS_JOBFS}/one_chunk.sh" || xargs_rc=$?
+
+# xargs reporting success is not proof that every chunk produced a TSV.
+missing=0
+while read -r tag; do
+    if [ ! -s "${NEW}/${tag}.tsv.gz" ]; then
+        echo "ERROR: no regenerated TSV for ${tag}" >&2
+        missing=$((missing + 1))
+    fi
+done < "${PBS_JOBFS}/tags.txt"
+
+# Any genome the parser could not read is science this TSV is missing, and
+# 10_missed_genes.py reads only the TSV.
+n_unparseable=$(cat "${NEW}"/*.unparseable 2>/dev/null | wc -l)
+if [ "${n_unparseable}" -gt 0 ]; then
+    echo "ERROR: ${n_unparseable} genome(s) produced unreadable JSON:" >&2
+    cat "${NEW}"/*.unparseable 2>/dev/null | head -10 | sed 's/^/         /' >&2
+fi
+
+if [ "${xargs_rc}" -ne 0 ] || [ "${missing}" -gt 0 ] || [ "${n_unparseable}" -gt 0 ]; then
+    echo "ERROR: regeneration incomplete (xargs exit ${xargs_rc}," >&2
+    echo "       ${missing} missing, ${n_unparseable} unparseable genomes)." >&2
+    echo "       Chunks already complete are skipped on resubmission, so a" >&2
+    echo "       rerun redoes only the failures." >&2
+    exit 1
+fi
+
+n_done=$(ls "${NEW}"/${DOMAIN}_*.tsv.gz 2>/dev/null | wc -l)
+echo ""
+echo "=== ${NEW} ==="
+echo "  chunk TSVs with contig_length : ${n_done} of ${n_expected}"
+echo "  total size                    : $(du -csh "${NEW}"/${DOMAIN}_*.tsv.gz 2>/dev/null | tail -1 | cut -f1)"
+echo ""
+echo "  Point 13_missed_gene_candidates.pbs at this directory:"
+echo "    qsub -v DOMAIN=${DOMAIN},RESULTS=${NEW} 13_missed_gene_candidates.pbs"

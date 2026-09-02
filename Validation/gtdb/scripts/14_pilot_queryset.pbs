@@ -1,0 +1,92 @@
+#!/bin/bash
+#PBS -N ge_queryset
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=4
+#PBS -l mem=32GB
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/pilot_queryset.log
+#
+# Build the pilot wanted list by matching each candidate to a partner in
+# every control arm.
+#
+# WHY THIS IS A JOB AND NOT A LOGIN-NODE COMMAND
+#
+# 14_pilot_queryset.py's match_2d walks every candidate and, for each,
+# scores the whole unused pool with numpy. At ~8,700 candidates against
+# pools of several hundred thousand that is billions of element operations,
+# single-threaded, for minutes. It is small in memory and large in CPU,
+# which is exactly what should not run on a login node.
+#
+# Submit as:
+#   qsub -v GROUP_DIR=<dir of per-chunk candidates/controls>,\
+#           CHUNKS=bac_000,bac_001,...,OUT=<wanted.tsv> 14_pilot_queryset.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${GROUP_DIR:?Pass GROUP_DIR=<dir with per-chunk candidates/controls> via qsub -v}"
+: "${OUT:?Pass OUT=<wanted list tsv> via qsub -v}"
+
+# CHUNKS is derived from GROUP_DIR by default rather than passed. qsub -v
+# splits its variable list on commas, so a comma-separated chunk list has to
+# be quoted in a way that survives both the shell and PBS, and getting that
+# wrong fails the submission outright. The pilot directory already contains
+# exactly the chunks the pilot is over, so ask it.
+if [ -z "${CHUNKS:-}" ]; then
+    CHUNKS=$(ls "${GROUP_DIR}"/*.candidates.tsv.gz 2>/dev/null \
+             | sed 's#.*/##; s#\.candidates\.tsv\.gz$##' | paste -sd, -)
+fi
+if [ -z "${CHUNKS}" ]; then
+    echo "ERROR: no *.candidates.tsv.gz under ${GROUP_DIR}" >&2
+    exit 1
+fi
+echo "chunks: ${CHUNKS}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+SEED="${SEED:-0}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+# The arms are only as good as the classification they are drawn from, and a
+# table written before normalise_orf_interval landed puts candidates and
+# shadows in each other's arms. Checked once here rather than trusted.
+python3 -c "from genome_entropy.io.genbank import normalise_orf_interval" || {
+    echo "ERROR: the active environment has no normalise_orf_interval, so the" >&2
+    echo "       tables this reads may carry the confounded split." >&2
+    exit 1
+}
+
+# A control table without unannot_hi predates the entropy-matched arm, and
+# the pilot would silently run four arms while reporting five.
+first="${CHUNKS%%,*}"
+# NOT `zcat ... | head -1 | grep -q ...`: head closes the pipe after one
+# line, zcat dies of SIGPIPE, and under `set -o pipefail` the pipeline
+# reports failure even when grep matched. That inverted this very check and
+# failed job 177981381 on a file that was perfectly well formed.
+hdr=$(zcat "${GROUP_DIR}/${first}.controls.tsv.gz" 2>/dev/null | head -1 || true)
+case "${hdr}" in
+    *group*) ;;
+    *)
+        echo "ERROR: ${GROUP_DIR}/${first}.controls.tsv.gz has no group column" >&2
+        echo "       header was: ${hdr}" >&2
+        exit 1
+        ;;
+esac
+
+mkdir -p "$(dirname "${OUT}")"
+python3 "${PBS_O_WORKDIR}/14_pilot_queryset.py" \
+    --group-dir "${GROUP_DIR}" \
+    --chunks "${CHUNKS}" \
+    --out "${OUT}" \
+    --seed "${SEED}"
+
+echo ""
+echo "wanted list -> ${OUT}"
+echo "arms present:"
+awk -F'\t' 'NR>1 {n[$6]++} END {for (g in n) printf "  %-16s %d\n", g, n[g]}' "${OUT}"

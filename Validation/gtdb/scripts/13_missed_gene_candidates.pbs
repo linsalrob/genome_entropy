@@ -45,8 +45,14 @@ cd "${PBS_O_WORKDIR}"
 
 ENV_PREFIX="/g/data/ob80/re3494/conda/genome_entropy"
 GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
-RESULTS="${GDATA_ROOT}/entropy_3di_results/${DOMAIN}"
-OUT="${GDATA_ROOT}/missed_genes/${DOMAIN}"
+# Overridable because the TSVs this reads must carry contig_length, and the
+# originals in entropy_3di_results/ do not. 04b_regenerate_entropy_rows.pbs
+# writes the regenerated set to entropy_rows/<domain>/; point this there.
+RESULTS="${RESULTS:-${GDATA_ROOT}/entropy_3di_results/${DOMAIN}}"
+# Overridable so a pilot can rebuild a handful of chunks with unsampled
+# controls into its own directory, without touching the domain-wide tables
+# or mixing two classifications in one place.
+OUT="${OUT:-${GDATA_ROOT}/missed_genes/${DOMAIN}}"
 ANNSTATUS="${ANNSTATUS:-${GDATA_ROOT}/genome_cds_counts_${DOMAIN}.tsv}"
 CDSDIR="${CDSDIR:-${GDATA_ROOT}/cds_intervals/${DOMAIN}}"
 mkdir -p "${OUT}"
@@ -86,10 +92,12 @@ cat > "${PBS_JOBFS}/one_chunk.sh" <<EOF
 f="\$1"
 tag="\$(basename "\${f}" .tsv.gz)"
 # Resume only over output from the CURRENT classification. Stats written
-# before the coordinate fix have no cds_parts column, and skipping them
-# would republish the confounded split under a clean exit status.
+# before the coordinate fix have no cds_parts column, and those written
+# before the entropy-matched intergenic arm have no unannot_hi column;
+# skipping either would republish a superseded split under a clean exit
+# status. Key on the newest column, which implies the older ones.
 if [ -s "${OUT}/\${tag}.stats.tsv" ] && \
-   head -1 "${OUT}/\${tag}.stats.tsv" | grep -q cds_parts; then
+   head -1 "${OUT}/\${tag}.stats.tsv" | grep -q unannot_hi; then
     exit 0
 fi
 python3 ${PBS_O_WORKDIR}/10_missed_genes.py \\
@@ -101,8 +109,8 @@ chmod +x "${PBS_JOBFS}/one_chunk.sh"
 
 ls "${RESULTS}"/${DOMAIN}_*.tsv.gz > "${PBS_JOBFS}/files.txt" 2>/dev/null || true
 echo "chunks present : $(wc -l < "${PBS_JOBFS}/files.txt")"
-echo "already done   : $(grep -l cds_parts "${OUT}"/*.stats.tsv 2>/dev/null | wc -l)"
-echo "stale (redone) : $(grep -L cds_parts "${OUT}"/*.stats.tsv 2>/dev/null | wc -l)"
+echo "already done   : $(grep -l unannot_hi "${OUT}"/*.stats.tsv 2>/dev/null | wc -l)"
+echo "stale (redone) : $(grep -L unannot_hi "${OUT}"/*.stats.tsv 2>/dev/null | wc -l)"
 
 # One worker per core. Measured peak RSS is 965 MB on the largest chunk
 # tried (bac_051, 3.87 M ORF rows) at ~100 s, so 48 workers need ~45 GB of
