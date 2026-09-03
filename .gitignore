@@ -210,3 +210,10 @@ __marimo__/
 
 # compiled code
 bin/extract_genbank_locus
+
+# PBS Pro job output. Written next to the submitted script as
+# <jobname>.o<jobid> / .e<jobid> whenever -o/-e is not given, so they
+# accumulate in the script tree. Scheduler logs, not source.
+*.o[0-9]*
+*.e[0-9]*
+logs/

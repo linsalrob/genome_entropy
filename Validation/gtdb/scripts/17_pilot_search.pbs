@@ -95,7 +95,13 @@ fi
 run_search () {                      # qdb tag target mode
     local q="$1" qtag="$2" db="$3" mode="$4"
     local out="${OUT}/${qtag}.${db}.${mode}.m8"
-    [ -s "${out}" ] && { echo "  ${qtag} vs ${db} (${mode}): already done"; return 0; }
+    local best="${OUT}/best/${qtag}.${db}.${mode}.m8"
+    # Resume needs BOTH products present. A run interrupted between
+    # convertalis and the reduction below leaves the raw m8 looking finished
+    # while best/ is missing the file, and 18_pilot_analysis.py would then
+    # analyse a query set with one database silently absent.
+    [ -s "${out}" ] && [ -s "${best}" ] \
+        && { echo "  ${qtag} vs ${db} (${mode}): already done"; return 0; }
     local res="${PBS_JOBFS}/res_${qtag}_${db}_${mode}"
     local t0=$SECONDS
     if [ "${mode}" = "struct" ]; then
@@ -108,9 +114,35 @@ run_search () {                      # qdb tag target mode
     fi
     foldseek convertalis "${q}" "${DBROOT}/${db}" "${res}" "${out}" \
         --format-output "${FIELDS}" --threads "${PBS_NCPUS}" -v 1
-    printf '  %-22s %-16s %-6s %6ss  %10s hits  %7s queries\n' \
+
+    # Best hit per query, written to a SEPARATE DIRECTORY rather than a
+    # ".best.m8" suffix: 18_pilot_analysis.py globs "*.m8", so a suffix would
+    # make it read the raw and the reduced file as two databases and double
+    # count every arm. A subdirectory lets --search-dir choose one or the
+    # other and never both.
+    #
+    # This is not an optimisation, it is what makes the full-population
+    # analysis possible: at 1.5 M queries the raw afdb_swissprot m8 is ~24 GB
+    # and 18_pilot_analysis.py loads it with a plain pd.read_csv.
+    #
+    # Chosen by maximum bits in one pass, NOT by taking the first row per
+    # query. mmseqs2 does emit best-first within a query, but making the
+    # headline number depend on an undocumented output ordering is the kind of
+    # silent assumption that has already cost this pipeline two results.
+    # Keying on the bit score costs one awk pass and cannot be wrong.
+    mkdir -p "${OUT}/best"
+    awk -F'\t' '{ if (!($1 in b) || $10 + 0 > b[$1]) { b[$1] = $10 + 0; line[$1] = $0 } }
+                 END { for (q in line) print line[q] }' \
+        "${out}" > "${best}.partial"
+    mv "${best}.partial" "${best}"
+
+    # Queries-with-a-hit now comes from the reduced file, which has exactly
+    # one row per query. The old `cut -f1 | sort -u | wc -l` was an external
+    # sort of the whole m8 -- minutes per database at this scale, for a number
+    # the reduction already knows.
+    printf '  %-22s %-16s %-6s %6ss  %12s hits  %9s queries\n' \
         "${qtag}" "${db}" "${mode}" "$((SECONDS - t0))" \
-        "$(wc -l < "${out}")" "$(cut -f1 "${out}" | sort -u | wc -l)"
+        "$(wc -l < "${out}")" "$(wc -l < "${best}")"
     rm -rf "${res}"* "${TMP:?}"/* 2>/dev/null || true
 }
 
@@ -128,10 +160,11 @@ done
 
 echo ""
 echo "=== per-arm query counts with at least one hit ==="
-for f in "${OUT}"/*.m8; do
+# Over best/ rather than the raw m8: one row per query already, so no sort.
+for f in "${OUT}"/best/*.m8; do
     [ -s "${f}" ] || continue
     printf '%s\n' "$(basename "${f}" .m8)"
-    cut -f1 "${f}" | sort -u | awk -F'|' '{print "  " $NF}' | sort | uniq -c \
+    awk -F'\t' '{print $1}' "${f}" | awk -F'|' '{print "  " $NF}' | sort | uniq -c \
         | awk '{printf "    %-16s %s\n", $2, $1}'
 done
 echo ""

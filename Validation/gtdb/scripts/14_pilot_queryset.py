@@ -10,10 +10,26 @@ issue #92:
                  -- the PRINCIPAL confounding control
   annotated_cds  in_genbank=True -- positive control
   intergenic_lo  intergenic, 3Di < 2.5 -- negative structural-complexity
-                 control
+                 control. RETAINED BUT DEMOTED: it is low-3Di by
+                 construction, so its rate is confounded with entropy and
+                 reports nothing the 3Di quintile table does not.
+  unannot_hi     3Di >= 2.5 in a genome carrying NO GenBank CDS at all --
+                 the entropy-matched intergenic arm (issue #92)
   (null)         not selected here: it is the candidates' own 3Di strings
                  shuffled, generated at database-build time so that the
                  amino acids and lengths are identical by construction
+
+What unannot_hi is for, stated carefully because it is easy to over-read.
+An unannotated genome's ORFs are a MIXTURE that certainly contains real
+genes: the genome lacks annotation because no pipeline was run, not because
+one ran and found nothing. So this arm is NOT a non-coding floor, and a
+high rate in it is not evidence of false positives. It is closer to a
+positive control drawn without using annotation, and it asks the question
+the missed-gene hypothesis actually rests on: in genomes where annotation
+is simply absent, does the assay recover gene-like ORFs at the annotated
+rate, or at the shadow rate? If it cannot find genes there, it cannot find
+missed genes anywhere, and the candidate arm's null is uninformative rather
+than negative.
 
 The shadow arm is the point of the whole exercise. At full scale, candidates
 and high-3Di shadows are indistinguishable on every axis available without a
@@ -34,6 +50,12 @@ Matching differs by arm, deliberately:
   annotated_cds  length only. Matching real CDS on 3Di entropy would defeat
                  the purpose: their high 3Di is the signal, not a nuisance.
   intergenic_lo  length only, for the same reason in reverse.
+  unannot_hi     matched on length AND 3Di entropy, but NOT within genome --
+                 by construction its genomes are exactly the ones the
+                 candidates cannot come from, so a same-genome partner does
+                 not exist and asking for one would silently do nothing.
+                 Entropy matching is the whole point of the arm: it is what
+                 intergenic_lo failed to provide.
 
 Match quality is measured and reported rather than assumed -- how many
 matched within genome, and the achieved differences in each dimension.
@@ -51,6 +73,10 @@ import pandas as pd
 LENGTH_ONLY_ARMS = ("annotated_cds", "intergenic_lo")
 OUT_COLS = ["domain", "chunk", "genome", "input_id", "orf_id", "group",
             "aa_length", "three_di_entropy", "protein_entropy"]
+# Passed through to the wanted list when the control tables carry it, so
+# 18_pilot_analysis.py can stratify on completeness. Absent from tables
+# written before the clamp landed, hence optional rather than required.
+OPTIONAL_COLS = ["truncated"]
 
 
 def load(group_dir, chunks, pattern):
@@ -163,6 +189,23 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--max-candidates", type=int, default=0,
                     help="0 = all candidates in those chunks")
+    # The candidate arm and the control arms are sized independently because
+    # they answer different questions. Every candidate has to be searched --
+    # the ranked table and the direct-evidence count are per-candidate
+    # statements, and a subsample makes them extrapolations. A control arm
+    # only has to pin down a RATE, and a rate is precise long before it is
+    # 1:1: 152,000 controls put a 5% background rate inside +/-0.11 points,
+    # which is far tighter than anything downstream needs. Sizing the
+    # controls down also makes them match BETTER, not worse -- 200 draws
+    # from a pool of 2,000 finds closer partners than 633 draws do.
+    ap.add_argument("--shadow-cap", type=int, default=0,
+                    help="match at most this many shadow_hi partners "
+                         "(0 = one per candidate). shadow_hi is the "
+                         "principal control, so 1:1 is the default.")
+    ap.add_argument("--control-cap", type=int, default=0,
+                    help="match at most this many partners in each of "
+                         "unannot_hi, annotated_cds and intergenic_lo "
+                         "(0 = one per candidate)")
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
 
@@ -177,13 +220,49 @@ def main():
 
     parts = [cand.assign(group="candidate")]
 
+    # Targets for the matched arms. Subsampling the TARGETS rather than the
+    # matched output keeps each control arm distributed like the candidates
+    # in expectation, which is the property the mixture model rests on.
+    # Sorted by length for the same reason the candidates are: match_on_length
+    # walks outward from an insertion point and degrades gracefully only if
+    # its targets arrive in order.
+    def targets(cap, what):
+        if not cap or cap >= len(cand):
+            return cand
+        sub = cand.sample(cap, random_state=args.seed)
+        sub = sub.sort_values("aa_length", kind="stable").reset_index(drop=True)
+        print(f"{what:<20}: matched to a random {cap:,} of {len(cand):,} "
+              f"candidates (seed {args.seed})")
+        return sub
+
+    shadow_targets = targets(args.shadow_cap, "shadow targets")
+    ctrl_targets = targets(args.control_cap, "control targets")
+
+    def report_shortfall(arm, got, want):
+        """A pool that runs out truncates in ASCENDING LENGTH order.
+
+        Both matchers walk their targets in the order given and stop when
+        nothing unused is left, and the targets are sorted by length. So an
+        exhausted pool does not lose a random subset of the control arm, it
+        loses the LONGEST members of it -- a length-biased control, which is
+        worse than a smaller unbiased one. Never let this pass silently.
+        """
+        if got >= want:
+            return
+        print(f"WARNING: {arm} matched {got:,} of {want:,} targets -- the pool "
+              f"ran out, so this arm is MISSING ITS {want - got:,} LONGEST "
+              f"members and is length-biased against the candidates. Raise "
+              f"--controls-per-chunk in 10_missed_genes.py, or lower the cap.",
+              file=sys.stderr)
+
     # The confounding control: length AND 3Di, same genome where possible.
     shadows = ctrl[ctrl.group == "shadow_hi"]
     if len(shadows) == 0:
         print("ERROR: no shadow_hi rows -- the principal control is missing",
               file=sys.stderr)
         return 1
-    chosen, d_len, d_ent, same_genome = match_2d(cand, shadows)
+    chosen, d_len, d_ent, same_genome = match_2d(shadow_targets, shadows)
+    report_shortfall("shadow_hi", len(chosen), len(shadow_targets))
     parts.append(chosen.assign(group="shadow_hi"))
     print(f"{'shadow_hi':<20}: {len(chosen):,} matched from a pool of "
           f"{len(shadows):,}")
@@ -192,19 +271,46 @@ def main():
     print(f"{'':<20}  |dlen| median {np.median(d_len):.0f} aa, "
           f"|d3Di| median {np.median(d_ent):.3f} bits")
 
+    # The entropy-matched intergenic arm. Same 2-D matching as the shadow,
+    # without the same-genome preference: these genomes are by definition
+    # disjoint from the candidates', so prefer_same_genome could only ever
+    # fall through to the global search while implying it had not.
+    unannot = ctrl[ctrl.group == "unannot_hi"]
+    if len(unannot) == 0:
+        # Not fatal: chunks whose genomes are all annotated legitimately
+        # produce none, and the older control tables predate the arm.
+        print("WARNING: no unannot_hi rows -- the entropy-matched intergenic "
+              "arm is absent. Chunks classified before it was added do not "
+              "carry it; rerun 10_missed_genes.py over them if it is wanted.",
+              file=sys.stderr)
+    else:
+        chosen, d_len, d_ent, _ = match_2d(ctrl_targets, unannot,
+                                           prefer_same_genome=False)
+        report_shortfall("unannot_hi", len(chosen), len(ctrl_targets))
+        parts.append(chosen.assign(group="unannot_hi"))
+        print(f"{'unannot_hi':<20}: {len(chosen):,} matched from a pool of "
+              f"{len(unannot):,} in {unannot.genome.nunique():,} unannotated "
+              f"genomes")
+        print(f"{'':<20}  |dlen| median {np.median(d_len):.0f} aa, "
+              f"|d3Di| median {np.median(d_ent):.3f} bits")
+
     for arm in LENGTH_ONLY_ARMS:
         pool = ctrl[ctrl.group == arm]
         if len(pool) == 0:
             print(f"WARNING: no {arm} rows in the control tables", file=sys.stderr)
             continue
-        chosen, deltas = match_on_length(cand.aa_length.to_numpy(), pool)
+        want = ctrl_targets.aa_length.to_numpy()
+        chosen, deltas = match_on_length(want, pool)
+        report_shortfall(arm, len(chosen), len(want))
         parts.append(chosen.assign(group=arm))
-        within = (deltas <= np.maximum(1, 0.1 * cand.aa_length.to_numpy()[:len(deltas)])).mean()
+        within = (deltas <= np.maximum(1, 0.1 * want[:len(deltas)])).mean()
         print(f"{arm:<20}: {len(chosen):,} matched from a pool of {len(pool):,}"
               f"  |dlen| median {np.median(deltas):.0f}"
               f"  within 10%: {within*100:.1f}%")
 
-    out = pd.concat(parts, ignore_index=True)[OUT_COLS]
+    out = pd.concat(parts, ignore_index=True)
+    cols = OUT_COLS + [c for c in OPTIONAL_COLS if c in out.columns]
+    out = out[cols]
     dup = out.duplicated(subset=["genome", "input_id", "orf_id"]).sum()
     if dup:
         # The same ORF cannot serve in two arms; that would put one sequence

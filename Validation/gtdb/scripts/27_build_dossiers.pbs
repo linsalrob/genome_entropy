@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -N ge_dossiers
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=4
+#PBS -l mem=64GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# WHY A JOB: it walks one zstd GenBank archive per example chunk (~350 MB
+# compressed each, 250 genomes apiece, no random access) and parses the target
+# genome's genomic.gbff with Biopython to recover neighbour PRODUCTS, which
+# cds_intervals/ does not carry.
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+: "${EXAMPLES:?Pass EXAMPLES=<examples tsv> via qsub -v}"
+: "${OUTDIR:?Pass OUTDIR=<dossier directory> via qsub -v}"
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+python3 -u 27_build_dossiers.py --examples "${EXAMPLES}" --out-dir "${OUTDIR}"

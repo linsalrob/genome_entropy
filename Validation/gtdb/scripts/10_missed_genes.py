@@ -49,6 +49,20 @@ That gives three groups among unmatched ORFs in annotated genomes:
   intergenic  overlaps nothing annotated -> the actual candidate pool
   and each splits on the 3Di >= 2.5 line.
 
+A fourth group comes from the genomes the split above excludes. Genomes
+carrying no CDS features at all are dropped from the shadow/intergenic
+analysis, because with nothing annotated there is nothing for an ORF to
+overlap. Their high-3Di ORFs are kept anyway, as `unannot_hi`: the pilot's
+intergenic control is low-3Di by construction (3Di < 2.5), so its hit rate
+is confounded with entropy and reports nothing the 3Di quintiles do not
+already say (issue #92). `unannot_hi` is the entropy-matched intergenic arm
+that control was meant to be. Note what it is and is not: an unannotated
+genome's ORFs are a MIXTURE containing many real genes -- nobody ran a
+pipeline, not "a pipeline looked and found nothing" -- so this arm is not a
+non-coding floor. It asks whether the assay recovers genes in genomes whose
+annotation is simply absent, which is the population the missed-gene
+hypothesis is ultimately about.
+
 Length is the independent check. Real bacterial proteins have a
 characteristic length distribution; spurious ORF calls skew short. If the
 high-3Di intergenic ORFs are missed genes, their lengths should resemble
@@ -110,16 +124,29 @@ DTYPES = {
 }
 OUT_COLS = ["domain", "chunk", "genome", "input_id", "orf_id", "start", "end",
             "strand", "aa_length", "protein_entropy", "three_di_entropy",
+            "truncated",
+            # The normalised forward-axis interval, carried so that nothing
+            # downstream has to redo this conversion. Getting it wrong is
+            # what invalidated the first pilot, and 18_pilot_analysis.py's
+            # shadow-frame diagnostic then got it wrong a second time,
+            # independently. raw start/end are kept alongside because they
+            # are the key back into the JSON archives.
+            "g_start", "g_end",
             "group"]
 STATS_COLS = ["chunk", "genomes", "genomes_annotated",
               "genomes_annotated_matcher_proxy", "orfs",
               "orfs_annotated_genomes", "unmatched", "unmatched_hi",
               "unmatched_hi_shadow", "candidates", "intergenic_lo",
-              "annotated_cds", "cds_parts", "unparseable_in_genbank"]
+              "annotated_cds", "cds_parts", "unparseable_in_genbank",
+              "genomes_unannotated", "orfs_unannotated_genomes",
+              "unannot_hi", "unannot_matched", "truncated_at_contig_end"]
 
 
 def add_genomic_coordinates(df):
     """Place every ORF on the forward genomic axis, as g_start/g_end.
+
+    Returns (frame, n_truncated). n_truncated counts ORFs that run off the
+    end of their contig; see the boundary-sentinel note below.
 
     Vectorised equivalent of genome_entropy.io.genbank.normalise_orf_interval,
     which is the same helper the GenBank CDS matcher uses, so this analysis
@@ -139,7 +166,8 @@ def add_genomic_coordinates(df):
         out = df.copy()
         out["g_start"] = np.zeros(0, dtype=np.int64)
         out["g_end"] = np.zeros(0, dtype=np.int64)
-        return out
+        out["truncated"] = np.zeros(0, dtype=bool)
+        return out, 0
 
     start = df.start.to_numpy(dtype=np.int64)
     end = df.end.to_numpy(dtype=np.int64)
@@ -157,6 +185,26 @@ def add_genomic_coordinates(df):
 
     is_plus = strand == "+"
     is_minus = strand == "-"
+
+    # An ORF that runs off the end of its contig is emitted by get_orfs with
+    # end = contig_length + 1, and its dna.length follows the EXCLUSIVE
+    # convention (end - start) where a complete ORF uses the inclusive one
+    # (end - start + 1). Measured over bac_000: of 1,189,718 ORFs with
+    # end <= length, 100% carry has_stop_codon=True; of 28,728 with
+    # end > length, 100% carry has_stop_codon=False, and the overhang is
+    # exactly 1 in every case on both strands. So the +1 is a boundary
+    # sentinel meaning "truncated here", not a coordinate: the bases
+    # actually encoded are start..contig_length, which is what clamping
+    # gives. 1.6% of all ORFs are affected, and every chunk holds some, so
+    # raising on them would abort the whole reclassification.
+    #
+    # Only an overhang of exactly 1 is the known convention. Anything
+    # larger is unexplained input and still falls through to the checks
+    # below rather than being quietly clamped into range.
+    truncated = (end - length) == 1
+    n_truncated = int(truncated.sum())
+    end = np.where(truncated, length, end)
+
     bad_strand = ~(is_plus | is_minus)
     bad_coords = (start < 1) | (end < start)
     # Only the minus strand consults the record length, exactly as the
@@ -182,7 +230,12 @@ def add_genomic_coordinates(df):
     out = df.copy()
     out["g_start"] = g_start.astype(np.int64)
     out["g_end"] = g_end.astype(np.int64)
-    return out
+    # Carried per ORF, not just counted, so the pilot and the report can
+    # stratify on it: a truncated ORF has no stop codon by construction,
+    # which is weaker evidence of a real gene, and that should be testable
+    # rather than only noted.
+    out["truncated"] = truncated
+    return out, n_truncated
 
 
 def load_annotation_status(path):
@@ -335,7 +388,7 @@ def classify(df, with_cds, cds_dir, tag, thresh=THRESH):
     proxy = set(df.groupby("genome").in_genbank.any().pipe(lambda s: s[s].index))
 
     d = df[df.genome.isin(annotated)].reset_index(drop=True)
-    d = add_genomic_coordinates(d)
+    d, n_trunc_ann = add_genomic_coordinates(d)
 
     if len(d):
         cds = load_cds_intervals(cds_dir, set(d.genome.unique()), tag=tag)
@@ -348,11 +401,24 @@ def classify(df, with_cds, cds_dir, tag, thresh=THRESH):
     hi = unm[unm.three_di_entropy >= thresh]
     candidates = hi[~hi.shadow]
 
+    # The entropy-matched intergenic arm, from the genomes the split above
+    # discards. No CDS features means no annotation to overlap, so the shadow
+    # test does not apply and every ORF here is intergenic by construction.
+    u = df[~df.genome.isin(annotated)]
+    u, n_trunc_un = add_genomic_coordinates(u.reset_index(drop=True))
+    # in_genbank cannot be True in a genome with no CDS features to match it.
+    # If it is, the matcher and the CDS-count table disagree about the same
+    # genome, and the arm would quietly carry matched ORFs; count it so the
+    # disagreement is visible in the stats rather than absorbed into the arm.
+    unannot_matched = int(u.in_genbank.sum()) if len(u) else 0
+    unannot_hi = u[(~u.in_genbank) & (u.three_di_entropy >= thresh)]
+
     groups = {
         "candidate": candidates,
         "shadow_hi": hi[hi.shadow],
         "intergenic_lo": unm[(unm.three_di_entropy < thresh) & (~unm.shadow)],
         "annotated_cds": d[d.in_genbank],
+        "unannot_hi": unannot_hi,
     }
     stats = {
         "genomes": int(df.genome.nunique()),
@@ -367,6 +433,11 @@ def classify(df, with_cds, cds_dir, tag, thresh=THRESH):
         "intergenic_lo": len(groups["intergenic_lo"]),
         "annotated_cds": len(groups["annotated_cds"]),
         "cds_parts": len(cds),
+        "genomes_unannotated": len(present - annotated),
+        "orfs_unannotated_genomes": len(u),
+        "unannot_hi": len(unannot_hi),
+        "unannot_matched": unannot_matched,
+        "truncated_at_contig_end": n_trunc_ann + n_trunc_un,
     }
     return groups, stats
 
@@ -405,7 +476,7 @@ def write_chunk(path, out_dir, annotation_status, cds_dir, thresh,
     # a chunk is ~1.5 M rows and is not worth writing 760 times over.
     rng = np.random.default_rng(seed)
     parts = []
-    for label in ("annotated_cds", "intergenic_lo", "shadow_hi"):
+    for label in ("annotated_cds", "intergenic_lo", "shadow_hi", "unannot_hi"):
         g = groups[label]
         if len(g) > n_controls:
             take = rng.choice(len(g), size=n_controls, replace=False)
@@ -457,7 +528,13 @@ def aggregate(out_dir, thresh):
                   f"({delta/tot.genomes_annotated*100:.1f}% of annotated) "
                   f"<- counted as unannotated by the old in_genbank proxy")
     print(f"  ORFs in those genomes          : {int(tot.orfs_annotated_genomes):,}")
-    print(f"  deposited CDS parts read       : {int(tot.cds_parts):,}\n")
+    print(f"  deposited CDS parts read       : {int(tot.cds_parts):,}")
+    if "truncated_at_contig_end" in tot:
+        n_t = int(tot.truncated_at_contig_end)
+        print(f"  truncated at a contig end      : {n_t:,} "
+              f"({n_t/max(int(tot.orfs), 1)*100:.2f}% of ORFs) "
+              f"<- end clamped to the contig length")
+    print()
 
     print("STEP 2 - within annotated genomes, separate shadows from intergenic")
     print(f"  unmatched ORFs                  : {int(tot.unmatched):,}")
@@ -466,6 +543,29 @@ def aggregate(out_dir, thresh):
           f"({tot.unmatched_hi_shadow/tot.unmatched_hi*100:.1f}%)  <- shadow of a real gene")
     print(f"      intergenic                   : {int(tot.candidates):,} "
           f"({tot.candidates/tot.unmatched_hi*100:.1f}%)  <- CANDIDATE missed genes\n")
+
+    if "unannot_hi" in tot:
+        # 1b, not 3: the later "does the candidate pool look like real
+        # protein" section is already STEP 3, and this belongs with STEP 1
+        # anyway -- it is what STEP 1 discarded.
+        print("STEP 1b - the genomes step 1 removed, kept as the "
+              "entropy-matched arm")
+        n_un = int(tot.genomes_unannotated)
+        print(f"  genomes with no GenBank CDS     : {n_un:,} "
+              f"({n_un/tot.genomes*100:.0f}%)")
+        print(f"    ORFs in them                  : "
+              f"{int(tot.orfs_unannotated_genomes):,}")
+        print(f"    3Di >= {thresh}                     : "
+              f"{int(tot.unannot_hi):,}  <- unannot_hi arm")
+        if int(tot.unannot_matched):
+            # Not fatal, but it means the two annotation sources disagree,
+            # and silence here would let matched ORFs sit in an arm defined
+            # by there being nothing for them to match.
+            print(f"  WARNING: {int(tot.unannot_matched):,} ORF(s) in these "
+                  f"genomes have in_genbank=True, which cannot happen if the "
+                  f"genome truly has no CDS features. Excluded from the arm; "
+                  f"reconcile 12_genome_cds_counts.pbs against the matcher.")
+        print()
 
     cand = _read_all(out_dir, "*.candidates.tsv.gz")
     ctrl = _read_all(out_dir, "*.controls.tsv.gz")

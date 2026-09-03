@@ -1,0 +1,188 @@
+#!/bin/bash
+#PBS -P ob80
+#PBS -q copyq
+#PBS -l ncpus=1
+#PBS -l mem=32GB
+#PBS -l jobfs=20GB
+#PBS -l walltime=10:00:00
+#PBS -l wd
+#PBS -l storage=gdata/ob80
+#PBS -N gtdb_coords
+#PBS -j oe
+#
+# GTDB r232 Prodigal gene coordinates, for the ORF-level independent test.
+#
+# WHAT THIS IS FOR
+#
+# Our candidates are intergenic with respect to DEPOSITED GenBank CDS. GTDB
+# runs Prodigal over every representative genome independently of GenBank, and
+# Prodigal calls more genes than GenBank deposits in 88% of archaeal and 78%
+# of bacterial annotated genomes (median +30 and +29 genes). The question this
+# download answers is the sharp, per-ORF version:
+#
+#   does an individual candidate coincide with an actual Prodigal gene call
+#   that GenBank does not carry?
+#
+# That is evidence completely independent of Foldseek, the structural
+# databases and the two-component mixture model.
+#
+# WHY copyq: it is the only queue with outbound network. See rclone_fixed.pbs.
+#
+# WHY STREAM RATHER THAN DOWNLOAD
+#
+# The archive is 123 GiB and we want ~25 GB of coordinates out of it, so
+# storing it first would write 123 GiB to gdata to be deleted an hour later.
+# It is a single gzip stream with no random access, so one pass is required
+# either way. The stream is NOT resumable, which is the cost of that choice;
+# at an expected 2-3 h against a 10 h limit that is an acceptable risk, and a
+# failed run simply re-runs.
+#
+# WHY THE MEMBER NAMES ARE NOT NEEDED
+#
+# `tar -xzO` gives member CONTENTS without saying which member they came
+# from, and that is fine: every Prodigal header is prefixed with the CONTIG
+# accession, which is globally unique, and our own tables already map contig
+# to genome. So the output is contig-keyed and needs no genome column.
+#
+# WHY THE INNER zcat
+#
+# Members are individually gzipped INSIDE the tar
+# (protein_faa_reps/<domain>/<acc>_protein.faa.gz), so `tar -xzO` yields
+# concatenated gzip streams rather than text. zcat decompresses concatenated
+# members transparently. The --wildcards filter is what keeps
+# gtdb_release_tk.log, which is NOT gzip, out of that pipe.
+#
+# ARCHAEA COMES FIRST in the archive, so RANGE=<bytes> fetches a prefix and
+# gets the whole archaeal block for ~3% of the transfer. Used to validate the
+# parse and to answer the archaeal question without waiting for bacteria.
+#
+#   qsub -v RANGE=6000000000,OUT=<...>/gtdb_prodigal_coords_arc.tsv.gz \
+#        23_gtdb_prodigal_coords.pbs      # archaea only, minutes
+#   qsub -v OUT=<...>/gtdb_prodigal_coords.tsv.gz \
+#        23_gtdb_prodigal_coords.pbs      # everything
+
+set -euo pipefail
+
+GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
+URL="${URL:-https://data.gtdb.ecogenomic.org/releases/release232/232.0/genomic_files_reps/gtdb_proteins_aa_reps_r232.tar.gz}"
+OUT="${OUT:-${GDATA_ROOT}/gtdb_prodigal_coords.tsv.gz}"
+RANGE="${RANGE:-}"
+
+mkdir -p "$(dirname "${OUT}")"
+tmp="${OUT}.partial"
+# A stream killed at walltime leaves a plausible-looking .gz that a later
+# reader would treat as complete. Publish by rename only, and never leave the
+# staging file behind -- the 04b run left 416 GB of orphaned partials because
+# `set -e` skipped an inline rm.
+trap 'rm -f "${tmp}"' EXIT
+
+range_args=()
+if [ -n "${RANGE}" ]; then
+    range_args=(-r "0-${RANGE}")
+    echo "RANGE set: fetching the first ${RANGE} bytes (archaeal prefix)"
+else
+    echo "fetching the whole archive (~123 GiB)"
+fi
+
+echo "url : ${URL}"
+echo "out : ${OUT}"
+date -Is
+
+# pipefail is deliberately DISABLED for this one pipeline. A ranged fetch
+# truncates the gzip stream on purpose, so curl/tar/zcat all report failure at
+# the cut point even though every complete member before it was parsed
+# correctly. With pipefail on, the successful archaeal run would abort at the
+# very end and delete its own output.
+#
+# But disabling it must NOT let a truncated FULL download publish. Without
+# RANGE, a dropped connection, HTTP error or corrupt archive would leave the
+# pipeline reporting gzip's exit status -- zero -- and the checks below only
+# confirm the result is non-empty gzip with the right header, which a 60%
+# transfer also satisfies. PIPESTATUS is captured and, for a full download,
+# every stage is required to have succeeded.
+set +o pipefail
+curl -sS --fail-early --retry 5 --retry-delay 10 "${range_args[@]}" "${URL}" \
+  | tar -xzO --wildcards '*.faa.gz' 2>/dev/null \
+  | zcat 2>/dev/null \
+  | grep '^>' \
+  | awk 'BEGIN { FS = " # "; OFS = "\t"
+                 print "contig", "gene_index", "start", "end", "strand", "partial" }
+         NF >= 4 {
+             id = substr($1, 2)
+             n = match(id, /_[0-9]+$/)
+             if (n == 0) next
+             p = ""
+             if (match($5, /partial=[0-9]+/)) p = substr($5, RSTART + 8, RLENGTH - 8)
+             # Prodigal writes 1-based inclusive forward-axis coordinates with
+             # start < end on BOTH strands, and encodes strand as 1 / -1.
+             print substr(id, 1, n - 1), substr(id, n + 1), $2, $3, ($4 == "1" ? "+" : "-"), p
+         }' \
+  | gzip -c > "${tmp}"
+status=("${PIPESTATUS[@]}")
+set -o pipefail
+echo "pipeline exit statuses (curl tar zcat grep awk gzip): ${status[*]}"
+
+if [ -z "${RANGE}" ]; then
+    # curl is index 0 and gzip is last. grep returns 1 only when it matched
+    # nothing, which for this archive would itself be a failure, so every
+    # stage is required to be zero.
+    for i in "${!status[@]}"; do
+        if [ "${status[$i]}" -ne 0 ]; then
+            echo "ERROR: stage ${i} of the download pipeline exited "        \
+                 "${status[$i]}. A full run must not publish a partial" >&2
+            echo "       coordinate table -- it would pass the gzip and" >&2
+            echo "       header checks below while silently missing genes." >&2
+            exit 1
+        fi
+    done
+    echo "all pipeline stages exited 0: the transfer is complete"
+else
+    echo "RANGE set: non-zero statuses at the cut point are expected"
+fi
+
+date -Is
+
+# --- CHEAP checks only, then PUBLISH IMMEDIATELY ------------------------
+#
+# WHY THE ORDER MATTERS. The first attempt (178037744) downloaded and parsed
+# the whole 123 GiB archive successfully -- 618,638,921 coordinate rows in
+# 1h34m -- and then destroyed its own output at the verification step. The
+# statistics below included `cut -f1 | sort -u`, and `sort` spills to $TMPDIR,
+# which on Gadi is jobfs: 618 M values needed 333 MB against the 100 MB
+# default quota, PBS sent SIGTERM, and the EXIT trap deleted the finished
+# file. A verification step that costs more than the work it verifies, and
+# that can take the result down with it, is worse than no verification.
+#
+# So: confirm the file exists and is gzip -- microseconds, no temp space --
+# publish it, drop the trap, and only then compute anything expensive. After
+# the rename the result is safe no matter what happens next.
+if [ ! -s "${tmp}" ]; then
+    echo "ERROR: no output produced" >&2
+    exit 1
+fi
+if [ "$(head -c2 "${tmp}" | od -An -tx1 | tr -d ' ')" != "1f8b" ]; then
+    echo "ERROR: staging file is not gzip; refusing to publish it" >&2
+    exit 1
+fi
+hdr=$(zcat "${tmp}" 2>/dev/null | head -1 || true)
+echo "header : ${hdr}"
+case "${hdr}" in
+    contig*) ;;
+    *) echo "ERROR: unexpected header, refusing to publish: ${hdr}" >&2
+       exit 1 ;;
+esac
+
+mv "${tmp}" "${OUT}"
+trap - EXIT
+echo "coordinates -> ${OUT}  ($(du -h "${OUT}" | cut -f1))"
+
+# --- statistics, AFTER publication and non-fatal ------------------------
+# Streaming and memory-only. No sort, so no temp space: awk holds one key per
+# distinct contig (~20 M for the full set, a few GB of the 32 GB requested).
+# Any failure here is reported and ignored -- the file is already safe.
+echo ""
+echo "=== statistics (informational; the output above is already published) ==="
+zcat "${OUT}" 2>/dev/null | awk -F'\t' '
+    NR > 1 { rows++; if (!($1 in c)) { c[$1]++; contigs++ } }
+    END { printf "  rows            : %d\n  distinct contigs: %d\n", rows, contigs }
+' || echo "  (statistics pass failed; the published file is unaffected)"

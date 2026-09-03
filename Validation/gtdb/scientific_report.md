@@ -4,7 +4,8 @@
 **Model:** `gbouras13/modernprost-50M` — dual-head ModernProst, 3Di + 12-state
 **Tool:** `genome_entropy` 0.2.0, output schema 2.2.0
 **Platform:** NCI Gadi (PBS Pro), project `ob80`
-**Report date:** 2026-08-31 — bacteria and archaea complete
+**Report date:** 2026-09-03 — bacteria and archaea complete; §6 rewritten on the
+corrected classification and the full candidate population
 
 ---
 
@@ -22,26 +23,37 @@ established here — see the note under "Why encodings collapse to three
 states" in §5. Section 5 establishes the ceiling quantitatively.
 
 A secondary result (section 6) is that the population of unmatched ORFs with
-high 3Di entropy — a candidate pool for genes missed by annotation — is largely
-explained by two confounders: genomes that appear never to have been annotated
-(95.5% of the pool in the two chunks where the full pool was counted), and
-shadow ORFs overlapping real CDS (62.9% of what remains, measured across all
-760 chunks). Over the whole bacterial set, **3,562,431 candidates survive in
-96,701 genomes**.
+high 3Di entropy — a candidate pool for genes missed by annotation — is
+overwhelmingly explained by two confounders: genomes carrying no deposited CDS
+at all (**92,840 of 189,715 bacterial genomes, 49%**, counted from the GenBank
+records rather than inferred), and shadow ORFs overlapping a real CDS
+(**94.5%** of the high-3Di unmatched pool inside annotated genomes). After both
+are removed, **523,346 bacterial and 22,447 archaeal candidates remain** — an
+85% reduction on the first, defective pass.
 
-Both splits are provisional. The shadow test compared plus- and minus-strand
-coordinates in different systems, and "never annotated" was inferred from
-`in_genbank` rather than from the GenBank records, which can only over-count
-unannotated genomes. Both defects are fixed in the scripts; the numbers here
-predate the fixes, at both two-chunk and 760-chunk scale. See the note in
-section 6.
+A Foldseek structural homology search over **every** surviving candidate (§6.1,
+[issue #92](https://github.com/linsalrob/genome_entropy/issues/92),
+[#97](https://github.com/linsalrob/genome_entropy/issues/97)) gives the third
+result. Against a comparator of length- and 3Di-matched shadows with same-frame
+shadows removed, full-length mutual coverage implies that **23–27% of bacterial
+and 26–36% of archaeal candidates behave like real protein-coding genes** —
+roughly **128,000–149,000 ORFs**. A conservative count requiring strong
+individual evidence, rather than a mixture model, puts **~20,350** candidates
+beyond reasonable doubt and **~65,800** with any full-length structural hit.
 
-A Foldseek structural homology search of the candidate pool (§6.1, [issue #92](https://github.com/linsalrob/genome_entropy/issues/92))
-adds a third result: on full-length alignment coverage neither candidates nor
-shadow ORFs resemble annotated CDS, and the two are indistinguishable from each
-other. The first half of that stands on its own. The second half is weakened by
-the classification defects above, which move ORFs between the two arms and so
-bias the comparison toward finding no difference.
+An independent check agrees and disagrees informatively. GTDB's own Prodigal
+annotation — which consults neither GenBank nor any structure database — calls a
+gene in the same frame at **47.4%** of bacterial and **55.4%** of archaeal
+candidate loci, against **9.4%** and **16.0%** for matched shadows and
+**94–96%** for annotated CDS. Put through the same mixture arithmetic that gives
+**~244,000**, roughly **1.7× the structural estimate**. The two bracket the
+answer; §6.1 sets out why they differ and which is conservative.
+
+The results in the first draft of this section — 3,562,431 candidates, 95.5%
+never-annotated, and "candidates and shadows are indistinguishable" — are
+**withdrawn**. They rested on a coordinate defect that placed plus- and
+minus-strand ORFs in different systems and on `in_genbank` as a proxy for
+annotation. §6 records what replaced them and why the corrections mattered.
 
 ---
 
@@ -84,14 +96,18 @@ overlap, frame and translation:
 
 The low matched fraction is expected and is not an error rate. `get_orfs`
 enumerates open reading frames in all six frames, so most calls are not genes.
-Separately, **at least 48.9% of bacterial representatives carry no CDS
-annotation at all** (GCA assemblies submitted unannotated), and every ORF in
-those genomes is `False` by construction. Any analysis of what `False` *means*
-must exclude them; see §6. That figure is an upper bound, and so was the 46%
-measured mid-run that it replaces: both come from `in_genbank`, which cannot
-distinguish a genome with no annotation from one whose annotations the ORF
-matcher rejected. `12_genome_cds_counts.pbs` answers this from the GenBank
-records; see the note in §6.
+Separately, **48.9% of bacterial representatives carry no CDS annotation at
+all** (GCA assemblies submitted unannotated), and every ORF in those genomes is
+`False` by construction. Any analysis of what `False` *means* must exclude them;
+see §6.
+
+That figure was previously reported as an upper bound, because it came from
+`in_genbank`, which cannot distinguish a genome with no annotation from one
+whose annotations the ORF matcher rejected. `12_genome_cds_counts.pbs` now
+counts CDS features in the GenBank records directly, and **the two agree to
+100.000% at genome level over all 189,715 genomes** — 92,840 carry no deposited
+CDS. The figure is exact, and the concern is discharged rather than confirmed:
+the proxy was right, but that could not be known without counting.
 
 ---
 
@@ -188,19 +204,40 @@ an artefact of unannotated assemblies.
 
 ### Figures
 
-In `/g/data/ob80/re3494/gtdb_entropy/figures/`, regenerated over **every**
-chunk of both domains rather than the 20 bacterial chunks that existed while the
-run was in flight:
+All figures live in [`figures/`](figures/) and are committed alongside this
+report. The entropy panels below were regenerated over **every** chunk of both
+domains rather than the 20 bacterial chunks that existed while the run was in
+flight; the §6 figures are written by `28_report_figures.py`, which reads the
+TSVs the analysis stages emit rather than recomputing anything — a plotting
+script that reimplements the analysis is a second implementation that will drift
+from the first.
+
+![Joint density of protein against 3Di entropy for bacteria, with marginal
+histograms](figures/protein_vs_3di_joint_bac.png)
+
+*Bacteria: joint density with marginals. The 3Di margin is a histogram rather
+than a KDE, deliberately — smoothing rounds off the very edge the figure exists
+to show.*
+
+![The same joint density for archaea](figures/protein_vs_3di_joint_arc.png)
+
+*Archaea, 47-fold fewer ORFs, same structure.*
+
+![Bacteria against archaea on one axis](figures/protein_vs_3di_domains.png)
+
+*Both domains on the same axis: the 1.585 edge falls in the same place, which is
+what an information-theoretic ceiling predicts and a biological threshold does
+not.*
 
 | file | content |
 |---|---|
-| `protein_vs_3di_entropy_bac.png` / `_arc.png` | scatter, 4 panels |
-| `protein_vs_3di_hexbin_bac.png` / `_arc.png` | hexbin, log counts |
-| `protein_vs_3di_kde_bac.png` / `_arc.png` | KDE + contour overlay |
-| `protein_vs_3di_joint_bac.png` / `_arc.png` | joint density with marginals |
-| `protein_vs_3di_domains.png` | bacteria against archaea |
+| [`protein_vs_3di_entropy_bac.png`](figures/protein_vs_3di_entropy_bac.png) / [`_arc.png`](figures/protein_vs_3di_entropy_arc.png) | scatter, 4 panels |
+| [`protein_vs_3di_hexbin_bac.png`](figures/protein_vs_3di_hexbin_bac.png) / [`_arc.png`](figures/protein_vs_3di_hexbin_arc.png) | hexbin, log counts |
+| [`protein_vs_3di_kde_bac.png`](figures/protein_vs_3di_kde_bac.png) / [`_arc.png`](figures/protein_vs_3di_kde_arc.png) | KDE + contour overlay |
+| [`protein_vs_3di_joint_bac.png`](figures/protein_vs_3di_joint_bac.png) / [`_arc.png`](figures/protein_vs_3di_joint_arc.png) | joint density with marginals |
+| [`protein_vs_3di_domains.png`](figures/protein_vs_3di_domains.png) | bacteria against archaea |
 
-Every panel with a 3Di axis now carries dotted log₂(k) reference lines, so the
+Every panel with a 3Di axis carries dotted log₂(k) reference lines, so the
 1.585 boundary reads as the three-state ceiling of §5 rather than as an
 unexplained feature.
 
@@ -323,252 +360,438 @@ why the two have to be separated before either is interpreted.
 
 ## 6. Candidate genes missed by annotation
 
-Hypothesis tested: unmatched ORFs with 3Di entropy above ~2.5 look
-structurally like real proteins, so perhaps the original annotation software
-failed to call them.
+Hypothesis tested: unmatched ORFs with 3Di entropy above ~2.5 look structurally
+like real proteins, so perhaps the original annotation software failed to call
+them.
 
-> **The shadow/intergenic split below is superseded and awaits recomputation.**
-> Two independent defects produced it, both now fixed in the scripts and
-> neither reflected in the numbers here.
+> **The numbers in the first draft of this section are withdrawn.** Two defects
+> produced them, both since fixed, and the corrections changed the answer by
+> more than a factor of six.
 >
-> *Coordinates.* Overlap was tested using raw `get_orfs` coordinates. On the
-> negative strand those index the reverse complement, so every
-> plus-versus-minus comparison was made between two different coordinate
-> systems: real cross-strand shadows were missed and unrelated spans were
-> counted as shadows. Both sides are now placed on the forward genomic axis
-> with `normalise_orf_interval`, the same helper the `in_genbank` matcher uses.
+> *Coordinates.* Overlap was tested on raw `get_orfs` coordinates. On the
+> negative strand those index the reverse complement, so every plus-versus-minus
+> comparison crossed two coordinate systems. Demonstrated on a fixture: a
+> minus-strand ORF at 601–900 on a 1,000 bp contig normalises to [100, 400) and
+> is a **shadow**; one at 100–400 normalises to [600, 901) and is a
+> **candidate**. The old code returns exactly the inverse — the two arms swap.
+> Both sides are now placed on the forward genomic axis with
+> `normalise_orf_interval`, the helper the `in_genbank` matcher already used.
 >
-> *What counts as "annotated".* The CDS set was taken to be the spans of ORFs
-> whose `in_genbank` flag was True. That misleads in both directions: a CDS the
-> matcher rejected is absent from it, so an ORF sitting on a real gene reads as
-> intergenic, and a matched ORF runs stop to stop and can extend past the
-> deposited CDS, so its overhang manufactures shadows. The test now uses the
-> deposited GenBank coordinates from `13_cds_intervals.pbs`. The example data in
-> this repository contains a concrete instance: an origin-crossing CDS that the
-> matcher skips entirely, and which the old method therefore could never see.
+> *What counts as annotated.* The CDS set was taken to be the spans of ORFs
+> whose `in_genbank` flag was True, which misleads in both directions: a CDS the
+> matcher rejected is absent, and a matched ORF runs stop to stop and can extend
+> past the deposited CDS. The test now uses deposited GenBank coordinates from
+> `13_cds_intervals.pbs`, and annotation presence comes from
+> `12_genome_cds_counts.pbs` counting CDS features directly.
 >
-> *The miss-rate denominator.* The per-genome "≈0.9% of its CDS count" used the
-> number of matched ORFs as the genome's CDS count, which undercounts wherever
-> the matcher rejected a real CDS and therefore inflates the rate. It now comes
-> from the deposited counts.
->
-> Synthetic checks show the first two defects produce errors in opposing
-> directions, so totals can look stable while individual ORFs sit in the wrong
-> group; the third inflates in one direction only (5× on a fixture built to
-> isolate it). Treat the 15,338 / 8,651 split, everything derived from it, the
-> "1.6% survives" figure, and the per-genome miss rate as provisional until the
-> analysis is rerun.
->
-> The 95.5% attributable to genomes with no annotation at all does not depend
-> on coordinates and is unaffected by that fix — but it has a separate problem
-> of its own, below.
->
-> **"Never annotated" was inferred from `in_genbank`, which cannot establish
-> it.** The flag is set only when a called ORF passes the coordinate, frame,
-> and translation match, so a genome with real CDS features that all fail that
-> match was counted as never annotated and had its high-3Di ORFs written off.
-> The error can only run one way: it over-counts unannotated genomes, so the
-> 95.5% here and the 48.9% quoted in §1 and §6 are upper bounds, not estimates.
-> `12_genome_cds_counts.pbs` now counts CDS features in the GenBank records
-> directly, and `10_missed_genes.py` requires its table instead of the proxy.
-> Both figures need regenerating from it.
->
-> Rerunning needs chunk TSVs carrying the `contig_length` column that
-> `extract_entropy_rows.py` now emits; TSVs from the original run do not have it
-> and must be regenerated from the JSON archives.
->
-> **The 760-chunk rerun does not escape any of this.** It applied the same
-> classification to every chunk, so the agreement between scales (63.9% shadows
-> in two chunks against 62.9% across 760) demonstrates that the method is
-> stable, not that it is correct. Every figure in the full-scale table below
-> inherits both defects.
+> The 760-chunk rerun did not escape either defect — it applied the same
+> classification everywhere, so agreement between scales showed the method was
+> stable, not correct.
 
-Two confounders dominate. The pool was first characterised on two chunks
-(`bac_000`, `bac_051`, 500 genomes, 537,488 unmatched ORFs with 3Di ≥ 2.5) and
-the classification has since been run over all 760 bacterial chunks.
+### What the corrected classification finds
 
-Two-chunk pool, where the never-annotated fraction was counted:
-
-| | count | share |
+| | bacteria | archaea |
 |---|---:|---:|
-| in genomes with **no annotation at all** (upper bound, see note) | 513,499 | **95.5%** |
-| in annotated genomes | 23,989 | 4.5% |
-| → **shadow** of an annotated CDS (overlapping, any frame/strand) | 15,338 | 63.9% of those |
-| → **intergenic — candidates** | **8,651** | 36.1% of those |
+| genomes | 189,715 | 10,122 |
+| ORF rows | 2,568,244,984 | 54,858,398 |
+| genomes with **no deposited CDS at all** | 92,840 (49%) | 4,630 (46%) |
+| unmatched ORFs in annotated genomes | 1,158,990,307 | 24,692,953 |
+| → 3Di ≥ 2.5 | 9,598,500 | 307,917 |
+| → → **shadow** of a deposited CDS | 9,075,154 (**94.5%**) | 285,470 (**92.7%**) |
+| → → **intergenic — candidates** | **523,346** (5.5%) | **22,447** (7.3%) |
 
-`get_orfs` reads all six frames, so an unmatched ORF overlapping a real CDS
-inherits real coding structure and can score high 3Di entropy without being a
-distinct protein. Only intergenic ORFs in annotated genomes are candidates:
-**1.6% of the original population.**
+![Funnel from all ORF calls to candidates, both domains](figures/candidate_funnel.png)
 
-Over all 760 bacterial chunks:
+*Each step removes a population that cannot inform the question: ORFs in genomes
+with no annotation at all, ORFs the matcher accepted as CDS, low-entropy calls,
+and finally shadows of real genes.*
 
-| | count | share |
-|---|---:|---:|
-| unmatched ORFs in annotated genomes with 3Di ≥ 2.5 | 9,598,500 | |
-| → **shadow** of an annotated CDS | 6,036,069 | 62.9% |
-| → **intergenic — candidates** | **3,562,431** | 37.1% |
+The bacterial candidate pool falls from **3,562,431 to 523,346**, an 85.3%
+reduction, and the "99.8% of annotated genomes carry a candidate" figure falls
+to 83.7% (81,043 of 96,875). ORF counts conserve exactly across the split
+(bacteria 1,468,055,968 + 1,100,189,016 = 2,568,244,984; archaea 34,161,355 +
+20,697,043 = 54,858,398), and the shadow/candidate split closes exactly in both
+domains.
 
-**96,701 of the 96,875 annotated genomes (99.8%) carry at least one candidate**,
-median 26 per genome, maximum 5,763. That near-universality needs explaining in
-either direction: annotation misses genes almost everywhere in GTDB
-representatives, or the candidate definition is still too permissive. The
-burden analysis in §6.1 argues for the second.
+**The 48.9% never-annotated figure is now exact, not an upper bound.** The
+`in_genbank` proxy and the authoritative CDS counts agree to 100.000% at genome
+level over all 189,715 bacterial genomes, so the concern that the proxy
+over-counted unannotated genomes is discharged — it was right all along, but
+that could not be known without counting.
 
-Candidates sit between annotated CDS and the low-3Di background on every axis —
-shorter than real genes but longer than background, with 3Di entropy much
-closer to real CDS than to noise. That is consistent with missed genes, which
-should be biased toward short proteins precisely because short ORFs are what
-annotation pipelines under-call. The earlier reading of median **24 candidates
-per annotated genome, ≈0.9% of its CDS count** as "a plausible miss rate" is
-superseded twice over: its denominator was the number of ORFs the matcher
-accepted rather than the deposited CDS count, so every genome with a rejected
-CDS contributed too small a denominator and the rate is inflated; and §6.1
-shows the burden tracks assembly fragmentation rather than biology. The script
-now divides by `n_cds` from `12_genome_cds_counts.pbs` and indexes over every
-annotated genome, so genomes yielding no candidates count as zero rather than
-dropping out of the median.
+### A boundary sentinel that would have aborted every chunk
 
-Those survivors do look protein-like, and this is where the analysis runs out of
-discriminating power:
+`get_orfs` emits `end = contig_length + 1` for an ORF running off the end of a
+contig, and its `dna.length` switches to an exclusive convention for exactly
+those rows. Unclamped, they place outside the contig and every derived
+coordinate is nonsense. The signature is unambiguous: **100% of such ORFs have
+no stop codon (28,728 of 28,728) against 0% of complete ORFs (0 of 1,189,718)**.
+They are 1.55% of bacterial and 1.68% of archaeal ORFs, are 3× enriched in the
+shadow arm, and hit structural databases at ~2–2.5× the rate of complete ORFs —
+so they are excluded from every direct-evidence count rather than merely
+flagged.
 
-| group | n | median aa | ≥100 aa | median 3Di | median protein |
-|---|---:|---:|---:|---:|---:|
-| annotated CDS (sampled) | 1,520,000 | 323 | 98.4% | 3.29 | 4.01 |
-| **candidate: intergenic, 3Di ≥ 2.5** | **3,562,431** | **175** | **89.5%** | **2.94** | **4.00** |
-| **shadow of CDS, 3Di ≥ 2.5 (sampled)** | **1,519,199** | **180** | **89.1%** | **2.88** | **3.98** |
-| intergenic, 3Di < 2.5 (sampled) | 1,520,000 | 126 | 81.0% | 1.17 | 3.73 |
+### The entropy-matched intergenic arm
 
-Candidates sit between annotated CDS and the low-3Di background — shorter than
-real genes but longer than background, with 3Di entropy much closer to real CDS
-than to noise. Median 26 candidates per annotated genome, ≈0.9% of its CDS
-count, is a plausible miss rate rather than an implausible one.
+The original negative control, `intergenic_lo`, is low-3Di **by construction**,
+so its rate is confounded with the very axis under test. `unannot_hi` replaces
+it: high-3Di ORFs from genomes carrying no CDS at all (210,053,658 bacterial,
+5,851,244 archaeal). It is not a non-coding floor — those genomes are
+unannotated because no pipeline ran, not because one ran and found nothing — so
+it asks whether the assay recovers gene-like ORFs where annotation is simply
+absent.
 
-But **candidates and high-3Di shadows are indistinguishable on every axis
-available without a search** — length, the fraction over 100 aa, 3Di entropy and
-protein entropy all agree to within a few percent. Since a shadow is by
-construction *not* a distinct protein, the resemblance is either evidence that
-the shadow set contains real genes too, or that the candidate set is mostly
-shadow-like artefacts the overlap test failed to catch. Nothing in this dataset
-can tell those apart.
+It answers yes, and the asymmetry replicates across domains: among unmatched
+ORFs the 3Di ≥ 2.5 rate is **0.83% inside annotated genomes against 19.09% in
+unannotated ones** (bacteria, 23.1×) and **1.25% against 28.27%** (archaea,
+22.7×). Two independently processed domains giving the same 23-fold ratio is
+about as strong a check on that reading as this dataset allows.
 
-**This therefore does not discriminate missed genes from other intergenic
-coding-like sequence**: pseudogenes, phage or IS remnants, or ORFs annotation
-deliberately suppressed. The decisive next steps, tracked in
-[issue #92](https://github.com/linsalrob/genome_entropy/issues/92):
+### An independent verification of the split
 
-1. **Structural homology search with Foldseek**, not a sequence search. If these
-   ORFs were findable by sequence similarity the original pipeline would likely
-   have called them, so sequence homology is the weaker instrument. The 3Di
-   strings needed already exist in the archives from this run, so Foldseek's
-   expensive step is already paid for; a query database can be built from
-   precomputed 3Di and amino acids with `foldseek tsv2db`. Shadows are searched
-   as a first-class control arm alongside the candidates, since separating those
-   two is the actual question. An amino-acid search against the same target
-   databases runs as an orthogonal comparator, making **structure-only
-   homology** — a Foldseek hit with no sequence hit — a category the analysis can
-   isolate.
-2. **Stratify by annotation provenance.** GTDB records which pipeline annotated
-   each genome; if candidates concentrate in older Prokka versions rather than
-   recent PGAP, that is direct evidence of pipeline misses.
+`20_orf_context.py` recomputes CDS overlap from the deposited interval tables
+without reference to the classifier. Candidates are *defined* as not touching a
+deposited CDS and shadows as touching one, so disagreement would mean the two
+disagree about where ORFs sit — the exact failure that produced the withdrawn
+results. **All 760 bacterial and all 41 archaeal chunks agree**, over all
+1,502,473 and 112,235 ORFs in the query sets.
 
-### 6.1 The Foldseek pilot: what the structural search found
+### The fragmentation confound was itself an artefact
 
-Item 1 above has been run ([issue #92](https://github.com/linsalrob/genome_entropy/issues/92)).
-Four arms of 8,651 ORFs each — candidate, high-3Di shadow, annotated CDS,
-low-3Di intergenic — were searched against PDB100, AFDB/Swiss-Prot, CATH50 and
-BFVD twice over: once with `foldseek search --alignment-type 2` (3Di + amino
-acid) and once with `foldseek base:search` (amino acid only). Same queries,
-same targets, one difference, so **structure-only homology is a set difference
-on identical targets** rather than a comparison across two differently built
-databases. A fifth query set, the candidates' own 3Di strings shuffled,
-provides a technical null with identical amino acids, length and 3Di
-composition but no residue order.
+The first draft reported that burden tracks assembly quality rather than
+biology, with Spearman ρ of −0.603 against contig N50 — the strongest
+correlation in the analysis, and the basis for a planned programme of
+assembly-stratified sensitivity sets. Recomputed on the corrected candidates:
 
-Arms are length-matched exactly (25th/50th/75th percentile 116/169/296 aa), and
-shadows were matched to candidates on 3Di entropy as well, preferring a partner
-from the same genome — achieved for 98.5% of pairs, which holds N50,
-completeness, contamination, GC and annotation pipeline fixed simultaneously.
-
-**The assay has range and the controls hold.** Union over the four databases:
-
-| arm | struct | seq | struct-only | neither |
-|---|---:|---:|---:|---:|
-| annotated CDS | 73.8% | 74.1% | 12.2% | 13.6% |
-| candidate | 58.0% | 50.0% | 15.0% | 35.0% |
-| shadow | 55.8% | 47.1% | 14.9% | 38.0% |
-| low-3Di intergenic | 1.5% | 9.3% | 1.1% | 89.5% |
-| null (shuffled 3Di) | 0.2% | — | — | — |
-
-Shuffling the 3Di takes candidates from 58.0% to 0.2%, and to zero against
-BFVD, so `--alignment-type 2` really is aligning on the structural alphabet
-rather than leaking amino-acid signal. Structure-only homology is substantial —
-15.0% of candidates have a structural hit with no sequence hit on the same
-target database — and it is equally substantial in the shadow arm.
-
-**Hit rate is a measure of encoder confidence, not of foldedness.** Stratified
-by the 3Di entropy that defined the arms:
-
-| 3Di quintile | candidate | shadow | annotated CDS |
+| covariate | bacteria, confounded | bacteria, corrected | archaea |
 |---|---:|---:|---:|
-| Q2 (1.46–2.58) | 14.4% | 13.0% | 31.8% |
-| Q3 (2.58–2.88) | 30.8% | 28.5% | 74.2% |
-| Q4 (2.88–3.38) | 80.1% | 80.7% | 92.5% |
-| Q5 (3.38–4.12) | 99.7% | 99.3% | 99.5% |
+| n50_contigs | **−0.603** | **+0.100** | +0.142 |
+| contig_count | +0.547 | +0.117 | +0.074 |
+| n_orfs | — | **0.568** | **0.526** |
+| genome_size_mb | — | 0.553 | 0.514 |
+| coding_density | −0.040 | −0.270 | −0.434 |
+| frac_orfs_in_genbank | — | −0.429 | −0.379 |
 
-Above 3.38 bits everything hits at 99%, real gene and unmatched ORF alike.
-Because the null preserves 3Di composition and therefore entropy exactly while
-collapsing to 0.2%, entropy *per se* does not manufacture alignments; what the
-table shows is that a sequence-only 3Di encoder emits confident, well-ordered
-3Di for anything with protein-like composition, and Foldseek aligns it. This is
-the same phenomenon as the log₂(k) ceiling of §5 seen from the other end, and
-it is the reason a raw hit rate is the wrong readout for a predicted-3Di
-search. Note also that the low-3Di intergenic arm is low-entropy *by
-construction*, so its floor-level rate is confounded with entropy and adds
-nothing this table does not already say; the entropy-matched intergenic control
-it was meant to be is still missing.
+N50 does not merely weaken, **it changes sign**. The mechanism is coherent: a
+fragmented assembly has more contig ends, more contig ends means more truncated
+ORFs, and under un-normalised coordinates a minus-strand ORF near a contig end
+was placed wrongly and fell in the wrong arm. Burden correlated with
+fragmentation because *the bug* correlated with fragmentation. What burden now
+tracks is ORF count, genome size and low coding density — which is what a
+missed-gene signal should look like.
 
-**Full-length mutual coverage is the readout that discriminates.** Requiring
-the best hit to cover ≥80% of both query and target:
+![Candidate burden against genome covariates,
+bacteria](figures/candidate_burden_bac.png)
 
-| database | annotated CDS | candidate | shadow | implied real-gene share (95% CI) |
+![The same for archaea](figures/candidate_burden_arc.png)
+
+### Sensitivity of the ORF caller
+
+Falling out of the CDS-count work: a median **161 deposited CDS per archaeal
+genome have no matching six-frame ORF** (1,502 matched of 1,670 deposited,
+~90% recall). Compound and multi-part CDS, CDS below the length floor, and
+non-standard starts account for it. This does not affect any candidate count —
+candidates are ORFs by construction — but it puts a floor under any claim of
+the form "we would have found it if it were there", and it belongs with the
+limitations in §10.
+
+### 6.1 Structural homology over the full candidate population
+
+The pilot searched 8,712 bacterial candidates drawn from 13 of 760 chunks —
+**1.7% of the population** — and extrapolated. Archaea used all 22,447. This
+section reports the run over **every** candidate in both domains: 1,502,473
+bacterial and 112,235 archaeal query ORFs, four target databases, both
+structural and sequence modes, 946 SU.
+
+**Design.** Five arms. `candidate`; `shadow_hi`, matched 1:1 on length *and* 3Di
+entropy preferring a partner from the same genome (94.0% achieved), which holds
+lineage, GC, assembly quality and annotation pipeline fixed at once;
+`annotated_cds` and `intergenic_lo` matched on length; `unannot_hi` matched on
+length and 3Di. A sixth query set — the candidates' own 3Di strings shuffled —
+is the technical null, identical in amino acids, length and 3Di composition but
+with residue order destroyed. Control arms are capped at 200 per chunk because a
+control only has to pin down a *rate*; that also improves match quality, since
+200 draws from a pool of 2,000 find closer partners than 633 do.
+
+**The technical null holds at 60× the pilot's n.** Over all 523,346 bacterial
+candidates the shuffled-3Di search returns 156 / 224 / 35 / 4 hits against
+Swiss-Prot / PDB100 / CATH50 / BFVD — at most 0.04%.
+
+#### The comparator had to be fixed first
+
+A same-strand, same-frame shadow largely **is** the annotated protein, so it
+scores like a real gene and must be excluded from the comparator. Classifying
+frame correctly turned out to be harder than it looks.
+
+A plus-strand feature is translated left to right, so its frame is
+`g_start % 3`; a minus-strand feature is translated right to left, so its frame
+is `g_end % 3`. Verified against eleven hand-built cases, **anchoring on
+`g_start` for both strands is correct on plus and wrong on minus**, and a
+3′-anchored test is exactly the reverse; only the strand-dependent anchor passes
+all eleven.
+
+The error was nearly invisible because the two anchors give identical verdicts
+whenever both lengths divide by three — 100% of complete ORFs, 95.6% of
+deposited CDS parts, and empirically 100.00% of such pairs. It fires on
+**partial CDS**: features with fuzzy ends (`<1..500`), which are 3.9% of CDS
+parts genome-wide but **36.6%** of those overlapped by same-strand shadows, a 9×
+enrichment. A partial CDS has no true codon boundary, so *neither* anchor is
+meaningful, and forcing such a pair into same-frame or frameshift is a coin
+flip — which was scattering genuinely same-frame shadows into the clean
+comparator and contaminating the background with ORFs that are the annotated
+protein. Those pairs now get their own `frame undefined` class and are excluded.
+
+The control that has to come out one way does: `annotated_cds` is **92.0%
+same-frame plus 7.5% frame-undefined**, 99.5% accounted for. Independently, an
+external gene caller agrees with **95.2%** of bacterial and **94.1%** of
+archaeal same-frame shadows and only **4.4%** and **8.1%** of antisense ones — a
+22× and 12× discrimination.
+
+Bacterial shadows resolve to 43.5% opposite strand, 31.5% frame undefined, 12.6%
+same frame and 12.4% frameshift.
+
+#### Full-length mutual coverage is the readout that discriminates
+
+Requiring the best hit to cover ≥80% of both query and target, against the clean
+comparator (antisense and frameshift shadows only):
+
+| database | candidate | clean shadow | annotated | real-gene share (95% CI) |
 |---|---:|---:|---:|---:|
-| PDB100 | 38.5% | 11.6% | 11.1% | 1.8% (−1.7 – 5.2) |
-| AFDB/Swiss-Prot | 44.3% | 12.0% | 11.8% | 0.5% (−2.5 – 3.5) |
-| CATH50 | 26.4% | 9.9% | 8.8% | 6.2% (1.3 – 10.9) |
+| **bacteria** | | | | |
+| afdb_swissprot | 10.3% | 2.7% | 35.3% | **23.3% (23.0 – 23.7)** |
+| cath50 | 8.4% | 2.7% | 23.9% | **27.0% (26.5 – 27.5)** |
+| pdb100 | 8.7% | 2.2% | 30.1% | **23.4% (23.1 – 23.8)** |
+| bfvd | 6.8% | 2.0% | 11.0% | 54.2% — discounted |
+| **archaea** | | | | |
+| afdb_swissprot | 14.2% | 6.4% | 35.9% | **26.2% (24.3 – 28.2)** |
+| pdb100 | 13.3% | 5.7% | 32.6% | **28.3% (26.3 – 30.4)** |
+| cath50 | 12.7% | 5.5% | 25.3% | **36.4% (33.7 – 39.2)** |
+| bfvd | 9.2% | 3.6% | 11.6% | 70.2% — discounted |
 
-This criterion separates gene from non-gene 3–4× where the loose hit rate
-managed 1.3×, and it is not saturated by the encoder artefact: restricted to
-3Di ≥ 3.0 it still gives annotated CDS 60.3% against candidate 23.8% and shadow
-24.1%. Median fractional identity is the same (~0.29–0.32) in all three arms, so
-what separates them is full-length correspondence with a real protein, not hit
-quality in general. The last column treats candidates as a mixture of real genes
-behaving like annotated CDS and non-genes behaving like shadows; two of three
-intervals include zero.
+![Full-length coverage by arm and database, with the implied real-gene
+share](figures/candidate_coverage.png)
 
-**Burden tracks assembly quality, not biology.** Over all 96,875 annotated
-bacterial representatives (`16_candidate_burden.py`), Spearman ρ of candidates
-per Mb against contig N50 is −0.603, contig count +0.547, CheckM2 completeness
-−0.491, contamination +0.356 — while coding density, the covariate that would
-matter if this were about gene content, is flat at −0.040. Assembly level
-reproduces it without a coefficient: 8.97 candidates/Mb for contig-level
-assemblies against 5.44 for chromosome-level. Partial-annotation genomes that
-passed the "≥1 CDS" filter explain only the tail (137 genomes, 1.9% of the
-pool); a ≥500 CDS/Mb floor removes them.
+BFVD is excluded from estimation because its annotated ceiling is ~11%, so the
+mixture denominator is small and the ratio unstable. It is retained for
+interpretation: a BFVD-only hit suggests phage or prophage biology.
 
-**What this does and does not establish.** That neither candidates nor shadows
-resemble annotated CDS on full-length coverage is robust: it does not depend on
-which of the two arms a given ORF belongs to. That candidates and shadows are
-indistinguishable *from each other* is the weaker claim, because both arms were
-drawn from the superseded classification described at the head of this section —
-misassignment between them biases exactly toward the null that was observed.
-The comparison must be repeated once items 6 and 7 of §11 are done. The
-shuffled-3Di null and the full-length-coverage criterion are, on the evidence
-here, the two controls a predicted-3Di Foldseek search cannot do without.
+**23–27% (bacteria) and 26–36% (archaea)** implies roughly **122,000–141,000**
+and **5,900–8,200** ORFs, or **~128,000–149,000** across both domains.
 
-Caveats: two chunks (`bac_000`, `bac_051`), bacteria only, E < 10⁻³, best hit
-per query. AFDB50 was planned and has been dropped — a 54M-entry search would
-re-measure a difference already bounded near zero.
+The pilot was wrong in both directions, which is instructive about 1.7% samples.
+On the *uncorrected* comparator the full-scale shares come in **lower** than the
+pilot's (6.6 / 10.4 / 6.5% against 10.4 / 13.0 / 7.9%); on the corrected one they
+come in **higher** (23.3 / 27.0 / 23.4% against 15.8 / 19.7 / 13.9%). Confidence
+intervals tighten from ±3 points to ±0.4.
+
+Hit rate remains the wrong readout — above 3Di 3.38 bits everything hits at 99%,
+real gene and unmatched ORF alike, because a sequence-only 3Di encoder emits
+confident 3Di for anything with protein-like composition. That finding from the
+pilot is unchanged.
+
+#### A conservative count that needs no mixture model
+
+Every criterion is reported against the **matched clean shadows**, scaled for
+the unequal arms. Shadows overlap real genes and clear these bars too, so the
+excess is the floor — the candidate column is not.
+
+| criterion | bac candidates | bac excess | arc candidates | arc excess |
+|---|---:|---:|---:|---:|
+| C1 all candidates | 523,346 | — | 22,447 | — |
+| C2 not contig-truncated | 483,767 | — | 19,835 | — |
+| C3 C2 + any full-length structural hit | 90,658 | **62,507** | 5,141 | **3,256** |
+| C4 C2 + full-length in ≥2 databases | 44,325 | 33,226 | 2,777 | 1,872 |
+| C5 C2 + full-length Swiss-Prot/PDB/CATH | 76,662 | 53,383 | 4,396 | 2,749 |
+| C6 C2 + structure-only, full-length | 81,257 | 54,410 | 4,439 | 2,717 |
+| C7 strict combined rule | 23,540 | **19,232** | 1,574 | **1,118** |
+
+C7 requires: not truncated, full-length in ≥2 databases including at least one
+of Swiss-Prot/PDB/CATH, an interpretable product name, ≥100 aa, E < 10⁻¹⁰.
+
+![Direct evidence: candidates against matched clean
+shadows](figures/evidence_ladder.png)
+
+**These are a set, not a nested ladder** — C6 (4,439) exceeds C4 (2,777) in
+archaea, so reading down the column as increasing stringency is wrong. C3–C6 are
+each C2 plus one independent requirement; C7 is the conjunction.
+
+So: **~20,350 candidates with strong individual evidence** (19,232 + 1,118) and
+**~65,800 with any full-length structural hit** (62,507 + 3,256). These are the
+numbers that survive without the two-component assumption.
+
+One structural caveat on C7: it requires a Swiss-Prot/PDB/CATH hit, so
+**BFVD-only candidates are invisible to it by construction** — 13,996 bacterial
+candidates (15.4% of C3) have a full-length viral hit and nothing else. The
+strict floor therefore systematically excludes viral biology.
+
+#### An independent test: does another gene caller agree?
+
+GTDB runs Prodigal over every representative genome, consulting neither GenBank
+nor any structure database. Extracting its coordinates (618,638,921 gene calls
+over 32,366,333 contigs) allows an ORF-level test: does a candidate coincide,
+in the same frame and strand with an exactly matching 3′ end, with a Prodigal
+gene that GenBank does not carry?
+
+The coordinate conventions were **calibrated rather than assumed** — the offset
+distribution between our 3′ ends and the nearest Prodigal 3′ end peaks at
+exactly **0 bp** in both domains. A silent 3 bp stop-codon difference would have
+produced zero matches and the false conclusion that Prodigal disagrees.
+
+| arm | bacteria | archaea |
+|---|---:|---:|
+| **annotated_cds** (positive control) | **94.21%** | **96.13%** |
+| **candidate** | **47.42%** | **55.36%** |
+| clean shadow (3Di-matched, occupied space) | 9.41% | 16.00% |
+| `intergenic_lo` (unoccupied space) | 9.85% | 15.44% |
+
+![Prodigal agreement by arm, and by shadow frame
+class](figures/prodigal_validation.png)
+
+Two objections fail against their own controls. First, an antisense shadow sits
+inside a gene Prodigal already calls, and gene callers avoid overlapping
+predictions — so its low rate might reflect a prior commitment rather than the
+ORF looking non-coding. But `intergenic_lo` sits in unoccupied space with no
+competing call and gives the **same rate to within half a point** in both
+domains. Second, both methods might merely favour coding-like composition — but
+`shadow_hi` is matched to each candidate on 3Di entropy, so at equal apparent
+structure Prodigal still separates candidate from shadow **5-fold**.
+
+Taking the larger background, the excess is **37.6%** (bacteria) and **39.4%**
+(archaea), implying **196,638** and **8,836** candidates independently called.
+Through the same mixture arithmetic as the structural assay:
+
+| | share (95% CI) | implied ORFs |
+|---|---:|---:|
+| bacteria | **44.5% (44.3 – 44.7)** | **233,074** |
+| archaea | **49.1% (48.2 – 50.0)** | **11,026** |
+
+#### How much annotation GTDB itself adds, and a correction
+
+A genome-level version of the same question: GTDB's Prodigal calls exceed the
+deposited GenBank CDS count in **88.3% of annotated archaeal and 78.4% of
+bacterial genomes**, by a median of **30 and 29 genes** respectively.
+
+> **A correction.** That gap was first reported here and on
+> [#97](https://github.com/linsalrob/genome_entropy/issues/97) as a median of
+> **193 genes**, with Prodigal exceeding GenBank in 99.9% of genomes. Both were
+> wrong, through a column-name collision: `candidate_burden_*.tsv` renames
+> `n_orfs_in_genbank` to `n_cds`, so that column counts *ORFs that matched a
+> CDS*, while `genome_cds_counts_*.tsv` — also called `n_cds` — counts
+> *deposited CDS features*. Differencing Prodigal against the first gives the
+> real gap (30) plus the ORF-matching loss (161). Two tables, two quantities,
+> one column name.
+
+The corrected figure is much weaker evidence than the published one, and the
+genome-level argument should not be leaned on: Spearman ρ between candidate
+burden and the corrected gap is **0.119 (archaea) / 0.035 (bacteria)** —
+essentially nothing. Only the ORF-level test above carries weight.
+
+#### Where the two estimates disagree
+
+Structural homology says ~128,000–149,000; independent gene calling says
+~244,000. **They differ by ~1.7× and this report does not resolve it.** Three
+explanations, not separable with what is here:
+
+1. **Prodigal over-calls**, which it is documented to do. The background is
+   measured on ORF-shaped sequence, not random DNA, so 9.85% is its
+   false-positive rate on non-gene ORFs and the rate on genuinely non-coding
+   sequence could be higher. A 20% background would drop the bacterial share to
+   ~37%.
+2. **The structural mixture underestimates.** It assumes candidates are a
+   mixture of annotated-CDS-like and shadow-like behaviour, and real missed
+   genes are plausibly shorter, more divergent and worse represented in PDB and
+   Swiss-Prot than the average annotated CDS — precisely because those
+   properties are why annotation missed them. The structural assay's ceiling on
+   *known* genes is only 30–35%, against Prodigal's 94–96%, so it works much
+   closer to its detection floor.
+3. Both.
+
+The two should be reported as bracketing the answer, with the structural figure
+the more conservative. The direct-evidence floor of ~20,350 is unaffected by
+either.
+
+**The two lines of evidence converge on the same ORFs, however.** Prodigal
+confirms **47.4%** of all bacterial candidates but **91.8%** of those meeting
+the strict structural rule, and **95.9%** of the archaeal strict set, against
+**9.4%** for matched shadows. The strict rule selects for Prodigal agreement
+without ever using Prodigal.
+
+#### What the supported candidates are
+
+Functional class of the strict sets, from Swiss-Prot and PDB product text (only
+those two databases carry free text; CATH gives a superfamily code and BFVD a
+bare accession, so `unclassified` reflects the reference database, not weak
+evidence):
+
+| class | bacteria (n = 23,540) | archaea (n = 1,574) |
+|---|---:|---:|
+| **metabolism** | **33.8%** | **41.3%** |
+| other named | 25.4% | 20.3% |
+| **mobile element** | **13.6%** | **11.8%** |
+| transport | 6.2% | 3.9% |
+| uncharacterized | 5.9% | 7.3% |
+| translation | 5.7% | 8.6% |
+| regulation | 4.6% | 1.9% |
+| replication / repair | 2.0% | 2.7% |
+| defence | 1.6% | 1.0% |
+| cell envelope | 1.2% | 1.3% |
+
+![Functional composition of the strict-evidence
+sets](figures/functional_composition.png)
+
+The most frequent *individual families* are mobile-element proteins —
+resolvases, recombinases, integrases, homing endonucleases, intron-encoded
+proteins — which is a correct result rather than an artefact, since those are
+genuinely omitted from GenBank annotation. But they are only 12–14% of the
+supported set, while metabolic enzymes are 34–41%. There are 8,065 distinct
+Swiss-Prot products among 23,393 annotated bacterial strict candidates, with the
+top ten covering 10.0%.
+
+#### Where the separation lives
+
+Stratifying the archaeal coverage contrast by assembly quality shows the
+candidate-versus-shadow separation is **not uniform across genomes**. In the top
+contig-N50 quartile candidates reach 43.5% against shadows at 32.6% — an
+11-point gap — while in the bottom quartile the two are indistinguishable
+(65.8% against 65.5%).
+
+This argues *against* the separation being an assembly artefact: an artefact of
+fragmentation would appear most strongly in the worst assemblies, and it appears
+only in the best. It also gives a positive reason to draw manuscript examples
+from high-completeness, high-N50 genomes — not merely to avoid artefacts, but
+because that is where the signal demonstrably is. A candidate in a poorly
+assembled genome carries little evidential weight however good its structural
+hit.
+
+#### Examples
+
+Ten were selected by walking functional classes rather than by score, which is
+what stops ten Bacteroidota TonB-dependent receptors filling every slot. Each is
+non-truncated, lies entirely between two deposited CDS, is ≥100 aa, sits in a
+host ≥95% complete with ≤5% contamination and ordinary candidate burden, and has
+full-length support in all four databases. Dossiers are in
+`missed_genes/dossiers/`.
+
+![Genomic context of the ten manuscript examples](figures/exemplar_loci.png)
+
+*Each panel is a window around one candidate. Grey arrows are deposited CDS;
+the outlined coloured arrow is the candidate, filled by functional class.*
+
+Two are genuinely incomplete modules:
+
+- **Cas5 completing a type I CRISPR–*cas* operon.** The deposited annotation
+  carries Cas6, Cas7, Cas8a1, Cas3′, Cas1 and Cas2, co-oriented, and **no
+  Cas5** — which a type I Cascade complex requires. The candidate is Cas5, 226
+  aa, 5 bp from Cas7 and 96 bp from Cas1, filling the one gap in an otherwise
+  contiguous operon.
+- **SusC completing a polysaccharide utilisation locus.** SusD, SusE,
+  alpha-amylase and neopullulanase are annotated; SusC, the TonB-dependent
+  transporter the SusC/SusD pair cannot function without, is absent. The 917 aa
+  candidate fills the 3,029 bp gap.
+
+Examples illustrate the biology; the **rate** comes from the full-population
+comparisons above. Selecting examples on biological coherence and then citing
+them as evidence for the rate would be circular, and they are not used that way.
 
 ---
 
@@ -629,28 +852,58 @@ Final footprint: 1.5 TB results + 350 GB GenBank archives.
 | Smoke test + three calibration jobs | ~50 |
 | Bacterial download (760 chunks) | 68 |
 | Bacterial encoding (760 chunks) | ~80,000 |
-| Counting, diagnosis | ~120 |
-| **Total to date** | **~87,500 (8.8% of the 1 MSU grant)** |
+| Archaeal encoding (41 chunks) | ~4,000 |
+| Counting, diagnosis, figures | ~120 |
+| Regenerating `entropy_rows` with `contig_length` | ~130 |
+| CDS counts and intervals | ~65 |
+| Corrected classification, both domains | ~30 |
+| Foldseek pilots (bacterial, archaeal) | ~70 |
+| **Full-population Foldseek search** (4 shards, 1.5 M queries) | **946** |
+| Context, ranking, classification, examples, dossiers | ~40 |
+| GTDB Prodigal coordinates (123 GiB streamed) | 27 |
+| **Total** | **~85,550 (8.6% of the 1 MSU grant)** |
 
 `gpuvolta` charges ~36 SU per GPU-hour (measured: 4.41 SU for 7m21s on 1 GPU +
-12 CPUs). Archaeal encoding is projected at ~4,000 SU.
+12 CPUs). **Encoding dominates by two orders of magnitude**: everything in the
+missed-gene analysis, including searching 1.5 million queries against four
+structural databases, is ~1.3% of the total.
+
+Wasted, and recorded because both were avoidable: **61.57 SU** on a staging
+path that wrote plain text where gzip was expected (the smoke test exercised the
+final filename, not the staging filename), and **13.35 SU** on a job that parsed
+618,638,921 rows successfully and then destroyed its own output when a
+verification step exceeded the jobfs quota and the cleanup trap fired.
 
 ---
 
 ## 10. Limitations
 
-- Figures and the analyses in §5 and §6 rest on samples: 20 of 760 chunks for
-  the figures, 2 chunks for the missed-gene analysis, 3 genomes for the 3Di
-  composition. The log₂(k) ceilings are exact arithmetic and hold universally;
-  the D/V/P proportions and the candidate counts are sample estimates.
+- Figures still rest on samples — 20 of 760 chunks, and 3 genomes for the 3Di
+  composition. **§6 no longer does**: the classification covers all 760
+  bacterial and 41 archaeal chunks, and the Foldseek search covers every
+  candidate in both domains. The log₂(k) ceilings are exact arithmetic; the
+  D/V/P proportions remain sample estimates.
 - Chunks are contiguous slices of the GTDB accession list, which is not random
   with respect to taxonomy. Sampling every 17th chunk mitigates but does not
-  eliminate taxonomic clustering.
+  eliminate taxonomic clustering in the figures.
 - The 2.5 threshold in §6 was chosen by eye from the scatter. It sits well above
   the 1.585 ceiling, so the result is not an artefact of it, but the candidate
   count is threshold-sensitive.
 - `in_genbank` reflects agreement between `get_orfs` calls and deposited CDS
   annotation. It is not ground truth about whether a sequence is a protein.
+- **The ORF caller misses ~10% of deposited CDS** (median 161 per archaeal
+  genome), so any statement of the form "we would have found it if it were
+  there" carries that floor.
+- **The mixture model assumes two components.** Candidates are treated as a
+  mixture of annotated-CDS-like and shadow-like behaviour. A real missed gene
+  need not be either, and the confidence intervals cover binomial noise only —
+  not the two-component assumption. The ~1.7× disagreement between the
+  structural and Prodigal estimates (§6.1) is the visible consequence.
+- **Prodigal agreement is independent of GenBank and of structural homology,
+  but not of coding-like composition.** The 3Di-matched shadow arm bounds that
+  shared prior; it does not eliminate it.
+- Manuscript examples are chosen for biological diversity and are illustrations,
+  not evidence for the rate.
 - Normalised entropy is derived, not stored; `05_aggregate_results.py` computes
   it only for the alphabets whose sizes the schema fixes.
 
@@ -668,44 +921,60 @@ Final footprint: 1.5 TB results + 350 GB GenBank archives.
   are smaller, as expected — 5,420 ORF calls per genome against 13,537 — but the
   claim that they are *less often annotated* was an artefact of a mid-run sample
   and is corrected in §2: 54.3% against 51.1%.
-- The candidate classification of §6 run over **all 760 chunks** rather than two.
+- **`12_genome_cds_counts.pbs` run over both domains.** The 48.9% never-annotated
+  figure is now exact rather than an upper bound, and agrees with the
+  `in_genbank` proxy to 100.000% at genome level (§2).
+- **`10_missed_genes.py` rerun on the corrected coordinates and deposited CDS
+  intervals**, over all 760 bacterial and 41 archaeal chunks. Bacterial
+  candidates fall from 3,562,431 to 523,346 (§6).
+- **The Foldseek search rerun over the full candidate population**, not a 1.7%
+  sample, in both domains — with the same-frame-shadow correction, the
+  direct-evidence ladder, the independent Prodigal comparison, functional
+  composition, ten manuscript examples and their dossiers (§6.1).
+- **The reading-frame definition settled** against hand-built ground truth, and
+  the partial-CDS case that made it wrong identified (§6.1).
+- The fragmentation confound **retired**: ρ(N50) moves from −0.603 to +0.100 on
+  the corrected candidates, so the assembly-stratified sensitivity sets that
+  were planned to control it are no longer needed (§6).
 
 ### Analyses
 
 5. Compute **fraction of `D` residues** per ORF as a length-independent
    alternative to 3Di entropy (§5.3).
-6. **Run `12_genome_cds_counts.pbs`** and regenerate the annotation-presence
-   figures (the 48.9% in §1/§6 and the 95.5% in §6) from CDS features in the
-   GenBank records rather than from `in_genbank`. Both are currently upper
-   bounds.
-7. **Rerun `10_missed_genes.py`** now that it converts negative-strand
-   coordinates onto the forward genomic axis, takes annotation presence from
-   item 6, and tests shadows against deposited CDS coordinates from
-   `13_cds_intervals.pbs`; replace the superseded shadow/intergenic numbers in
-   §6 at both scales. Needs chunk TSVs regenerated from the JSON archives,
-   because the originals predate the `contig_length` column, and `13` run over
-   the same chunks.
-8. **Test what 3Di state `D` corresponds to.** Run DSSP over predicted
+6. **Resolve the structural-versus-Prodigal disagreement** (§6.1). The two
+   estimates differ by ~1.7× and this report brackets rather than resolves them.
+   The missing measurement is Prodigal's false-positive rate on sequence that is
+   confidently non-coding, which our arms cannot supply — every one of them is
+   ORF-shaped by construction.
+7. **Test what 3Di state `D` corresponds to.** Run DSSP over predicted
    structures, or a disorder predictor, on ORFs below and above the 1.585 line.
    The entropy ceiling is established without this, but the disorder reading of
    `D` dominance is not (§5).
-9. **Re-run the Foldseek pilot on the recomputed candidate set** (§6.1,
-   [issue #92](https://github.com/linsalrob/genome_entropy/issues/92)). The first run is
-   complete and its controls are sound, but its candidate and shadow arms were
-   drawn from the superseded classification, so the candidate-versus-shadow
-   comparison must be repeated after items 6 and 7. The full-length-coverage
-   finding does not depend on that split.
-10. Stratify candidates by GTDB annotation provenance (§6).
-11. Parallelise `05_aggregate_results.py` — 87 s per chunk single-threaded is
-   ~18 h over 760 chunks. Each genome lives in exactly one chunk, so chunks are
-   independent and this parallelises trivially. Consequently the **bacterial**
-   per-genome summary has never been produced; only the archaeal one exists
-   (`summary_per_genome_arc.tsv`, 41 chunks in 6.5 min).
-12. Count the **never-annotated fraction of the high-3Di pool at full scale.**
-    The 95.5% in §1 and §6 is measured on two chunks; the 760-chunk run
-   classified only ORFs inside annotated genomes, so the full-scale equivalent
-   of that denominator is not yet known. One further pass over the TSVs would
-   settle it.
+8. **Measure neighbourhood coherence as a statistic**, not only as an example
+   selection criterion. `cds_intervals/` plus the candidates' genomic
+   coordinates allow gap occupancy and strand coherence to be compared against
+   matched controls — a line of evidence independent of Foldseek, the structural
+   databases and the mixture model. Note the trap found while scoping it: raw
+   neighbour *distance* cannot be compared between candidates and shadows,
+   because a shadow overlaps a CDS by definition and its nearest
+   non-overlapping neighbour is measured past the far end of that gene.
+   **Regenerate the context tables first.** The copies on `/g/data` predate a
+   fix to `up_strand`/`up_cds_id`, which for a CDS nested inside an earlier
+   longer one were read from a different gene than the one `dist_up` measures
+   to. Incidence is 10 of 2,080,688 archaeal CDS parts and none of the ten
+   exemplars, so nothing published depends on it — but strand coherence is
+   computed from exactly those columns.
+9. Stratify candidates by **GTDB annotation provenance** (§6). If candidates
+   concentrate in older Prokka versions rather than recent PGAP, that is direct
+   evidence of pipeline misses.
+10. Parallelise `05_aggregate_results.py` — 87 s per chunk single-threaded is
+    ~18 h over 760 chunks. Each genome lives in exactly one chunk, so this
+    parallelises trivially. Consequently the **bacterial** per-genome summary has
+    never been produced; only the archaeal one exists
+    (`summary_per_genome_arc.tsv`, 41 chunks in 6.5 min).
+11. **modernprost-50M versus ProstT5** 3Di comparison. Framed in the first draft
+    as the validation that decides everything; the shuffled-3Di null has since
+    done that job directly, so this is characterisation rather than a gate.
 
 ### Upstream reports (not yet filed — both would post publicly)
 
@@ -749,11 +1018,25 @@ Pipeline in `/g/data/ob80/re3494/Projects/genome_entropy/claude/`:
 | `14b_extract_orf_seqs.{py,pbs}` | amino acids and 3Di back out of the archives |
 | `15_build_query_db.py` | Foldseek query database from precomputed 3Di |
 | `16_candidate_burden.py` | §6.1 burden against GTDB assembly metadata |
-| `17_pilot_search.pbs` | the four-arm search plus the shuffled-3Di null |
-| `18_pilot_analysis.py` | §6.1 readout: hit rates, coverage, stratification |
+| `17_pilot_search.pbs` | the searches plus the shuffled-3Di null; also writes best-hit-per-query into `best/` |
+| `18_pilot_analysis.py`, `18b_analysis.pbs` | §6.1 readout: hit rates, coverage, stratification |
+| `04b_regenerate_entropy_rows.pbs` | re-emits per-ORF TSVs carrying `contig_length`, which the originals lack |
+| `13b_cds_intervals_all.pbs` | `13` parallelised across chunks — the serial loop is unusable at 760 |
+| `19_full_queryset.pbs` | full-population query set; per-chunk matching, sharded output |
+| `20_orf_context.{py,pbs}` | genomic context, remaining entropy axes, reading-frame class; recomputes CDS overlap independently of the classifier as a fatal cross-check |
+| `21_target_descriptions.py` | target id → product, from the Foldseek header databases |
+| `22_rank_candidates.{py,pbs}` | ranked candidate table and the direct-evidence ladder |
+| `23_gtdb_prodigal_coords.pbs` | GTDB Prodigal coordinates, streamed from the 123 GiB archive |
+| `24_prodigal_overlap.{py,pbs}` | ORF-level agreement with an independent gene caller |
+| `25_functional_classes.{py,pbs}` | functional classes, mobile-element and BFVD-only flags |
+| `26_select_examples.{py,pbs}` | manuscript examples, chosen by class rather than score |
+| `27_build_dossiers.{py,pbs}` | dossiers, with neighbour products read back from the GenBank archives; also emits `exemplar_neighbours.tsv` |
+| `28_report_figures.py` | every figure in §6 and §6.1, read from the machine-readable artefacts the analysis stages emit rather than re-derived |
 
-Gadi-specific PBS templates and install instructions were contributed upstream
-on branch `feature/pbs-gadi-templates` of `linsalrob/genome_entropy`.
+The same tree is committed under `Validation/gtdb/scripts/` in this repository;
+see its `README.md` for the traps each stage encodes. Gadi-specific PBS
+templates and install instructions were contributed upstream on branch
+`feature/pbs-gadi-templates` of `linsalrob/genome_entropy`.
 
 ### Gadi constraints worth recording
 

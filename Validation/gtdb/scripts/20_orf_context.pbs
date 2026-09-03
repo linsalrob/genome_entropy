@@ -1,0 +1,109 @@
+#!/bin/bash
+#PBS -N ge_context
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=48
+#PBS -l mem=190GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o logs/orf_context.log
+#
+# Genomic context and the remaining entropy axes for the whole query set
+# (issue #97, deliverable 1 and the neighbourhood-coherence statistic).
+#
+# Independent of the Foldseek search, so this runs alongside it rather than
+# after it.
+#
+# WHY 32 WORKERS ON 48 CORES: each worker reads one entropy_rows chunk
+# (~3.4 M rows, 11 columns) AND the whole 1.5 M-row wanted list, so it is
+# memory-bound rather than CPU-bound at ~3 GB apiece. 48 workers would ask
+# for ~145 GB of the 190 GB requested with nothing spare for the largest
+# chunks; the job is 23 minutes either way because it is dominated by
+# decompressing the chunk TSVs.
+#
+#   qsub -v WANTED=<...>/full_bac/wanted.tsv,OUT=<...>/full_bac/context \
+#        20_orf_context.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${WANTED:?Pass WANTED=<combined wanted list> via qsub -v}"
+: "${OUT:?Pass OUT=<output directory> via qsub -v}"
+: "${WORKERS:=32}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+GDATA_ROOT="${GDATA_ROOT:-/g/data/ob80/re3494/gtdb_entropy}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+mkdir -p "${OUT}"
+
+# Chunks come from the wanted list itself, so this covers exactly the query
+# set and cannot drift from it.
+awk -F'\t' 'NR==1 {for (i=1;i<=NF;i++) c[$i]=i; next}
+            {print $c["domain"] "_" $c["chunk"]}' "${WANTED}" \
+    | sort -u > "${PBS_JOBFS}/tags.txt"
+n_tags=$(wc -l < "${PBS_JOBFS}/tags.txt")
+echo "wanted ORFs : $(( $(wc -l < "${WANTED}") - 1 ))"
+echo "chunks      : ${n_tags}"
+
+cat > "${PBS_JOBFS}/one.sh" <<EOF
+#!/bin/bash
+tag="\$1"
+# Resume only over tables from the CURRENT feature set. Tables written before
+# cds_frame_class landed would otherwise be republished under a clean exit,
+# and the ladder would silently fall back to a same-frame-contaminated
+# background. Key on the newest column, which implies the older ones.
+if [ -s "${OUT}/\${tag}.context.tsv.gz" ] \
+   && zcat "${OUT}/\${tag}.context.tsv.gz" 2>/dev/null | head -1 | grep -q protein_entropy; then
+    exit 0
+fi
+python3 ${PBS_O_WORKDIR}/20_orf_context.py \\
+    --wanted "${WANTED}" --chunk "\${tag}" --out-dir "${OUT}" \\
+    --entropy-rows "${GDATA_ROOT}/entropy_rows" \\
+    --cds-intervals "${GDATA_ROOT}/cds_intervals" \\
+    > "${OUT}/\${tag}.log" 2>&1
+EOF
+chmod +x "${PBS_JOBFS}/one.sh"
+
+echo ""
+echo "=== computing context, ${WORKERS} chunks at a time ==="
+t0=$SECONDS
+xargs -a "${PBS_JOBFS}/tags.txt" -n1 -P "${WORKERS}" "${PBS_JOBFS}/one.sh"
+echo "done in $((SECONDS - t0))s"
+
+absent=0
+while read -r tag; do
+    [ -s "${OUT}/${tag}.context.tsv.gz" ] || { echo "  missing: ${tag}" >&2; absent=$((absent+1)); }
+done < "${PBS_JOBFS}/tags.txt"
+if [ "${absent}" -ne 0 ]; then
+    echo "ERROR: ${absent} of ${n_tags} chunks produced no context table." >&2
+    echo "       Per-chunk stderr is in ${OUT}/<tag>.log" >&2
+    exit 1
+fi
+
+# The independent overlap check. Candidates are DEFINED as not touching a
+# deposited CDS and shadows as touching one; this script recomputes that from
+# the interval tables without reference to the classifier. A disagreement means
+# the two disagree about where ORFs sit on the genome, which is precisely the
+# coordinate defect that produced the withdrawn first pilot -- so it is fatal
+# here, not a warning.
+echo ""
+if grep -h "OVERLAP DISAGREEMENT" "${OUT}"/*.log > "${OUT}/overlap_disagreements.txt" 2>/dev/null \
+   && [ -s "${OUT}/overlap_disagreements.txt" ]; then
+    echo "ERROR: $(wc -l < "${OUT}/overlap_disagreements.txt") chunks disagree with" >&2
+    echo "       the classifier about which ORFs overlap a deposited CDS:" >&2
+    head -10 "${OUT}/overlap_disagreements.txt" >&2
+    exit 1
+fi
+echo "overlap check: all ${n_tags} chunks agree with the classifier"
+echo "  (candidates never overlap a deposited CDS; shadows always do)"
+
+rows=$(zcat "${OUT}"/*.context.tsv.gz | grep -vc '^genome' || true)
+echo ""
+echo "context rows: ${rows} (wanted $(( $(wc -l < "${WANTED}") - 1 )))"
+echo "context -> ${OUT}"

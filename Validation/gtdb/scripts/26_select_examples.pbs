@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -N ge_examples
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=2
+#PBS -l mem=96GB
+#PBS -l walltime=01:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+: "${PREFIX:?Pass PREFIX=<output prefix> via qsub -v}"
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+python3 -u 26_select_examples.py --out-prefix "${PREFIX}"

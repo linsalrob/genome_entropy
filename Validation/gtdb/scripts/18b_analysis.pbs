@@ -1,0 +1,86 @@
+#!/bin/bash
+#PBS -N ge_analysis
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=4
+#PBS -l mem=128GB
+#PBS -l walltime=04:00:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# Run 18_pilot_analysis.py under the scheduler.
+#
+# WHY IT IS A JOB: it loads every best-hit table, joins the wanted list, and
+# for shadow_frames reads the deposited CDS intervals for every chunk the
+# query set touches -- 760 chunks for the full bacterial run. That is minutes
+# to tens of minutes of single-threaded pandas on gigabytes, which is exactly
+# what a login node is not for. An interactive attempt was killed at two
+# minutes having produced nothing.
+#
+# ALWAYS POINT --search-dir AT THE best/ SUBDIRECTORY. The raw m8 files are
+# every hit for every query -- ~24 GB for afdb_swissprot at full scale -- and
+# load_m8 reads them with a plain pd.read_csv. best/ holds one row per query,
+# selected on maximum bit score, and is verified to agree with load_m8's own
+# lowest-E-value choice on every query of every pilot database tested.
+#
+#   qsub -v SEARCH=<...>/search_shardN/best,WANTED=<...>/wanted.shardN.tsv,\
+#           GROUPDIR=<...>/bac,DOMAIN=bac,OUT=<...>/analysis_shardN.txt \
+#        18b_analysis.pbs
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+
+: "${SEARCH:?Pass SEARCH=<search dir, normally .../best> via qsub -v}"
+: "${WANTED:?Pass WANTED=<wanted list tsv> via qsub -v}"
+: "${GROUPDIR:?Pass GROUPDIR=<dir of per-chunk candidates/controls> via qsub -v}"
+: "${OUT:?Pass OUT=<output text file> via qsub -v}"
+: "${DOMAIN:=bac}"
+
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+
+# shellcheck disable=SC1091
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+
+# Reading the raw m8 directory instead of best/ does not fail, it just runs
+# out of memory some tens of minutes in, after the queue wait. Say so up front.
+case "${SEARCH}" in
+    */best|*/best/) ;;
+    *) echo "NOTE: ${SEARCH} is not a best/ directory. That is correct only" >&2
+       echo "      for a small pilot; at full scale load_m8 will exhaust" >&2
+       echo "      memory on the raw m8 files." >&2 ;;
+esac
+
+n_m8=$(ls "${SEARCH}"/*.m8 2>/dev/null | wc -l)
+if [ "${n_m8}" -eq 0 ]; then
+    echo "ERROR: no .m8 files in ${SEARCH}" >&2
+    exit 1
+fi
+echo "m8 tables    : ${n_m8}"
+echo "wanted list  : ${WANTED}  ($(( $(wc -l < "${WANTED}") - 1 )) ORFs)"
+
+mkdir -p "$(dirname "${OUT}")"
+# -u: python buffers stdout when it is a file, so a job inspected while it
+# runs otherwise looks stalled at zero bytes. That has already produced two
+# wrong "still running" status reports.
+# CONTEXT is optional but should always be passed: it is what supplies the
+# shadow frame classes, and without them the clean-comparator table -- the
+# headline real-gene share -- is silently absent from the report.
+ctx_args=()
+if [ -n "${CONTEXT:-}" ]; then ctx_args=(--context "${CONTEXT}"); fi
+
+python3 -u 18_pilot_analysis.py \
+    --search-dir "${SEARCH}" \
+    --wanted "${WANTED}" \
+    --pilot-dir "${GROUPDIR}" \
+    "${ctx_args[@]}" \
+    --coverage-tsv "${OUT%.txt}_coverage.tsv" \
+    --domain "${DOMAIN}" \
+    --cds-intervals "/g/data/ob80/re3494/gtdb_entropy/cds_intervals/${DOMAIN}" \
+    > "${OUT}.partial" 2>&1
+status=$?
+mv "${OUT}.partial" "${OUT}"
+echo "analysis -> ${OUT} (python exit ${status})"
+tail -40 "${OUT}"
+exit ${status}
