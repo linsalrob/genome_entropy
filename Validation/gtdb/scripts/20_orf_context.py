@@ -164,6 +164,15 @@ def context_for_contig(orfs, cds):
     # this point" needs the cumulative max, not c_end[i-1]. Using the latter
     # would miss overlaps with nested genes.
     c_end_max = np.maximum.accumulate(c_end)
+    # ...and the INDEX that supplied each running maximum, which is not
+    # necessarily the index itself. Where a later CDS is nested inside an
+    # earlier longer one, dist_up came from the earlier CDS while up_strand and
+    # up_cds_id were read from the nested one -- two different genes reported as
+    # one neighbour, which would corrupt the operon-orientation call. Rare
+    # (measured: 10 of 2,080,688 archaeal CDS parts) but wrong.
+    _idx = np.arange(len(c_end))
+    c_end_max_arg = np.maximum.accumulate(
+        np.where(c_end == c_end_max, _idx, -1))
 
     a = orfs.g_start.to_numpy(dtype=np.int64)
     b = orfs.g_end.to_numpy(dtype=np.int64)
@@ -179,16 +188,19 @@ def context_for_contig(orfs, cds):
     has_up = j_up >= 0
 
     cols["dist_down"] = np.where(has_down, c_start[np.clip(j_down, 0, len(cds) - 1)] - b, -1)
-    cols["dist_up"] = np.where(has_up, a - c_end_max[np.clip(j_up, 0, len(cds) - 1)], -1)
+    j_up_c = np.clip(j_up, 0, len(cds) - 1)
+    # The CDS that actually reaches furthest, not merely the one at j_up.
+    j_up_src = np.clip(c_end_max_arg[j_up_c], 0, len(cds) - 1)
+    cols["dist_up"] = np.where(has_up, a - c_end_max[j_up_c], -1)
     cols["down_strand"] = np.where(has_down, c_strand[np.clip(j_down, 0, len(cds) - 1)], "")
-    cols["up_strand"] = np.where(has_up, c_strand[np.clip(j_up, 0, len(cds) - 1)], "")
+    cols["up_strand"] = np.where(has_up, c_strand[j_up_src], "")
     cols["down_cds_id"] = np.where(has_down, c_id[np.clip(j_down, 0, len(cds) - 1)], "")
-    cols["up_cds_id"] = np.where(has_up, c_id[np.clip(j_up, 0, len(cds) - 1)], "")
+    cols["up_cds_id"] = np.where(has_up, c_id[j_up_src], "")
 
     both = has_up & has_down
     gap = np.where(both,
                    c_start[np.clip(j_down, 0, len(cds) - 1)]
-                   - c_end_max[np.clip(j_up, 0, len(cds) - 1)],
+                   - c_end_max[j_up_c],
                    -1)
     cols["gap_len"] = gap
     cols["fits_in_gap"] = both & (gap > 0) & (cols["dist_up"] >= 0) & (cols["dist_down"] >= 0)

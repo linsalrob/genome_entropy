@@ -958,6 +958,12 @@ verification step exceeded the jobfs quota and the cleanup trap fired.
    neighbour *distance* cannot be compared between candidates and shadows,
    because a shadow overlaps a CDS by definition and its nearest
    non-overlapping neighbour is measured past the far end of that gene.
+   **Regenerate the context tables first.** The copies on `/g/data` predate a
+   fix to `up_strand`/`up_cds_id`, which for a CDS nested inside an earlier
+   longer one were read from a different gene than the one `dist_up` measures
+   to. Incidence is 10 of 2,080,688 archaeal CDS parts and none of the ten
+   exemplars, so nothing published depends on it — but strand coherence is
+   computed from exactly those columns.
 9. Stratify candidates by **GTDB annotation provenance** (§6). If candidates
    concentrate in older Prokka versions rather than recent PGAP, that is direct
    evidence of pipeline misses.

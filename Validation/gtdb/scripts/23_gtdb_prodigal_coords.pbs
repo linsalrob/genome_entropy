@@ -93,6 +93,13 @@ date -Is
 # the cut point even though every complete member before it was parsed
 # correctly. With pipefail on, the successful archaeal run would abort at the
 # very end and delete its own output.
+#
+# But disabling it must NOT let a truncated FULL download publish. Without
+# RANGE, a dropped connection, HTTP error or corrupt archive would leave the
+# pipeline reporting gzip's exit status -- zero -- and the checks below only
+# confirm the result is non-empty gzip with the right header, which a 60%
+# transfer also satisfies. PIPESTATUS is captured and, for a full download,
+# every stage is required to have succeeded.
 set +o pipefail
 curl -sS --fail-early --retry 5 --retry-delay 10 "${range_args[@]}" "${URL}" \
   | tar -xzO --wildcards '*.faa.gz' 2>/dev/null \
@@ -111,7 +118,27 @@ curl -sS --fail-early --retry 5 --retry-delay 10 "${range_args[@]}" "${URL}" \
              print substr(id, 1, n - 1), substr(id, n + 1), $2, $3, ($4 == "1" ? "+" : "-"), p
          }' \
   | gzip -c > "${tmp}"
+status=("${PIPESTATUS[@]}")
 set -o pipefail
+echo "pipeline exit statuses (curl tar zcat grep awk gzip): ${status[*]}"
+
+if [ -z "${RANGE}" ]; then
+    # curl is index 0 and gzip is last. grep returns 1 only when it matched
+    # nothing, which for this archive would itself be a failure, so every
+    # stage is required to be zero.
+    for i in "${!status[@]}"; do
+        if [ "${status[$i]}" -ne 0 ]; then
+            echo "ERROR: stage ${i} of the download pipeline exited "        \
+                 "${status[$i]}. A full run must not publish a partial" >&2
+            echo "       coordinate table -- it would pass the gzip and" >&2
+            echo "       header checks below while silently missing genes." >&2
+            exit 1
+        fi
+    done
+    echo "all pipeline stages exited 0: the transfer is complete"
+else
+    echo "RANGE set: non-zero statuses at the cut point are expected"
+fi
 
 date -Is
 

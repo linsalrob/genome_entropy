@@ -203,13 +203,22 @@ def coverage_table(best, sizes, dbs):
         note = ""
         if all(a in frac for a in ("candidate", "shadow_hi", "annotated_cds")):
             c, s, a = frac["candidate"], frac["shadow_hi"], frac["annotated_cds"]
-            n = sizes["candidate"]
             denom = a - s
             if denom > 1e-9:
                 f = (c - s) / denom
-                # Variance of each proportion, propagated through the ratio
-                # by first-order error analysis.
-                vc, vs, va = (p * (1 - p) / n for p in (c, s, a))
+                # Variance of each proportion, propagated through the ratio by
+                # first-order error analysis. EACH ARM USES ITS OWN n: the
+                # full-population design makes them deliberately unequal
+                # (candidates and shadows ~523k, annotated_cds capped near
+                # 152k), and using the candidate count for all three
+                # understated the annotated variance 3.4-fold and made this
+                # interval too narrow.
+                n_c = sizes.get("candidate", 0)
+                n_s = sizes.get("shadow_hi", 0) or n_c
+                n_a = sizes.get("annotated_cds", 0) or n_c
+                vc = c * (1 - c) / n_c
+                vs = s * (1 - s) / n_s
+                va = a * (1 - a) / n_a
                 var = (vc + vs * (1 - f) ** 2 + va * f ** 2) / denom ** 2
                 se = var ** 0.5
                 note = f"{f*100:>10.1f}% ({(f-1.96*se)*100:>5.1f} - {(f+1.96*se)*100:>5.1f})"
@@ -360,7 +369,7 @@ def assembly_strata(best, wanted, dbs, domain):
             print(f"    {str(b):<10}{f'{lo:,.0f}-{hi:,.0f}':>22}{row}")
 
 
-def shadow_frames_from_context(context_dir):
+def shadow_frames_from_context(context_dir, keep_ids=None):
     """Frame classes read from 20_orf_context.py's tables, not recomputed.
 
     Preferred over shadow_frames() below for two reasons.
@@ -393,6 +402,16 @@ def shadow_frames_from_context(context_dir):
         d = d[d.group == "shadow_hi"]
         cls = d.cds_frame_class.fillna("no overlapping CDS found")
         qid = (d.genome + "|" + d.input_id + "|" + d.orf_id + "|shadow_hi")
+        # Scope to the query set actually analysed. The context directory is
+        # domain-wide, so analysing a single shard while passing it whole would
+        # divide that shard's hit count by the domain-wide clean-shadow total --
+        # understating the shadow rate and inflating the real-gene share. The
+        # full-population runs reported here pass the combined wanted list, so
+        # keep_ids is the whole arm and this is a no-op for them; it is the
+        # per-shard invocation that needs the guard.
+        if keep_ids is not None:
+            m = qid.isin(keep_ids)
+            qid, cls = qid[m], cls[m]
         per_shadow.update(dict(zip(qid, cls)))
         for k, v in cls.value_counts().items():
             counts[k] = counts.get(k, 0) + int(v)
@@ -659,7 +678,10 @@ def main():
     # out of the report without failing.
     shadow_class = None
     if args.context:
-        shadow_class = shadow_frames_from_context(args.context)
+        w = wanted[wanted.group == "shadow_hi"]
+        keep_ids = set(w.genome.astype(str) + "|" + w.input_id.astype(str)
+                       + "|" + w.orf_id.astype(str) + "|shadow_hi")
+        shadow_class = shadow_frames_from_context(args.context, keep_ids)
     if shadow_class is None:
         shadow_class = shadow_frames(wanted, args.pilot_dir,
                                      args.cds_intervals)
