@@ -1,0 +1,104 @@
+#!/bin/bash
+#PBS -N gtdb_pop_entropy
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=24
+#PBS -l mem=96GB
+#PBS -l jobfs=100GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80+scratch/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# Full-population descriptive statistics over every per-ORF entropy row
+# (issue #99).
+#
+# WHY THIS EXISTS
+#
+# The report's entropy comparisons come from the systematic figure samples
+# (every 300th bacterial row, every 30th archaeal) or, older still, from 250
+# genomes. The manuscript needs exact population counts and descriptive
+# statistics instead, and in particular the exact archaeal matched count,
+# which was only ever reported as a percentage.
+#
+# This reads the existing entropy_rows TSVs. It does not rerun ModernProst or
+# the genome_entropy encoding and it renders no figure: at 2.62e9 rows a
+# scatter is neither useful nor affordable, and the samples already reproduce
+# the population matched fraction to two decimal places.
+#
+# HOW
+#
+# `agg` streams a chunk, stratifies each row by (does the genome carry at
+# least one deposited CDS, is the ORF matched) and accumulates exact counts,
+# sums and sums of squares plus a 1e-4 histogram of each entropy column. The
+# four strata compose into every group the issue asks for, so the 143 GB is
+# read once. Medians and quartiles come from the histograms and are therefore
+# bounded by the bin width, not exact; counts and means are exact.
+#
+# The genome-level CDS flag is 12_genome_cds_counts.pbs's direct count of CDS
+# features in the GenBank records, not the `any(in_genbank)` matcher proxy.
+# The figure-sample bookkeeping at the end necessarily uses the proxy, because
+# that is the column the sampler wrote and what the figures actually filtered
+# on.
+
+set -euo pipefail
+
+DATA=/g/data/ob80/re3494/gtdb_entropy
+SRC="${SRC:?set SRC to the directory holding population_agg.c and population_summary.py}"
+OUT="${OUT:?set OUT to the output directory}"
+NPROC=${NPROC:-22}
+
+mkdir -p "$OUT"
+gcc -O2 -o "$PBS_JOBFS/agg" "$SRC/population_agg.c"
+
+# genome -> 1 if it carries at least one deposited CDS
+for dom in bac arc; do
+    awk -F'\t' 'NR>1{print $1"\t"($5=="True"?1:0)}' \
+        "$DATA/genome_cds_counts_${dom}.tsv" > "$PBS_JOBFS/cdsflag_${dom}.tsv"
+done
+
+# One partial per worker rather than one per chunk: 760 bacterial partials of
+# ~1.2M histogram lines each is more text to recombine than to produce.
+run_domain() {
+    local dom=$1
+    local pdir="$PBS_JOBFS/partials_$dom"
+    mkdir -p "$pdir"
+    ls "$DATA/entropy_rows/$dom"/*.tsv.gz | sort > "$PBS_JOBFS/files_$dom"
+    local nf; nf=$(wc -l < "$PBS_JOBFS/files_$dom")
+    echo "$(date -Is) $dom: $nf chunks over $NPROC workers"
+    # stride assignment, so a worker's share does not depend on chunk order
+    seq 0 $((NPROC - 1)) | xargs -P "$NPROC" -I{} bash -c '
+        w=$1; pdir=$2; dom=$3; np=$4
+        awk -v w="$w" -v np="$np" "NR%np==w" "$PBS_JOBFS/files_$dom" > "$pdir/files.$w"
+        if [ -s "$pdir/files.$w" ]; then
+            xargs -a "$pdir/files.$w" gzip -dc \
+                | "$PBS_JOBFS/agg" "$PBS_JOBFS/cdsflag_$dom.tsv" > "$pdir/part.$w"
+        fi
+    ' _ {} "$pdir" "$dom" "$NPROC"
+    echo "$(date -Is) $dom: aggregation done, combining"
+    python3 "$SRC/population_summary.py" "$dom" "$OUT/population_entropy_${dom}.tsv" "$pdir"/part.*
+    # Keep the partials. They are sufficient for any further statistic over the
+    # same strata, and regenerating them costs another full 143 GB read.
+    mkdir -p "$OUT/partials_$dom"
+    for f in "$pdir"/part.*; do gzip -c "$f" > "$OUT/partials_$dom/$(basename "$f").gz"; done
+}
+
+for dom in arc bac; do run_domain "$dom"; done
+
+# Figure-sample bookkeeping: what was actually plotted, on the same filter the
+# plotting scripts apply. Reshaped into the entropy_rows column order so the
+# one validated aggregator does the counting.
+printf 'ANN\t1\nUNANN\t0\n' > "$PBS_JOBFS/sampleflag.tsv"
+for dom in bac arc; do
+    gzip -dc "$DATA/figure_samples/sample_${dom}.tsv.gz" \
+        | awk -F'\t' 'BEGIN{OFS="\t"
+              print "domain","chunk","genome","input_id","orf_id","start","end","strand",
+                    "aa_length","in_genbank","dna_entropy","protein_entropy",
+                    "three_di_entropy","twelve_state_entropy",
+                    "three_di_twelve_state_mutual_information","contig_length"}
+            NR>1{print $1,"s",($6=="True"?"ANN":"UNANN"),"i","o",0,0,"+",$5,$2,"",$3,$4,"","",0}' \
+        | "$PBS_JOBFS/agg" "$PBS_JOBFS/sampleflag.tsv" > "$PBS_JOBFS/sample_$dom.part"
+    python3 "$SRC/population_summary.py" "$dom" "$OUT/figure_sample_${dom}.tsv" "$PBS_JOBFS/sample_$dom.part"
+done
+
+echo "$(date -Is) done"
