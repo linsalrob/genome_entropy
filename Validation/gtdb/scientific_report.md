@@ -204,19 +204,40 @@ an artefact of unannotated assemblies.
 
 ### Figures
 
-In `/g/data/ob80/re3494/gtdb_entropy/figures/`, regenerated over **every**
-chunk of both domains rather than the 20 bacterial chunks that existed while the
-run was in flight:
+All figures live in [`figures/`](figures/) and are committed alongside this
+report. The entropy panels below were regenerated over **every** chunk of both
+domains rather than the 20 bacterial chunks that existed while the run was in
+flight; the §6 figures are written by `28_report_figures.py`, which reads the
+TSVs the analysis stages emit rather than recomputing anything — a plotting
+script that reimplements the analysis is a second implementation that will drift
+from the first.
+
+![Joint density of protein against 3Di entropy for bacteria, with marginal
+histograms](figures/protein_vs_3di_joint_bac.png)
+
+*Bacteria: joint density with marginals. The 3Di margin is a histogram rather
+than a KDE, deliberately — smoothing rounds off the very edge the figure exists
+to show.*
+
+![The same joint density for archaea](figures/protein_vs_3di_joint_arc.png)
+
+*Archaea, 47-fold fewer ORFs, same structure.*
+
+![Bacteria against archaea on one axis](figures/protein_vs_3di_domains.png)
+
+*Both domains on the same axis: the 1.585 edge falls in the same place, which is
+what an information-theoretic ceiling predicts and a biological threshold does
+not.*
 
 | file | content |
 |---|---|
-| `protein_vs_3di_entropy_bac.png` / `_arc.png` | scatter, 4 panels |
-| `protein_vs_3di_hexbin_bac.png` / `_arc.png` | hexbin, log counts |
-| `protein_vs_3di_kde_bac.png` / `_arc.png` | KDE + contour overlay |
-| `protein_vs_3di_joint_bac.png` / `_arc.png` | joint density with marginals |
-| `protein_vs_3di_domains.png` | bacteria against archaea |
+| [`protein_vs_3di_entropy_bac.png`](figures/protein_vs_3di_entropy_bac.png) / [`_arc.png`](figures/protein_vs_3di_entropy_arc.png) | scatter, 4 panels |
+| [`protein_vs_3di_hexbin_bac.png`](figures/protein_vs_3di_hexbin_bac.png) / [`_arc.png`](figures/protein_vs_3di_hexbin_arc.png) | hexbin, log counts |
+| [`protein_vs_3di_kde_bac.png`](figures/protein_vs_3di_kde_bac.png) / [`_arc.png`](figures/protein_vs_3di_kde_arc.png) | KDE + contour overlay |
+| [`protein_vs_3di_joint_bac.png`](figures/protein_vs_3di_joint_bac.png) / [`_arc.png`](figures/protein_vs_3di_joint_arc.png) | joint density with marginals |
+| [`protein_vs_3di_domains.png`](figures/protein_vs_3di_domains.png) | bacteria against archaea |
 
-Every panel with a 3Di axis now carries dotted log₂(k) reference lines, so the
+Every panel with a 3Di axis carries dotted log₂(k) reference lines, so the
 1.585 boundary reads as the three-state ceiling of §5 rather than as an
 unexplained feature.
 
@@ -379,6 +400,12 @@ them.
 | → → **shadow** of a deposited CDS | 9,075,154 (**94.5%**) | 285,470 (**92.7%**) |
 | → → **intergenic — candidates** | **523,346** (5.5%) | **22,447** (7.3%) |
 
+![Funnel from all ORF calls to candidates, both domains](figures/candidate_funnel.png)
+
+*Each step removes a population that cannot inform the question: ORFs in genomes
+with no annotation at all, ORFs the matcher accepted as CDS, low-entropy calls,
+and finally shadows of real genes.*
+
 The bacterial candidate pool falls from **3,562,431 to 523,346**, an 85.3%
 reduction, and the "99.8% of annotated genomes carry a candidate" figure falls
 to 83.7% (81,043 of 96,875). ORF counts conserve exactly across the split
@@ -452,6 +479,11 @@ was placed wrongly and fell in the wrong arm. Burden correlated with
 fragmentation because *the bug* correlated with fragmentation. What burden now
 tracks is ORF count, genome size and low coding density — which is what a
 missed-gene signal should look like.
+
+![Candidate burden against genome covariates,
+bacteria](figures/candidate_burden_bac.png)
+
+![The same for archaea](figures/candidate_burden_arc.png)
 
 ### Sensitivity of the ORF caller
 
@@ -536,6 +568,9 @@ comparator (antisense and frameshift shadows only):
 | cath50 | 12.7% | 5.5% | 25.3% | **36.4% (33.7 – 39.2)** |
 | bfvd | 9.2% | 3.6% | 11.6% | 70.2% — discounted |
 
+![Full-length coverage by arm and database, with the implied real-gene
+share](figures/candidate_coverage.png)
+
 BFVD is excluded from estimation because its annotated ceiling is ~11%, so the
 mixture denominator is small and the ratio unstable. It is retained for
 interpretation: a BFVD-only hit suggests phage or prophage biology.
@@ -573,6 +608,9 @@ excess is the floor — the candidate column is not.
 C7 requires: not truncated, full-length in ≥2 databases including at least one
 of Swiss-Prot/PDB/CATH, an interpretable product name, ≥100 aa, E < 10⁻¹⁰.
 
+![Direct evidence: candidates against matched clean
+shadows](figures/evidence_ladder.png)
+
 **These are a set, not a nested ladder** — C6 (4,439) exceeds C4 (2,777) in
 archaea, so reading down the column as increasing stringency is wrong. C3–C6 are
 each C2 plus one independent requirement; C7 is the conjunction.
@@ -606,6 +644,9 @@ produced zero matches and the false conclusion that Prodigal disagrees.
 | clean shadow (3Di-matched, occupied space) | 9.41% | 16.00% |
 | `intergenic_lo` (unoccupied space) | 9.85% | 15.44% |
 
+![Prodigal agreement by arm, and by shadow frame
+class](figures/prodigal_validation.png)
+
 Two objections fail against their own controls. First, an antisense shadow sits
 inside a gene Prodigal already calls, and gene callers avoid overlapping
 predictions — so its low rate might reflect a prior commitment rather than the
@@ -623,6 +664,27 @@ Through the same mixture arithmetic as the structural assay:
 |---|---:|---:|
 | bacteria | **44.5% (44.3 – 44.7)** | **233,074** |
 | archaea | **49.1% (48.2 – 50.0)** | **11,026** |
+
+#### How much annotation GTDB itself adds, and a correction
+
+A genome-level version of the same question: GTDB's Prodigal calls exceed the
+deposited GenBank CDS count in **88.3% of annotated archaeal and 78.4% of
+bacterial genomes**, by a median of **30 and 29 genes** respectively.
+
+> **A correction.** That gap was first reported here and on
+> [#97](https://github.com/linsalrob/genome_entropy/issues/97) as a median of
+> **193 genes**, with Prodigal exceeding GenBank in 99.9% of genomes. Both were
+> wrong, through a column-name collision: `candidate_burden_*.tsv` renames
+> `n_orfs_in_genbank` to `n_cds`, so that column counts *ORFs that matched a
+> CDS*, while `genome_cds_counts_*.tsv` — also called `n_cds` — counts
+> *deposited CDS features*. Differencing Prodigal against the first gives the
+> real gap (30) plus the ORF-matching loss (161). Two tables, two quantities,
+> one column name.
+
+The corrected figure is much weaker evidence than the published one, and the
+genome-level argument should not be leaned on: Spearman ρ between candidate
+burden and the corrected gap is **0.119 (archaea) / 0.035 (bacteria)** —
+essentially nothing. Only the ORF-level test above carries weight.
 
 #### Where the two estimates disagree
 
@@ -674,6 +736,9 @@ evidence):
 | defence | 1.6% | 1.0% |
 | cell envelope | 1.2% | 1.3% |
 
+![Functional composition of the strict-evidence
+sets](figures/functional_composition.png)
+
 The most frequent *individual families* are mobile-element proteins —
 resolvases, recombinases, integrases, homing endonucleases, intron-encoded
 proteins — which is a correct result rather than an artefact, since those are
@@ -681,6 +746,22 @@ genuinely omitted from GenBank annotation. But they are only 12–14% of the
 supported set, while metabolic enzymes are 34–41%. There are 8,065 distinct
 Swiss-Prot products among 23,393 annotated bacterial strict candidates, with the
 top ten covering 10.0%.
+
+#### Where the separation lives
+
+Stratifying the archaeal coverage contrast by assembly quality shows the
+candidate-versus-shadow separation is **not uniform across genomes**. In the top
+contig-N50 quartile candidates reach 43.5% against shadows at 32.6% — an
+11-point gap — while in the bottom quartile the two are indistinguishable
+(65.8% against 65.5%).
+
+This argues *against* the separation being an assembly artefact: an artefact of
+fragmentation would appear most strongly in the worst assemblies, and it appears
+only in the best. It also gives a positive reason to draw manuscript examples
+from high-completeness, high-N50 genomes — not merely to avoid artefacts, but
+because that is where the signal demonstrably is. A candidate in a poorly
+assembled genome carries little evidential weight however good its structural
+hit.
 
 #### Examples
 
@@ -690,6 +771,11 @@ non-truncated, lies entirely between two deposited CDS, is ≥100 aa, sits in a
 host ≥95% complete with ≤5% contamination and ordinary candidate burden, and has
 full-length support in all four databases. Dossiers are in
 `missed_genes/dossiers/`.
+
+![Genomic context of the ten manuscript examples](figures/exemplar_loci.png)
+
+*Each panel is a window around one candidate. Grey arrows are deposited CDS;
+the outlined coloured arrow is the candidate, filled by functional class.*
 
 Two are genuinely incomplete modules:
 
@@ -938,7 +1024,8 @@ Pipeline in `/g/data/ob80/re3494/Projects/genome_entropy/claude/`:
 | `24_prodigal_overlap.{py,pbs}` | ORF-level agreement with an independent gene caller |
 | `25_functional_classes.{py,pbs}` | functional classes, mobile-element and BFVD-only flags |
 | `26_select_examples.{py,pbs}` | manuscript examples, chosen by class rather than score |
-| `27_build_dossiers.{py,pbs}` | dossiers, with neighbour products read back from the GenBank archives |
+| `27_build_dossiers.{py,pbs}` | dossiers, with neighbour products read back from the GenBank archives; also emits `exemplar_neighbours.tsv` |
+| `28_report_figures.py` | every figure in §6 and §6.1, read from the machine-readable artefacts the analysis stages emit rather than re-derived |
 
 The same tree is committed under `Validation/gtdb/scripts/` in this repository;
 see its `README.md` for the traps each stage encodes. Gadi-specific PBS

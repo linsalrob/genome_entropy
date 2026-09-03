@@ -390,6 +390,10 @@ def main():
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     combined = []
+    # Machine-readable neighbours, so the locus figure does not have to re-walk
+    # the GenBank archives (one zstd stream per chunk, no random access) or
+    # scrape them back out of the markdown.
+    nb_rows = []
     # iterrows, NOT itertuples: the dossier body uses row.get(col) for the
     # many optional evidence columns, and a namedtuple has no .get().
     for i, (_, row) in enumerate(ex.iterrows(), start=1):
@@ -398,14 +402,25 @@ def main():
         name = f"{i:02d}_{row.genome}_{row.orf_id}.md"
         (out_dir / name).write_text(text)
         combined.append(text)
-        n_win = len([f for f in feats
-                     if f[1] > int(row.g_start) - WINDOW
-                     and f[0] < int(row.g_end) + WINDOW])
-        print(f"  {name}  ({n_win} CDS in the +/-{WINDOW//1000} kb window, "
+        lo, hi = int(row.g_start) - WINDOW, int(row.g_end) + WINDOW
+        near = [f for f in feats if f[1] > lo and f[0] < hi]
+        for s, e, st, tag, prod in near:
+            nb_rows.append(dict(
+                example=i, slot=row.slot, genome=row.genome,
+                contig=row.input_id, orf_id=row.orf_id,
+                cand_start=int(row.g_start), cand_end=int(row.g_end),
+                cand_strand=row.strand, window_lo=lo, window_hi=hi,
+                nb_start=s, nb_end=e, nb_strand=st,
+                nb_locus_tag=tag, nb_product=prod))
+        print(f"  {name}  ({len(near)} CDS in the +/-{WINDOW//1000} kb window, "
               f"{len(feats)} on the contig)")
     (out_dir / "ALL_DOSSIERS.md").write_text(
         "\n\n---\n\n".join(combined))
-    print(f"\ndossiers -> {out_dir}")
+    nb = pd.DataFrame(nb_rows)
+    nb_path = out_dir / "exemplar_neighbours.tsv"
+    nb.to_csv(nb_path, sep="\t", index=False)
+    print(f"\ndossiers   -> {out_dir}")
+    print(f"neighbours -> {nb_path}  ({len(nb):,} rows)")
     return 0
 
 

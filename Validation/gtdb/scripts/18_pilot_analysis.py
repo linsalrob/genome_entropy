@@ -520,7 +520,7 @@ def shadow_frames(wanted, pilot_dir, cds_dir):
     return per_shadow
 
 
-def shadow_class_coverage(best, sizes, dbs, shadow_class):
+def shadow_class_coverage(best, sizes, dbs, shadow_class, tsv_out=None):
     """Re-run the coverage comparison against antisense shadows only.
 
     A same-strand same-frame shadow largely IS the annotated protein, so it
@@ -548,6 +548,10 @@ def shadow_class_coverage(best, sizes, dbs, shadow_class):
           "and belong\n  in the positive control, not the comparator.")
     print(f"\n  {'db':<16}{'candidate':>12}{'shadow (clean)':>16}"
           f"{'annotated':>12}{'real-gene share (95% CI)':>28}")
+    # Machine-readable copy for the report figures. Emitting it here rather
+    # than re-deriving it in a plotting script is what stops the figure and the
+    # table drifting apart.
+    rows = []
     for db in dbs:
         st = best.get((db, "struct"), pd.DataFrame())
         if not len(st):
@@ -573,6 +577,16 @@ def shadow_class_coverage(best, sizes, dbs, shadow_class):
                     f"{(f+1.96*se)*100:>5.1f})")
         print(f"  {db:<16}{c*100:>11.1f}%{s*100:>15.1f}%{a*100:>11.1f}%"
               f"{note:>28}")
+        rows.append(dict(database=db, n_candidate=n_c, n_clean_shadow=n_clean,
+                         n_annotated=n_a, candidate=c, clean_shadow=s,
+                         annotated=a,
+                         share=(f if denom > 1e-9 else float("nan")),
+                         share_lo=((f - 1.96 * se) if denom > 1e-9 else float("nan")),
+                         share_hi=((f + 1.96 * se) if denom > 1e-9 else float("nan"))))
+
+    if tsv_out and rows:
+        pd.DataFrame(rows).to_csv(tsv_out, sep="\t", index=False)
+        print(f"\n  machine-readable copy -> {tsv_out}")
 
 
 def main():
@@ -581,6 +595,10 @@ def main():
     ap.add_argument("--wanted", default=f"{GD}/missed_genes/pilot/wanted4.tsv")
     ap.add_argument("--pilot-dir", default=f"{GD}/missed_genes/pilot")
     ap.add_argument("--domain", default="bac")
+    ap.add_argument("--coverage-tsv", default=None,
+                    help="write the clean-comparator coverage table here as "
+                         "TSV, so the report figures read numbers rather than "
+                         "re-deriving them")
     ap.add_argument("--context", default=None,
                     help="directory of 20_orf_context.py tables. When given, "
                          "shadow frame classes are READ from there rather "
@@ -645,7 +663,8 @@ def main():
     if shadow_class is None:
         shadow_class = shadow_frames(wanted, args.pilot_dir,
                                      args.cds_intervals)
-    shadow_class_coverage(best, sizes, dbs, shadow_class)
+    shadow_class_coverage(best, sizes, dbs, shadow_class,
+                          tsv_out=args.coverage_tsv)
     return 0
 
 

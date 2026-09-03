@@ -75,6 +75,7 @@ python3 -u 18_pilot_analysis.py \
     --wanted "${WANTED}" \
     --pilot-dir "${GROUPDIR}" \
     "${ctx_args[@]}" \
+    --coverage-tsv "${OUT%.txt}_coverage.tsv" \
     --domain "${DOMAIN}" \
     --cds-intervals "/g/data/ob80/re3494/gtdb_entropy/cds_intervals/${DOMAIN}" \
     > "${OUT}.partial" 2>&1

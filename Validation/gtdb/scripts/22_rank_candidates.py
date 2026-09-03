@@ -260,6 +260,18 @@ def ladder(cand, shadow, out, label):
     print(text)
     with open(out, "a") as fh:
         fh.write(text + "\n")
+    # Machine-readable copy, so the report figure reads these counts rather
+    # than re-implementing tiers() and drifting from it.
+    recs = []
+    for k in tc:
+        c, s_ = int(tc[k].sum()), int(ts[k].sum())
+        recs.append(dict(criterion=k, candidates=c, shadows=s_,
+                         n_candidate_arm=n_c, n_shadow_arm=n_s,
+                         comparator=label,
+                         excess=c - (s_ * n_c / n_s if n_s else 0.0)))
+    tsv = str(out).replace("_ladder.txt", "_ladder.tsv")
+    hdr = not Path(tsv).exists()
+    pd.DataFrame(recs).to_csv(tsv, sep="\t", index=False, mode="a", header=hdr)
 
 
 def main():
