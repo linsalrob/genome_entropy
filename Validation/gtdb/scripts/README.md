@@ -102,6 +102,18 @@ combined.
 | `24_prodigal_overlap.py/.pbs` | ORF-level agreement with an independent gene caller |
 | `25_functional_classes.py/.pbs` | functional classes, mobile-element and BFVD-only flags |
 | `26_select_examples.py/.pbs`, `27_build_dossiers.py/.pbs` | manuscript examples and dossiers |
+| `29_population_entropy_summary.pbs`, `population_agg.c` | full-population entropy statistics: one pass over all 2.62 billion ORF rows, 24 CPUs, 5 min, 4 SU |
+| `population_summary.py`, `population_tables.py` | combine the partials; render the report tables from the TSVs |
+
+`29` exists because the report's entropy comparisons came from samples, and the
+manuscript needs exact population counts. It reads `entropy_rows/` only — no
+re-encoding — and stratifies every row by (genome carries a deposited CDS,
+`in_genbank`) in one streaming pass, because those four strata compose into
+every group anyone has asked for and the alternative is reading 143 GB once per
+question. Quantiles come from 1e-4 histograms, so they are bounded rather than
+exact; counts and means are exact. It keeps its per-worker partials for the same
+reason: the second question should not cost another full read. It did, and they
+did not exist yet.
 
 ## Traps that each cost real time
 
@@ -123,6 +135,16 @@ combined.
   not change what it runs.
 - Resume guards must key on the **newest** output column, or a re-run
   republishes stale tables under a clean exit status.
+- **An aggregation that discards its intermediates buys one answer.** `29`'s
+  first run threw away its per-worker partials, so adding a single derived
+  statistic meant re-reading all 143 GB. Cheap here (4 SU); the habit is not.
+- **A filter's stated rationale is a claim, and can be wrong in the direction
+  that matters.** §4 justified excluding never-annotated genomes by saying their
+  ORFs sit in the low-3Di band. The population statistics show the opposite —
+  they are 23-fold enriched above the candidate threshold — which is a stronger
+  reason for the same exclusion and the one §6 had already measured. The filter
+  was right; the sentence explaining it was not, and nothing checked it because
+  the conclusion was correct.
 
 ## The defect family this run kept producing
 

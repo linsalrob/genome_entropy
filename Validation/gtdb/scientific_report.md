@@ -4,8 +4,9 @@
 **Model:** `gbouras13/modernprost-50M` — dual-head ModernProst, 3Di + 12-state
 **Tool:** `genome_entropy` 0.2.0, output schema 2.2.0
 **Platform:** NCI Gadi (PBS Pro), project `ob80`
-**Report date:** 2026-09-03 — bacteria and archaea complete; §6 rewritten on the
-corrected classification and the full candidate population
+**Report date:** 2026-09-04 — bacteria and archaea complete; §6 rewritten on the
+corrected classification and the full candidate population; §4.1 added with
+full-population descriptive statistics
 
 ---
 
@@ -13,7 +14,11 @@ corrected classification and the full candidate population
 
 3Di and 12-state structural entropy was computed for every bacterial and
 archaeal species representative in GTDB r232 — 199,837 genomes and 2.62 billion
-ORFs. The headline analytical result is that the
+ORFs. Exactly 2,568,244,984 bacterial and 54,858,398 archaeal ORFs carry entropy
+values, of which 309,065,661 (12.03%) and 9,468,402 (17.26%) matched a deposited
+GenBank CDS; §4.1 gives the descriptive statistics for both domains over the
+whole population rather than a sample. The headline analytical result is that
+the
 **boundary at 3Di entropy ≈ 1.585 bits, visible as a sharp horizontal line
 separating GenBank-matched from unmatched ORFs, is an information-theoretic
 ceiling rather than a biological threshold**: it is exactly log₂(3), and it
@@ -87,12 +92,17 @@ An earlier version of this report, working from a mid-run sample, stated the
 opposite; the sampled estimate was wrong.
 
 `in_genbank` — whether a called ORF was matched to an annotated CDS by genomic
-overlap, frame and translation:
+overlap, frame and translation. Exact counts over every ORF row in both
+domains, from `29_population_entropy_summary.pbs`:
 
-| | count | share |
-|---|---:|---:|
-| `in_genbank = True` | 309,065,661 | 12.03% |
-| `in_genbank = False` | 2,259,179,323 | 87.97% |
+| | bacteria | share | archaea | share |
+|---|---:|---:|---:|---:|
+| `in_genbank = True` | 309,065,661 | 12.03% | 9,468,402 | 17.26% |
+| `in_genbank = False` | 2,259,179,323 | 87.97% | 45,389,996 | 82.74% |
+| **all ORFs** | **2,568,244,984** | 100% | **54,858,398** | 100% |
+
+The archaeal matched count was previously given only as a percentage; it is
+9,468,402, and 17.2596% to four decimal places.
 
 The low matched fraction is expected and is not an error rate. `get_orfs`
 enumerates open reading frames in all six frames, so most calls are not genes.
@@ -178,21 +188,45 @@ substantially different regions of (protein entropy, 3Di entropy) space:
 
 The separation is almost entirely in **3Di**, not protein, entropy: unmatched
 ORFs have plausible amino-acid composition but structurally monotonous 3Di
-strings. Mean 3Di entropy across 250 genomes was 3.153 for matched ORFs against
-1.818 for all ORFs.
+strings. Over the whole bacterial population, mean 3Di entropy is **3.123** for
+matched ORFs against **1.043** for unmatched ORFs of the same genomes, while
+mean protein entropy moves only from 3.979 to 3.592. An earlier draft gave
+3.153 against 1.818 from 250 genomes; the matched estimate held, but the
+comparison class was all ORFs rather than unmatched ORFs, and 1.818 is not the
+population value of either (all ORFs 1.514, unmatched 1.294). The
+full-population table below supersedes it.
 
 **Every figure in this report is restricted to genomes carrying at least one
 annotated CDS, and that restriction is not cosmetic.** 48.9% of bacterial and
 45.7% of archaeal representatives have no CDS annotation at all, so every ORF in
-them is `in_genbank = False` whatever it is. Those rows sit overwhelmingly in the
-low-3Di band, and including them inflates the unmatched class with ORFs that
-carry no information about whether they are genes — making the separation look
-cleaner than the evidence supports. Removing them discards 42.8% of the sampled
-bacterial rows (3,667,250 of 8,560,442) and 37.7% of the archaeal (689,879 of
-1,828,593), and raises the matched fraction from 12.01% to 21.01% in bacteria and
-from 17.26% to 27.72% in archaea. Earlier drafts of these figures mixed the two
-populations; they have been withdrawn to
-`figures/superseded_20chunk/`. `08_plot_entropy_scatter.py` and
+them is `in_genbank = False` whatever it is, and including them fills the
+unmatched class with ORFs that carry no information about whether they are
+genes. Removing them discards 42.8% of the sampled bacterial rows (3,667,250 of
+8,560,442) and 37.7% of the archaeal (689,879 of 1,828,593), and raises the
+matched fraction from 12.01% to 21.01% in bacteria and from 17.26% to 27.72% in
+archaea. In the population the same exclusion removes 1,100,189,016 of
+2,568,244,984 bacterial ORFs (42.84%) and 20,697,043 of 54,858,398 archaeal
+(37.73%) — the sample reproduces both shares to two decimal places.
+
+**Earlier drafts of this paragraph said those rows "sit overwhelmingly in the
+low-3Di band", making the separation "look cleaner than the evidence supports".
+The full-population statistics show that is backwards, and it mattered.** ORFs
+in never-annotated genomes have *higher* 3Di entropy than the unmatched ORFs of
+annotated genomes they were pooled with — mean 1.557 against 1.043 in bacteria,
+1.842 against 1.096 in archaea — and the excess is concentrated exactly where
+§6 looks for missed genes. Above the §6 candidate threshold of 3Di entropy 2.5
+sit **19.1% of bacterial and 28.3% of archaeal no-CDS ORFs**, against **0.83%
+and 1.25%** of unmatched ORFs in annotated genomes — a **23-fold enrichment in
+both domains**. So including them made the mean gap between matched and
+unmatched *narrower*, not wider (bacteria 1.83 bits unfiltered against 2.08 bits
+filtered), while supplying most of the high-3Di unmatched pool. That is the
+same effect §6 measures from the other direction when it finds never-annotated
+genomes to be the dominant confounder in the candidate set, and it is the real
+reason the exclusion is mandatory: not that these rows are structurally
+monotonous, but that they are gene-like and unlabelled.
+
+Earlier drafts of these figures mixed the two populations; they have been
+withdrawn to `figures/superseded_20chunk/`. `08_plot_entropy_scatter.py` and
 `09_plot_density.py` can still draw the unfiltered view with
 `--include-unannotated`, which stamps the figure as a diagnostic — it is useful
 for showing what the confounder does, and not a result.
@@ -200,7 +234,108 @@ for showing what the confounder does, and not a result.
 What the filter does *not* remove is the low-3Di population itself. In both
 domains a large mode remains below log₂(3) among unmatched ORFs of annotated
 genomes, so that population is a real feature of six-frame ORF calling and not
-an artefact of unannotated assemblies.
+an artefact of unannotated assemblies. Quantitatively, **87.6% of bacterial and
+84.1% of archaeal unmatched ORFs in annotated genomes fall below log₂(3)**,
+against 3.3% and 3.7% of matched ORFs.
+
+### 4.1 Full-population descriptive statistics
+
+Everything above this subsection was established on samples. The table below is
+not: it is computed over **all 2,568,244,984 bacterial and 54,858,398 archaeal
+ORF rows**, by `29_population_entropy_summary.pbs` streaming the existing
+`entropy_rows/` TSVs. Nothing was re-encoded and no figure was rendered from
+2.62 billion points; §4's figures remain the systematic samples, whose
+bookkeeping is confirmed below.
+
+Counts, means and standard deviations are exact. Medians and quartiles are read
+from 10⁻⁴-wide histograms, so they are accurate to ±5×10⁻⁵ rather than exact —
+enough for three decimal places and not enough for more. `n` is identical for
+every metric within a group: no row had a missing or non-finite entropy value in
+either domain, and no ORF row referenced a genome absent from the CDS-count
+table.
+
+Group definitions. *Matched* / *unmatched* are `in_genbank`. *CDS-bearing* means
+the genome carries at least one CDS feature in its GenBank record, counted
+directly by `12_genome_cds_counts.pbs` rather than inferred from
+`any(in_genbank)`. Matched ORFs occur only in CDS-bearing genomes by
+construction, so the matched rows repeat between the two blocks — the "no
+deposited CDS **and** matched" stratum is exactly 0 in both domains, which is
+the arithmetic check that the two independent annotation signals agree.
+
+#### Bacteria
+
+**All genomes**
+
+| group | n | mean 3Di | median 3Di | Q1 | Q3 | IQR | mean protein | median protein | mean 12-state | mean 3Di–12st MI | mean aa length |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| all ORFs | 2,568,244,984 | 1.514 | 1.312 | 0.807 | 1.827 | 1.020 | 3.698 | 3.757 | 1.618 | 0.467 | 215.8 |
+| matched (`in_genbank=True`) | 309,065,661 | 3.123 | 3.293 | 2.743 | 3.625 | 0.882 | 3.979 | 4.005 | 3.059 | 0.960 | 376.4 |
+| unmatched (`in_genbank=False`) | 2,259,179,323 | 1.294 | 1.212 | 0.737 | 1.549 | 0.812 | 3.660 | 3.714 | 1.421 | 0.399 | 193.8 |
+
+**Restricted to genomes with at least one deposited CDS**
+
+| group | n | mean 3Di | median 3Di | Q1 | Q3 | IQR | mean protein | median protein | mean 12-state | mean 3Di–12st MI | mean aa length |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| all ORFs | 1,468,055,968 | 1.481 | 1.278 | 0.763 | 1.778 | 1.015 | 3.673 | 3.732 | 1.571 | 0.456 | 219.7 |
+| matched | 309,065,661 | 3.123 | 3.293 | 2.743 | 3.625 | 0.882 | 3.979 | 4.005 | 3.059 | 0.960 | 376.4 |
+| unmatched | 1,158,990,307 | 1.043 | 1.083 | 0.639 | 1.430 | 0.791 | 3.592 | 3.647 | 1.174 | 0.321 | 177.9 |
+
+**Genomes with no deposited CDS (excluded from every figure)**
+
+| group | n | mean 3Di | median 3Di | Q1 | Q3 | IQR | mean protein | median protein | mean 12-state | mean 3Di–12st MI | mean aa length |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| all ORFs (all unmatched by construction) | 1,100,189,016 | 1.557 | 1.351 | 0.870 | 1.892 | 1.022 | 3.731 | 3.787 | 1.681 | 0.481 | 210.5 |
+
+#### Archaea
+
+**All genomes**
+
+| group | n | mean 3Di | median 3Di | Q1 | Q3 | IQR | mean protein | median protein | mean 12-state | mean 3Di–12st MI | mean aa length |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| all ORFs | 54,858,398 | 1.720 | 1.450 | 0.935 | 2.518 | 1.583 | 3.754 | 3.829 | 1.885 | 0.527 | 205.9 |
+| matched (`in_genbank=True`) | 9,468,402 | 3.084 | 3.253 | 2.677 | 3.615 | 0.938 | 3.981 | 4.004 | 3.054 | 0.953 | 324.9 |
+| unmatched (`in_genbank=False`) | 45,389,996 | 1.436 | 1.314 | 0.820 | 1.696 | 0.876 | 3.707 | 3.773 | 1.641 | 0.438 | 181.1 |
+
+**Restricted to genomes with at least one deposited CDS**
+
+| group | n | mean 3Di | median 3Di | Q1 | Q3 | IQR | mean protein | median protein | mean 12-state | mean 3Di–12st MI | mean aa length |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| all ORFs | 34,161,355 | 1.647 | 1.398 | 0.860 | 2.341 | 1.481 | 3.716 | 3.792 | 1.784 | 0.503 | 207.2 |
+| matched | 9,468,402 | 3.084 | 3.253 | 2.677 | 3.615 | 0.938 | 3.981 | 4.004 | 3.054 | 0.953 | 324.9 |
+| unmatched | 24,692,953 | 1.096 | 1.140 | 0.676 | 1.476 | 0.800 | 3.615 | 3.679 | 1.297 | 0.331 | 162.1 |
+
+**Genomes with no deposited CDS (excluded from every figure)**
+
+| group | n | mean 3Di | median 3Di | Q1 | Q3 | IQR | mean protein | median protein | mean 12-state | mean 3Di–12st MI | mean aa length |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| all ORFs (all unmatched by construction) | 20,697,043 | 1.842 | 1.527 | 1.072 | 2.748 | 1.676 | 3.816 | 3.880 | 2.051 | 0.567 | 203.8 |
+
+Three things in that table are worth stating in the main text.
+
+1. **The separation is a 3Di phenomenon and the population confirms it at
+   scale.** Within CDS-bearing genomes the matched–unmatched gap is 2.08 bits of
+   3Di entropy in bacteria (3.123 vs 1.043) and 1.99 in archaea (3.084 vs
+   1.096), against 0.39 and 0.37 bits of protein entropy. The 12-state channel
+   behaves like 3Di, as it should, and 3Di–12-state mutual information separates
+   the classes threefold (0.960 vs 0.321 in bacteria).
+2. **Matched ORFs are much longer.** 376 aa against 178 aa in bacteria, 325
+   against 162 in archaea. A pilot showed length matching lowers matched-CDS
+   median 3Di from 3.29 to 3.13, so part of this gap is length and not
+   structure. Any use of these means as a discriminator must say so; §6.1's
+   comparator is length-matched for exactly this reason.
+3. **DNA entropy separates nothing.** 1.930 against 1.909 in bacteria — a
+   0.02-bit difference on a 2-bit scale, with overlapping IQRs. It is carried in
+   the machine-readable output for completeness and omitted from the tables
+   above; it holds no signal here.
+
+The machine-readable form of this subsection, including DNA entropy, minima,
+maxima, standard deviations and the share of each group falling below each
+log₂(k) ceiling, is written to
+`/g/data/ob80/re3494/gtdb_entropy/population_summary/`:
+`population_entropy_{bac,arc}.tsv`, `population_entropy_{bac,arc}_bands.tsv`,
+and `figure_sample_{bac,arc}{,_bands}.tsv`. The per-worker partials are kept
+alongside them, so a further statistic over the same strata does not require
+another pass over the 143 GB.
 
 ### Figures
 
@@ -247,6 +382,27 @@ The sample is systematic — every 300th bacterial ORF row (8,560,442 rows,
 47-fold in size; counts are therefore not comparable between domains, while
 distribution shapes are. Written by `08b_sample_for_figures.pbs`; samples live
 in `figure_samples/`, not in `figures/`.
+
+**What is actually plotted**, after the genomes with no annotated CDS are
+dropped — counted from the sample files themselves rather than inferred:
+
+| | bacteria | archaea |
+|---|---:|---:|
+| sampled rows | 8,560,442 | 1,828,593 |
+| dropped: genomes with no annotated CDS | 3,667,250 (42.84%) | 689,879 (37.73%) |
+| **plotted** | **4,893,192** | **1,138,714** |
+| plotted, matched | 1,028,059 | 315,638 |
+| plotted, unmatched | 3,865,133 | 823,076 |
+| plotted matched fraction | 21.01% | 27.72% |
+
+Those are the `n` for every joint and marginal entropy panel in this section.
+Both plotted matched fractions land on the population value for the same
+restricted population — 21.05% and 27.72% — so the systematic sample is
+faithful on the one quantity the figures are read for. The sampler's own
+annotation flag is the `any(in_genbank)` matcher proxy rather than the direct
+CDS count of §2, which is why these rows are quoted from the samples: it is
+what the figures filtered on. The two agree to 100.000% at genome level, so the
+distinction changes no count here.
 
 The **joint figure is the one to read first.** Its marginal 3Di histogram — a
 histogram rather than a KDE, deliberately, because smoothing rounds off the very
@@ -878,11 +1034,15 @@ verification step exceeded the jobfs quota and the cleanup trap fired.
 
 ## 10. Limitations
 
-- Figures still rest on samples — 20 of 760 chunks, and 3 genomes for the 3Di
-  composition. **§6 no longer does**: the classification covers all 760
+- Figures still rest on samples — every chunk of both domains, but every 300th
+  bacterial and every 30th archaeal ORF row within them (4,893,192 and
+  1,138,714 rows plotted). **§4.1 and §6 no longer do**: the descriptive
+  statistics cover all 2.62 billion ORF rows, the classification covers all 760
   bacterial and 41 archaeal chunks, and the Foldseek search covers every
   candidate in both domains. The log₂(k) ceilings are exact arithmetic; the
-  D/V/P proportions remain sample estimates.
+  D/V/P composition remains a 3-genome sample estimate.
+- **The §4.1 medians and quartiles are histogram-derived**, to 10⁻⁴ resolution,
+  not exact order statistics. Counts, means and standard deviations are exact.
 - Chunks are contiguous slices of the GTDB accession list, which is not random
   with respect to taxonomy. Sampling every 17th chunk mitigates but does not
   eliminate taxonomic clustering in the figures.
@@ -936,6 +1096,14 @@ verification step exceeded the jobfs quota and the cleanup trap fired.
 - The fragmentation confound **retired**: ρ(N50) moves from −0.603 to +0.100 on
   the corrected candidates, so the assembly-stratified sensitivity sets that
   were planned to control it are no longer needed (§6).
+- **Full-population descriptive statistics** over all 2,568,244,984 bacterial
+  and 54,858,398 archaeal ORF rows, replacing the 250-genome entropy summary
+  (§4.1, [issue #99](https://github.com/linsalrob/genome_entropy/issues/99)).
+  The archaeal matched count is now exact — 9,468,402, 17.26% — where only the
+  percentage was reported. The run also corrected §4's stated reason for
+  excluding never-annotated genomes: their ORFs have *higher* 3Di entropy than
+  the unmatched ORFs they were pooled with, not lower, which is why they
+  dominated the §6 candidate pool.
 
 ### Analyses
 
@@ -1032,6 +1200,8 @@ Pipeline in `/g/data/ob80/re3494/Projects/genome_entropy/claude/`:
 | `26_select_examples.{py,pbs}` | manuscript examples, chosen by class rather than score |
 | `27_build_dossiers.{py,pbs}` | dossiers, with neighbour products read back from the GenBank archives; also emits `exemplar_neighbours.tsv` |
 | `28_report_figures.py` | every figure in §6 and §6.1, read from the machine-readable artefacts the analysis stages emit rather than re-derived |
+| `29_population_entropy_summary.pbs`, `population_agg.c` | §4.1 full-population statistics: one streaming pass over all 2.62 billion ORF rows, stratified by (deposited CDS present, `in_genbank`) |
+| `population_summary.py`, `population_tables.py` | combine the per-worker partials; render §4.1's tables from the TSVs rather than recomputing them |
 
 The same tree is committed under `Validation/gtdb/scripts/` in this repository;
 see its `README.md` for the traps each stage encodes. Gadi-specific PBS
