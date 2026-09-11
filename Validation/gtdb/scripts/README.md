@@ -217,6 +217,33 @@ scripts in `claude/` rather than in this repository copy. A run driven from
 the repo tree must point `ACC` at them; the scripts say so and fail with that
 message rather than a bare `ls` error.
 
+### Second review round on PR #101
+
+Three more, all valid:
+
+- **The domain axis of a custom background was unfiltered.** I had fixed the
+  alphabet axis in the first round and left its sibling: `--background` with
+  `--domain arc` but no `--background-domain` summed both domains' frequency
+  rows, and since each sums to one that averages them. Both axes now default
+  from the labelled run, refuse a mismatch, and `load_background` refuses to
+  pool a file carrying either column unfiltered.
+- **Empirical cells are bins, not samples of a curve.** The generic
+  interpolation treated bin midpoints as points on a function, so a 1000 aa
+  ORF was scored mostly against the exact-length-999 distribution.
+  `EmpiricalTable` now selects the containing bin, using `length_lo`/
+  `length_hi` added to the npz; the simulated grid keeps interpolation.
+  Aggregate calibration is unchanged to four decimals because 99.5% of ORFs
+  are below 1000 aa where bins are 1 aa wide.
+- **Malformed rows were counted and then published around.** A short or
+  unparseable row is skipped by the aggregator and absent from *both* the
+  histogram and the exact counters, so the consistency check cannot see it.
+  The summariser now aborts on any malformed row, with `--allow-malformed` as
+  the deliberate escape hatch.
+
+The npz was regenerated **from the kept partials**, not by re-reading the
+143 GB — which is what keeping them was for. The published TSVs came back
+byte-identical in both domains.
+
 ## The defect family this run kept producing
 
 > A stage verifies whatever inputs happen to be present, then publishes an

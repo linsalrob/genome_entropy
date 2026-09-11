@@ -83,6 +83,9 @@ def main():
                     help="worker .bin files; each must have a .txt sidecar beside it")
     ap.add_argument("--min-n", type=int, default=100,
                     help="omit a (stratum, alphabet, length) cell with fewer rows")
+    ap.add_argument("--allow-malformed", type=int, default=0,
+                    help="tolerate at most this many rows the aggregator could "
+                         "not parse (default 0: any is fatal)")
     args = ap.parse_args()
 
     shape = (NSTRAT, NMET, NLEN, NENT)
@@ -140,6 +143,16 @@ def main():
                  "partials are inconsistent, refusing to publish")
 
     print(f"{args.domain}: {total_lines:,} rows, {malformed:,} malformed")
+    # A malformed row is silently absent from BOTH the histogram and the exact
+    # counters, so the consistency check below cannot see it. Schema drift or a
+    # damaged record would therefore produce a quietly incomplete reference.
+    # The partials are kept, so re-summarising after investigating costs
+    # nothing -- there is no reason to let this through by default.
+    if malformed > args.allow_malformed:
+        sys.exit(f"{malformed:,} malformed rows exceed --allow-malformed "
+                 f"{args.allow_malformed}: the reference would silently omit "
+                 f"them. Investigate the chunk TSVs, then re-run this "
+                 f"summariser over the kept partials.")
     for s in range(NSTRAT):
         if n_rows[s]:
             print(f"  stratum {s} {STRATUM_NAME[s]:<30} {int(n_rows[s]):>15,}"
@@ -177,8 +190,16 @@ def main():
             if not subset:
                 continue
             key = f"{args.domain}|{s}|{metric}"
+            # Midpoints for display and for anything that wants a curve, but
+            # the true edges too: these are BINS, not samples of a continuous
+            # function, and above 999 aa they are 10 or 100 aa wide. A consumer
+            # must be able to select the bin that contains a length rather than
+            # interpolate between midpoints.
             npz[f"{key}|lengths"] = np.array([(r[3] + r[4]) / 2 if r[4] > 0 else r[3]
                                               for r in subset], dtype=float)
+            npz[f"{key}|length_lo"] = np.array([r[3] for r in subset], dtype=float)
+            npz[f"{key}|length_hi"] = np.array([r[4] if r[4] > 0 else np.inf
+                                                for r in subset], dtype=float)
             npz[f"{key}|quantiles"] = np.vstack([r[8] for r in subset])
             npz[f"{key}|mean"] = np.array([r[6] for r in subset])
             npz[f"{key}|sd"] = np.array([r[7] for r in subset])

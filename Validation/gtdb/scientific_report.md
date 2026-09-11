@@ -405,6 +405,15 @@ Length bins are 1 aa wide from the 90 aa floor to 999, then 10 wide to 1999 and
 100 wide to 4999; entropy bins are 10⁻³ wide. Quantiles are the ceil-rank order
 statistic read from the histogram, so they are accurate to ±5×10⁻⁴ bits.
 
+These cells are bins, not samples of a curve, and `32_entropy_percentile.py`
+selects the bin *containing* an observed length rather than interpolating
+between bin midpoints. Below 1000 aa the distinction cannot arise — a bin is
+one residue wide — and above it the coarse bins would otherwise blend a
+1000 aa ORF mostly into the exact-length-999 distribution. It changes nothing
+in aggregate, because 99.5% of ORFs are shorter than 1000 aa; it is right for
+the 0.5% that are not. The random reference keeps interpolation, where it is
+correct: those are points on a continuous curve.
+
 #### Only the empirical reference is calibrated
 
 Decile occupancy of the percentile, scored over a systematic sample of the

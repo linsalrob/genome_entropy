@@ -90,7 +90,7 @@ class QuantileGrid:
     """
 
     KEYS = ("lengths", "quantiles", "mean", "sd")
-    OPTIONAL_KEYS = ("n",)
+    OPTIONAL_KEYS = ()
 
     def __init__(self, path, key_filter=None):
         data = np.load(path)
@@ -183,7 +183,17 @@ class EmpiricalTable(QuantileGrid):
     Stratum 3 -- a genome carrying deposited CDS, ORF matched to one -- is the
     default because it is the set of ORFs that are known real genes, which is
     the reference a reader means by "compared to real proteins of that length".
+
+    These cells are BINS, not samples of a continuous curve. Below 1000 aa a
+    bin is one residue wide and the distinction does not arise, but above it
+    they are 10 and then 100 aa wide, and interpolating between midpoints
+    would score a 1000 aa ORF mostly against the exact-length-999
+    distribution. So this overrides the base lookup to select the bin that
+    CONTAINS the observed length. The simulated grid keeps interpolation,
+    where it is correct: those really are points on a curve.
     """
+
+    OPTIONAL_KEYS = ("n", "length_lo", "length_hi")
 
     def __init__(self, path, domain, stratum=3):
         self.stratum = stratum
@@ -191,6 +201,30 @@ class EmpiricalTable(QuantileGrid):
         super().__init__(path, key_filter=lambda k: k.startswith(prefix))
         if not self.grids:
             sys.exit(f"no empirical cells for {prefix}* in {path}")
+        missing = [k for k, g in self.grids.items() if "length_lo" not in g]
+        if missing:
+            sys.exit(f"{path} predates the length_lo/length_hi bin edges and "
+                     f"cannot be selected by bin; re-run 33_length_null_summary.py "
+                     f"over the kept partials")
+
+    def bin_index(self, key, length):
+        """(index of the bin containing `length`, whether it had to fall back)."""
+        grid = self.grids[key]
+        length = float(length)
+        inside = np.nonzero((grid["length_lo"] <= length)
+                            & (length <= grid["length_hi"]))[0]
+        if inside.size:
+            return int(inside[0]), False
+        # Outside every published bin -- below the ORF floor, or in a bin that
+        # fell under --min-n. Fall back to the nearest published bin and say
+        # so, rather than inventing a distribution for it.
+        return int(np.abs(grid["lengths"] - length).argmin()), True
+
+    def _at_length(self, key, length):
+        grid = self.grids[key]
+        index, clamped = self.bin_index(key, length)
+        return (grid["quantiles"][index], float(grid["mean"][index]),
+                float(grid["sd"][index]), clamped)
 
 
 def load_background(path, domain=None, alphabet=None, genome=None):
@@ -221,9 +255,10 @@ def load_background(path, domain=None, alphabet=None, genome=None):
                 fields[index["symbol"]], 0.0) + float(fields[index[value_column]])
     if not weights:
         sys.exit(f"no rows in {path} matched the requested background")
-    if alphabet is None and "alphabet" in index:
-        sys.exit(f"{path} carries an `alphabet` column but no alphabet was "
-                 f"requested -- that would pool every alphabet into one vector")
+    for axis, requested in (("alphabet", alphabet), ("domain", domain)):
+        if requested is None and axis in index:
+            sys.exit(f"{path} carries a `{axis}` column but no {axis} was "
+                     f"requested -- that would pool every {axis} into one vector")
     total = sum(weights.values())
     probs = np.array([weights[s] / total for s in sorted(weights)])
     entropy = -(probs[probs > 0] * np.log2(probs[probs > 0])).sum()
@@ -319,7 +354,16 @@ def main():
     # from it is meaningless while looking perfectly plausible. Resolve it
     # explicitly for every input mode, and refuse a mismatch.
     background_alphabet = args.background_alphabet
+    background_domain = args.background_domain
     if args.background:
+        # Same argument as the alphabet below, on the other axis: the stage 30
+        # file holds both domains, and each domain's frequencies sum to 1, so
+        # omitting the domain averages the two rather than selecting one.
+        if background_domain and background_domain != args.domain:
+            sys.exit(f"--background-domain {background_domain} does not match "
+                     f"--domain {args.domain}: scoring against one domain's "
+                     f"background while labelling the output with another")
+        background_domain = background_domain or args.domain
         if args.entropy_rows:
             if not background_alphabet:
                 sys.exit("--entropy-rows with --background needs "
@@ -338,7 +382,7 @@ def main():
         args.background_alphabet = background_alphabet
 
     if args.background:
-        probs = load_background(args.background, args.background_domain,
+        probs = load_background(args.background, background_domain,
                                 background_alphabet, args.background_genome)
         table = SimulatedNull(probs, reps=args.background_reps)
         custom = True
@@ -356,10 +400,10 @@ def main():
         key = f"{args.domain}|{args.empirical_stratum}|{alphabet}"
         if key not in empirical.grids:
             return None, None
-        grid = empirical.grids[key]
-        lengths = grid["lengths"]
-        nearest = int(np.abs(lengths - float(length)).argmin())
-        return empirical.score(key, length, entropy), int(grid["n"][nearest])
+        # Report n for the cell actually used, not the nearest midpoint.
+        index, _ = empirical.bin_index(key, length)
+        return (empirical.score(key, length, entropy),
+                int(empirical.grids[key]["n"][index]))
 
     def key_for(alphabet):
         if custom:
