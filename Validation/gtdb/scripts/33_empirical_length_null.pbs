@@ -35,6 +35,15 @@ PY=/g/data/ob80/re3494/conda/genome_entropy/bin/python
 NPROC=${NPROC:-24}
 
 mkdir -p "$OUT" "$DATA/logs"
+
+# The accession manifests are the authoritative chunk set. They live beside the
+# pipeline scripts in claude/, not in the repository copy, so a run driven from
+# the repo tree must point ACC at them explicitly.
+if ! compgen -G "$ACC"/bac_*.txt > /dev/null && ! compgen -G "$ACC"/arc_*.txt > /dev/null; then
+    echo "FATAL: no accession manifests in ACC=$ACC" >&2
+    echo "       set ACC to the accessions/ directory 01b_make_chunks.sh wrote" >&2
+    exit 1
+fi
 gcc -O2 -o "$PBS_JOBFS/length_agg" "$SRC/length_entropy_agg.c"
 
 for dom in bac arc; do

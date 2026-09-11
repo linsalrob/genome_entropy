@@ -206,6 +206,17 @@ bacterial and 41 archaeal chunks with zero malformed rows, and its marginals
 reproduce §4.1 exactly. The guards are there so the next run cannot quietly
 do less.
 
+`29_population_entropy_summary.pbs` carried the same two shell-level defects
+and gets the same two guards. Its published §4.1 figures are unaffected and
+independently corroborated — the stage 33 aggregator reproduces every one of
+its stratum totals — but it would have had the same silent failure modes on a
+re-run.
+
+Both guards need the accession manifests, which live beside the pipeline
+scripts in `claude/` rather than in this repository copy. A run driven from
+the repo tree must point `ACC` at them; the scripts say so and fail with that
+message rather than a bare `ls` error.
+
 ## The defect family this run kept producing
 
 > A stage verifies whatever inputs happen to be present, then publishes an
