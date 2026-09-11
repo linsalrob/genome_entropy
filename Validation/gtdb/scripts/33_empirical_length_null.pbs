@@ -30,6 +30,7 @@ set -euo pipefail
 DATA=/g/data/ob80/re3494/gtdb_entropy
 SRC="${SRC:-/g/data/ob80/re3494/Projects/genome_entropy/claude}"
 OUT="${OUT:-$DATA/entropy_null/empirical}"
+ACC="${ACC:-$SRC/accessions}"
 PY=/g/data/ob80/re3494/conda/genome_entropy/bin/python
 NPROC=${NPROC:-24}
 
@@ -47,8 +48,34 @@ run_domain() {
     mkdir -p "$pdir"
     ls "$DATA/entropy_rows/$dom"/*.tsv.gz | sort > "$PBS_JOBFS/files_$dom"
     local nf; nf=$(wc -l < "$PBS_JOBFS/files_$dom")
-    echo "$(date -Is) $dom: $nf chunks over $NPROC workers"
-    seq 0 $((NPROC - 1)) | xargs -P "$NPROC" -I{} bash -c '
+
+    # The expected chunk set is the accession manifest that 01b_make_chunks.sh
+    # writes and verifies, not whatever `ls` happened to find. Without this a
+    # domain missing chunks aggregates the rest and publishes it as complete --
+    # the defect family this run produced seven times.
+    ls "$ACC"/${dom}_*.txt | sed 's#.*/##; s#\.txt$##' | sort > "$PBS_JOBFS/expect_$dom"
+    sed 's#.*/##; s#\.tsv\.gz$##' "$PBS_JOBFS/files_$dom" | sort > "$PBS_JOBFS/have_$dom"
+    local ne; ne=$(wc -l < "$PBS_JOBFS/expect_$dom")
+    if ! comm -23 "$PBS_JOBFS/expect_$dom" "$PBS_JOBFS/have_$dom" > "$PBS_JOBFS/missing_$dom"; then
+        echo "FATAL: could not compare chunk manifests for $dom" >&2; exit 1
+    fi
+    if [ -s "$PBS_JOBFS/missing_$dom" ]; then
+        echo "FATAL: $dom expects $ne chunks, found $nf; missing:" >&2
+        head -20 "$PBS_JOBFS/missing_$dom" >&2
+        exit 1
+    fi
+    comm -13 "$PBS_JOBFS/expect_$dom" "$PBS_JOBFS/have_$dom" > "$PBS_JOBFS/extra_$dom" || true
+    if [ -s "$PBS_JOBFS/extra_$dom" ]; then
+        echo "WARNING: $dom has entropy_rows chunks absent from the manifest:" >&2
+        head -20 "$PBS_JOBFS/extra_$dom" >&2
+    fi
+    echo "$(date -Is) $dom: $nf chunks (manifest expects $ne) over $NPROC workers"
+    # `set -o pipefail` is NOT inherited by `bash -c`, so it has to be set
+    # again here. Without it a truncated chunk lets gzip fail after a valid
+    # header, the aggregator consumes the prefix and exits 0, and the worker
+    # reports success on a partial read.
+    if ! seq 0 $((NPROC - 1)) | xargs -P "$NPROC" -I{} bash -c '
+        set -euo pipefail
         w=$1; pdir=$2; dom=$3; np=$4
         awk -v w="$w" -v np="$np" "NR%np==w" "$PBS_JOBFS/files_$dom" > "$pdir/files.$w"
         if [ -s "$pdir/files.$w" ]; then
@@ -56,7 +83,10 @@ run_domain() {
                 | "$PBS_JOBFS/length_agg" "$PBS_JOBFS/cdsflag_$dom.tsv" \
                   "$pdir/part.$w.bin" > "$pdir/part.$w.txt"
         fi
-    ' _ {} "$pdir" "$dom" "$NPROC"
+    ' _ {} "$pdir" "$dom" "$NPROC"; then
+        echo "FATAL: at least one $dom aggregation worker failed" >&2
+        exit 1
+    fi
     echo "$(date -Is) $dom: aggregation done, combining"
     "$PY" "$SRC/33_length_null_summary.py" "$dom" \
         "$OUT/length_entropy_${dom}.tsv" "$OUT/length_entropy_${dom}.npz" \

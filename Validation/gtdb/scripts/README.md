@@ -174,6 +174,38 @@ Three lessons worth carrying:
   protein. Against the real composition it is 26% too narrow at 90 aa and 9% at
   300 aa — a real error worth avoiding, but not the one the prototype implied.
 
+### Guards added after the PR #101 review
+
+Codex found three more instances of the family below in stages 30-33, all
+valid, all fixed before merge:
+
+- **`33` discovered its inputs with `ls`.** A domain missing chunks would have
+  aggregated the rest and published it as complete. Both `30` and `33` now
+  derive the expected chunk set from `accessions/`, which `01b_make_chunks.sh`
+  writes and verifies, and abort on any shortfall.
+- **`set -o pipefail` is not inherited by `bash -c`.** Each `33` worker runs
+  its `gzip -dc | length_agg` pipeline in a child shell, so a truncated chunk
+  let gzip fail after a valid header while the aggregator consumed the prefix
+  and exited 0. Demonstrated on a deliberately truncated chunk: the worker
+  reported success having read 29,948 of 50,000 rows. Each worker now sets
+  `set -euo pipefail` itself, and a failing worker aborts the domain.
+- **`30` treated an unreadable archive as a smaller sample.** It warned and
+  carried on, and the composition it produced drives every simulated
+  reference. Read failures are now fatal, outputs are staged and only renamed
+  into place once every chunk has succeeded, and a non-zero `zstd` exit is
+  distinguished from the intended SIGPIPE of abandoning a stream early.
+
+A fourth, in `32`: a custom `--background` with `--fasta` or `--table` did not
+require an alphabet, so the stage 30 composition file was pooled across
+protein, 3Di and twelve-state into one vector -- plausible-looking scores with
+no meaning. The alphabet is now resolved for every input mode and a mismatch
+is refused.
+
+None of this changes the published numbers: the run behind §4.2 read all 760
+bacterial and 41 archaeal chunks with zero malformed rows, and its marginals
+reproduce §4.1 exactly. The guards are there so the next run cannot quietly
+do less.
+
 ## The defect family this run kept producing
 
 > A stage verifies whatever inputs happen to be present, then publishes an

@@ -221,6 +221,9 @@ def load_background(path, domain=None, alphabet=None, genome=None):
                 fields[index["symbol"]], 0.0) + float(fields[index[value_column]])
     if not weights:
         sys.exit(f"no rows in {path} matched the requested background")
+    if alphabet is None and "alphabet" in index:
+        sys.exit(f"{path} carries an `alphabet` column but no alphabet was "
+                 f"requested -- that would pool every alphabet into one vector")
     total = sum(weights.values())
     probs = np.array([weights[s] / total for s in sorted(weights)])
     entropy = -(probs[probs > 0] * np.log2(probs[probs > 0])).sum()
@@ -310,13 +313,33 @@ def main():
         sys.exit("give exactly one of --null (pooled tables) or --background "
                  "(simulate from a supplied composition)")
 
-    if args.background and args.entropy_rows and not args.background_alphabet:
-        sys.exit("--entropy-rows with --background needs --background-alphabet: "
-                 "one background scores one alphabet, not all three")
+    # A background belongs to exactly one alphabet. The stage 30 composition
+    # file holds all three, so leaving the alphabet unset pools protein, 3Di
+    # and twelve-state symbols into a single vector and every score computed
+    # from it is meaningless while looking perfectly plausible. Resolve it
+    # explicitly for every input mode, and refuse a mismatch.
+    background_alphabet = args.background_alphabet
+    if args.background:
+        if args.entropy_rows:
+            if not background_alphabet:
+                sys.exit("--entropy-rows with --background needs "
+                         "--background-alphabet: one background scores one "
+                         "alphabet, not all three")
+        else:
+            if background_alphabet and args.alphabet \
+                    and background_alphabet != args.alphabet:
+                sys.exit(f"--background-alphabet {background_alphabet} does not "
+                         f"match --alphabet {args.alphabet}: a background can only "
+                         f"score the alphabet it was measured on")
+            background_alphabet = background_alphabet or args.alphabet
+            if not background_alphabet:
+                sys.exit("--background needs --alphabet (or --background-alphabet) "
+                         "so the composition can be filtered to one alphabet")
+        args.background_alphabet = background_alphabet
 
     if args.background:
         probs = load_background(args.background, args.background_domain,
-                                args.background_alphabet, args.background_genome)
+                                background_alphabet, args.background_genome)
         table = SimulatedNull(probs, reps=args.background_reps)
         custom = True
     else:

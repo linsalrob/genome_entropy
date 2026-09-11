@@ -36,6 +36,7 @@ mkdir -p "$OUT" "$DATA/logs"
 
 "$PY" "$SRC/30_residue_composition.py" \
     --results-dir "$DATA/entropy_3di_results" \
+    --accessions "$SRC/accessions" \
     --output-dir "$OUT" \
     --genomes-per-chunk "$GENOMES_PER_CHUNK" \
     --bac-stride "$BAC_STRIDE" \

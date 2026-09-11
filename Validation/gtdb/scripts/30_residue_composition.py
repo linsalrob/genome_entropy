@@ -62,16 +62,28 @@ def genome_counts(records):
     return counts, n_orfs, lengths
 
 
+class ChunkReadError(RuntimeError):
+    """An archive could not be read. Fatal: see read_chunk."""
+
+
 def read_chunk(archive, max_genomes):
     """Stream the first `max_genomes` genome JSONs out of a chunk archive.
 
     Members are read in archive order and the stream is abandoned as soon as
     the quota is met, so only a prefix of the archive is decompressed.
+
+    A read failure RAISES rather than returning what it managed to collect.
+    This composition drives every simulated reference in stage 31, so quietly
+    returning a short sample would bias the background and nothing downstream
+    could tell. That is the defect family this run kept producing: a stage
+    uses whatever inputs are present and publishes a result that reads as
+    covering the whole set.
     """
     proc = subprocess.Popen(
         ["zstd", "-dc", str(archive)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
     )
     out = []
+    abandoned_early = False
     try:
         with tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
             for member in tar:
@@ -85,17 +97,26 @@ def read_chunk(archive, max_genomes):
                 # cannot wrap it -- read the member and decode it instead.
                 out.append((genome, json.loads(handle.read().decode("utf-8"))))
                 if len(out) >= max_genomes:
+                    abandoned_early = True
                     break
     except (tarfile.TarError, OSError, json.JSONDecodeError) as exc:
-        print(f"  ! {archive.name}: {type(exc).__name__}: {exc}", file=sys.stderr)
+        raise ChunkReadError(f"{archive.name}: {type(exc).__name__}: {exc}") from exc
     finally:
-        # Abandoning the stream early makes zstd fail on SIGPIPE, which is
-        # intended, not an error -- exactly the 23_ ranged-fetch situation.
         try:
             proc.stdout.close()
         except OSError:
             pass
         proc.wait()
+
+    # Abandoning the stream early makes zstd die on SIGPIPE, which is intended
+    # and not an error. Reading it to the end and STILL getting a non-zero exit
+    # means the archive is truncated, and that is.
+    if not abandoned_early and proc.returncode not in (0, None):
+        raise ChunkReadError(
+            f"{archive.name}: zstd exited {proc.returncode} after the archive was "
+            f"read to the end -- treating as truncated")
+    if not out:
+        raise ChunkReadError(f"{archive.name}: no genome JSON members found")
     return out
 
 
@@ -117,6 +138,9 @@ def main():
     ap.add_argument("--genomes-per-chunk", type=int, default=3)
     ap.add_argument("--bac-stride", type=int, default=10,
                     help="take every Nth bacterial chunk (760 of them)")
+    ap.add_argument("--accessions", required=True,
+                    help="accessions/ directory, the authoritative chunk manifest "
+                         "written by 01b_make_chunks.sh")
     ap.add_argument("--workers", type=int, default=int(os.environ.get("NPROC", 8)))
     args = ap.parse_args()
 
@@ -124,12 +148,28 @@ def main():
     outdir = Path(args.output_dir)
     outdir.mkdir(parents=True, exist_ok=True)
 
+    # The expected chunk set comes from the accession manifests, which
+    # 01b_make_chunks.sh writes and verifies -- not from whatever happens to be
+    # on disk. A chunk that is missing from entropy_3di_results/ must be an
+    # error, not a silently smaller sample.
     tasks = []
     for domain, stride in (("arc", 1), ("bac", args.bac_stride)):
-        archives = sorted((results / domain).glob(f"{domain}_*.tar.zst"))
-        for archive in archives[::stride]:
-            chunk = archive.name.split("_")[1].split(".")[0]
-            tasks.append((domain, chunk, str(archive), args.genomes_per_chunk))
+        expected = sorted(p.stem for p in Path(args.accessions).glob(f"{domain}_*.txt"))
+        if not expected:
+            sys.exit(f"no {domain}_*.txt accession manifests in {args.accessions}")
+        present = {p.name.split(".")[0] for p in (results / domain).glob(f"{domain}_*.tar.zst")}
+        missing = [tag for tag in expected if tag not in present]
+        if missing:
+            sys.exit(f"{domain}: {len(missing)} of {len(expected)} chunk archives "
+                     f"missing from {results / domain}, first few "
+                     f"{missing[:5]} -- refusing to build a composition that "
+                     f"would read as covering the domain")
+        for tag in expected[::stride]:
+            chunk = tag.split("_")[1]
+            tasks.append((domain, chunk, str(results / domain / f"{tag}.tar.zst"),
+                          args.genomes_per_chunk))
+        print(f"{domain}: {len(expected)} chunks present, sampling every "
+              f"{stride}", flush=True)
     print(f"{len(tasks)} chunks, {args.genomes_per_chunk} genomes each, "
           f"{args.workers} workers", flush=True)
 
@@ -138,7 +178,9 @@ def main():
     n_orfs_total = collections.Counter()
     length_hist = {d: collections.Counter() for d in ("arc", "bac")}
 
-    per_genome = (outdir / "composition_per_genome.tsv").open("w")
+    failures = []
+    staged = outdir / "composition_per_genome.tsv.partial"
+    per_genome = staged.open("w")
     per_genome.write("domain\tchunk\tgenome\talphabet\tn_orfs\tn_residues\tsymbol\tcount\n")
 
     done = 0
@@ -149,7 +191,7 @@ def main():
             try:
                 rows = future.result()
             except Exception as exc:                       # noqa: BLE001
-                print(f"  ! {domain}_{chunk} failed: {exc}", file=sys.stderr)
+                failures.append(f"{domain}_{chunk}: {exc}")
                 continue
             for dom, chk, genome, n_orfs, lengths, counts in rows:
                 n_genomes[dom] += 1
@@ -166,6 +208,14 @@ def main():
             if done % 20 == 0:
                 print(f"  {done}/{len(tasks)} chunks", flush=True)
     per_genome.close()
+
+    if failures:
+        staged.unlink(missing_ok=True)
+        for line in failures:
+            print(f"  ! {line}", file=sys.stderr)
+        sys.exit(f"{len(failures)} of {len(tasks)} chunks failed to read -- "
+                 f"refusing to publish a composition built from the rest")
+    staged.rename(outdir / "composition_per_genome.tsv")
 
     with (outdir / "composition_pooled.tsv").open("w") as fh:
         fh.write("domain\talphabet\tn_genomes\tn_orfs\tn_residues\tsymbol\tcount\tfrequency\n")
