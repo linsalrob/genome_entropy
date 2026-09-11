@@ -146,6 +146,104 @@ did not exist yet.
   was right; the sentence explaining it was not, and nothing checked it because
   the conclusion was correct.
 
+## Stages 30-33: the length-conditioned entropy references
+
+`30` recovers residue composition from the packed JSON (the entropy rows carry
+none), `31` simulates the random reference, `33` builds the empirical one over
+all 2.62 billion rows, and `32` scores against either or both. See §4.2.
+
+Three lessons worth carrying:
+
+- **A statistic's null has to match the statistic.** Shannon entropy is
+  permutation-invariant, so the obvious shuffle null has zero variance and
+  measures nothing. The i.i.d. null is the right shape, but it models only
+  multinomial sampling noise, and real between-protein composition variance is
+  far larger — so its z has sd 3-7 rather than 1 and its percentile is not a
+  significance statement. The reference that calibrates is the empirical
+  distribution of real ORFs at the same length.
+- **Test calibration on a representative sample, not a convenient one.** Two
+  attempts to check the empirical table scored the head of one chunk, then of
+  eighteen chunks, and both showed a tilted distribution that looked like a
+  defect in the table. The head of a chunk is its first few genomes. Against a
+  systematic sample of the population the table is exact (z sd 0.9986). The
+  second attempt is the instructive one: spreading over more chunks did not
+  help, because the bias was in taking the head of each, not in using too few.
+- **Do not carry an approximation's failure mode across from a toy case.** The
+  asymptotic entropy variance degenerates for exactly uniform p, and a
+  prototype built on uniform p suggested the analytic interval was unusable for
+  protein. Against the real composition it is 26% too narrow at 90 aa and 9% at
+  300 aa — a real error worth avoiding, but not the one the prototype implied.
+
+### Guards added after the PR #101 review
+
+Codex found three more instances of the family below in stages 30-33, all
+valid, all fixed before merge:
+
+- **`33` discovered its inputs with `ls`.** A domain missing chunks would have
+  aggregated the rest and published it as complete. Both `30` and `33` now
+  derive the expected chunk set from `accessions/`, which `01b_make_chunks.sh`
+  writes and verifies, and abort on any shortfall.
+- **`set -o pipefail` is not inherited by `bash -c`.** Each `33` worker runs
+  its `gzip -dc | length_agg` pipeline in a child shell, so a truncated chunk
+  let gzip fail after a valid header while the aggregator consumed the prefix
+  and exited 0. Demonstrated on a deliberately truncated chunk: the worker
+  reported success having read 29,948 of 50,000 rows. Each worker now sets
+  `set -euo pipefail` itself, and a failing worker aborts the domain.
+- **`30` treated an unreadable archive as a smaller sample.** It warned and
+  carried on, and the composition it produced drives every simulated
+  reference. Read failures are now fatal, outputs are staged and only renamed
+  into place once every chunk has succeeded, and a non-zero `zstd` exit is
+  distinguished from the intended SIGPIPE of abandoning a stream early.
+
+A fourth, in `32`: a custom `--background` with `--fasta` or `--table` did not
+require an alphabet, so the stage 30 composition file was pooled across
+protein, 3Di and twelve-state into one vector -- plausible-looking scores with
+no meaning. The alphabet is now resolved for every input mode and a mismatch
+is refused.
+
+None of this changes the published numbers: the run behind §4.2 read all 760
+bacterial and 41 archaeal chunks with zero malformed rows, and its marginals
+reproduce §4.1 exactly. The guards are there so the next run cannot quietly
+do less.
+
+`29_population_entropy_summary.pbs` carried the same two shell-level defects
+and gets the same two guards. Its published §4.1 figures are unaffected and
+independently corroborated — the stage 33 aggregator reproduces every one of
+its stratum totals — but it would have had the same silent failure modes on a
+re-run.
+
+Both guards need the accession manifests, which live beside the pipeline
+scripts in `claude/` rather than in this repository copy. A run driven from
+the repo tree must point `ACC` at them; the scripts say so and fail with that
+message rather than a bare `ls` error.
+
+### Second review round on PR #101
+
+Three more, all valid:
+
+- **The domain axis of a custom background was unfiltered.** I had fixed the
+  alphabet axis in the first round and left its sibling: `--background` with
+  `--domain arc` but no `--background-domain` summed both domains' frequency
+  rows, and since each sums to one that averages them. Both axes now default
+  from the labelled run, refuse a mismatch, and `load_background` refuses to
+  pool a file carrying either column unfiltered.
+- **Empirical cells are bins, not samples of a curve.** The generic
+  interpolation treated bin midpoints as points on a function, so a 1000 aa
+  ORF was scored mostly against the exact-length-999 distribution.
+  `EmpiricalTable` now selects the containing bin, using `length_lo`/
+  `length_hi` added to the npz; the simulated grid keeps interpolation.
+  Aggregate calibration is unchanged to four decimals because 99.5% of ORFs
+  are below 1000 aa where bins are 1 aa wide.
+- **Malformed rows were counted and then published around.** A short or
+  unparseable row is skipped by the aggregator and absent from *both* the
+  histogram and the exact counters, so the consistency check cannot see it.
+  The summariser now aborts on any malformed row, with `--allow-malformed` as
+  the deliberate escape hatch.
+
+The npz was regenerated **from the kept partials**, not by re-reading the
+143 GB — which is what keeping them was for. The published TSVs came back
+byte-identical in both domains.
+
 ## The defect family this run kept producing
 
 > A stage verifies whatever inputs happen to be present, then publishes an

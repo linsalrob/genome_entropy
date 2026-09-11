@@ -1,0 +1,47 @@
+#!/bin/bash
+#PBS -N gtdb_entropy_null
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=48
+#PBS -l mem=190GB
+#PBS -l jobfs=10GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80+scratch/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o /g/data/ob80/re3494/gtdb_entropy/logs/entropy_null.log
+#
+# Length-conditioned random-entropy null (stage 31), from the composition
+# stage 30 measured.
+#
+# The grid is dense where the bias moves fastest and where the ORFs actually
+# are -- every length from the 90 aa ORF floor to 600, then coarsening. The
+# quantiles are smooth in length, so 32_entropy_percentile.py interpolates
+# between grid points; the grid does not need to be every integer at 3000 aa,
+# where 0.01% of ORFs live.
+#
+# Cost scales as (grid points) x (domains) x (alphabets) x (reps). Check the
+# task count printed at the top of the log before assuming a walltime.
+
+set -euo pipefail
+
+DATA=/g/data/ob80/re3494/gtdb_entropy
+SRC="${SRC:-/g/data/ob80/re3494/Projects/genome_entropy/claude}"
+NULLDIR="${NULLDIR:-$DATA/entropy_null}"
+PY=/g/data/ob80/re3494/conda/genome_entropy/bin/python
+NPROC=${NPROC:-48}
+REPS=${REPS:-400000}
+GRID=${GRID:-90:600:1,600:1000:5,1000:2000:20,2000:5000:100}
+
+mkdir -p "$NULLDIR" "$DATA/logs"
+
+"$PY" "$SRC/31_entropy_null.py" \
+    --composition "$NULLDIR/composition/composition_pooled.tsv" \
+    --output-dir "$NULLDIR" \
+    --grid "$GRID" \
+    --reps "$REPS" \
+    --workers "$NPROC"
+
+echo
+echo "null tables in $NULLDIR"
+ls -la "$NULLDIR"

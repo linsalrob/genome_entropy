@@ -47,8 +47,18 @@ DATA=/g/data/ob80/re3494/gtdb_entropy
 SRC="${SRC:?set SRC to the directory holding population_agg.c and population_summary.py}"
 OUT="${OUT:?set OUT to the output directory}"
 NPROC=${NPROC:-22}
+ACC="${ACC:-$SRC/accessions}"
 
 mkdir -p "$OUT"
+
+# The accession manifests are the authoritative chunk set. They live beside the
+# pipeline scripts in claude/, not in the repository copy, so a run driven from
+# the repo tree must point ACC at them explicitly.
+if ! compgen -G "$ACC"/bac_*.txt > /dev/null && ! compgen -G "$ACC"/arc_*.txt > /dev/null; then
+    echo "FATAL: no accession manifests in ACC=$ACC" >&2
+    echo "       set ACC to the accessions/ directory 01b_make_chunks.sh wrote" >&2
+    exit 1
+fi
 gcc -O2 -o "$PBS_JOBFS/agg" "$SRC/population_agg.c"
 
 # genome -> 1 if it carries at least one deposited CDS
@@ -65,16 +75,44 @@ run_domain() {
     mkdir -p "$pdir"
     ls "$DATA/entropy_rows/$dom"/*.tsv.gz | sort > "$PBS_JOBFS/files_$dom"
     local nf; nf=$(wc -l < "$PBS_JOBFS/files_$dom")
-    echo "$(date -Is) $dom: $nf chunks over $NPROC workers"
-    # stride assignment, so a worker's share does not depend on chunk order
-    seq 0 $((NPROC - 1)) | xargs -P "$NPROC" -I{} bash -c '
+
+    # The expected chunk set is the accession manifest 01b_make_chunks.sh
+    # writes and verifies, not whatever `ls` happened to find. Without this a
+    # domain missing chunks aggregates the rest and publishes it as the
+    # full-population figure -- the defect family recorded in scripts/README.md.
+    ls "$ACC"/${dom}_*.txt | sed 's#.*/##; s#\.txt$##' | sort > "$PBS_JOBFS/expect_$dom"
+    sed 's#.*/##; s#\.tsv\.gz$##' "$PBS_JOBFS/files_$dom" | sort > "$PBS_JOBFS/have_$dom"
+    local ne; ne=$(wc -l < "$PBS_JOBFS/expect_$dom")
+    comm -23 "$PBS_JOBFS/expect_$dom" "$PBS_JOBFS/have_$dom" > "$PBS_JOBFS/missing_$dom"
+    if [ -s "$PBS_JOBFS/missing_$dom" ]; then
+        echo "FATAL: $dom expects $ne chunks, found $nf; missing:" >&2
+        head -20 "$PBS_JOBFS/missing_$dom" >&2
+        exit 1
+    fi
+    comm -13 "$PBS_JOBFS/expect_$dom" "$PBS_JOBFS/have_$dom" > "$PBS_JOBFS/extra_$dom" || true
+    if [ -s "$PBS_JOBFS/extra_$dom" ]; then
+        echo "WARNING: $dom has entropy_rows chunks absent from the manifest:" >&2
+        head -20 "$PBS_JOBFS/extra_$dom" >&2
+    fi
+    echo "$(date -Is) $dom: $nf chunks (manifest expects $ne) over $NPROC workers"
+
+    # stride assignment, so a worker's share does not depend on chunk order.
+    # `set -o pipefail` is NOT inherited by `bash -c`, so each worker sets it
+    # again: otherwise a truncated chunk lets gzip fail after a valid header,
+    # agg consumes the prefix and exits 0, and the worker reports success on a
+    # partial read.
+    if ! seq 0 $((NPROC - 1)) | xargs -P "$NPROC" -I{} bash -c '
+        set -euo pipefail
         w=$1; pdir=$2; dom=$3; np=$4
         awk -v w="$w" -v np="$np" "NR%np==w" "$PBS_JOBFS/files_$dom" > "$pdir/files.$w"
         if [ -s "$pdir/files.$w" ]; then
             xargs -a "$pdir/files.$w" gzip -dc \
                 | "$PBS_JOBFS/agg" "$PBS_JOBFS/cdsflag_$dom.tsv" > "$pdir/part.$w"
         fi
-    ' _ {} "$pdir" "$dom" "$NPROC"
+    ' _ {} "$pdir" "$dom" "$NPROC"; then
+        echo "FATAL: at least one $dom aggregation worker failed" >&2
+        exit 1
+    fi
     echo "$(date -Is) $dom: aggregation done, combining"
     python3 "$SRC/population_summary.py" "$dom" "$OUT/population_entropy_${dom}.tsv" "$pdir"/part.*
     # Keep the partials. They are sufficient for any further statistic over the

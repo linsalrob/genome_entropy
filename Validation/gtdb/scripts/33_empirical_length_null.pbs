@@ -1,0 +1,111 @@
+#!/bin/bash
+#PBS -N gtdb_length_null
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=24
+#PBS -l mem=96GB
+#PBS -l jobfs=100GB
+#PBS -l walltime=03:00:00
+#PBS -l storage=gdata/ob80+scratch/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o /g/data/ob80/re3494/gtdb_entropy/logs/length_null.log
+#
+# Length-conditioned EMPIRICAL entropy distributions over the whole ORF
+# population -- the calibrated companion to the random null of stage 31.
+#
+# Reads the same 143 GB of entropy_rows once, accumulating a 2-D
+# (length bin x entropy bin) histogram per alphabet per stratum. Strata match
+# population_agg.c exactly, so the marginals must reproduce stage 29; that
+# agreement is the cross-check and the summariser refuses to publish without
+# its own histogram-vs-counter check passing.
+#
+# Workers dump binary, not text: sparse text would be hundreds of millions of
+# lines over the run, more to recombine than to produce. Partials are KEPT --
+# the stage 29 lesson that an aggregation discarding its intermediates buys
+# exactly one answer, and a second answer costs another full read.
+
+set -euo pipefail
+
+DATA=/g/data/ob80/re3494/gtdb_entropy
+SRC="${SRC:-/g/data/ob80/re3494/Projects/genome_entropy/claude}"
+OUT="${OUT:-$DATA/entropy_null/empirical}"
+ACC="${ACC:-$SRC/accessions}"
+PY=/g/data/ob80/re3494/conda/genome_entropy/bin/python
+NPROC=${NPROC:-24}
+
+mkdir -p "$OUT" "$DATA/logs"
+
+# The accession manifests are the authoritative chunk set. They live beside the
+# pipeline scripts in claude/, not in the repository copy, so a run driven from
+# the repo tree must point ACC at them explicitly.
+if ! compgen -G "$ACC"/bac_*.txt > /dev/null && ! compgen -G "$ACC"/arc_*.txt > /dev/null; then
+    echo "FATAL: no accession manifests in ACC=$ACC" >&2
+    echo "       set ACC to the accessions/ directory 01b_make_chunks.sh wrote" >&2
+    exit 1
+fi
+gcc -O2 -o "$PBS_JOBFS/length_agg" "$SRC/length_entropy_agg.c"
+
+for dom in bac arc; do
+    awk -F'\t' 'NR>1{print $1"\t"($5=="True"?1:0)}' \
+        "$DATA/genome_cds_counts_${dom}.tsv" > "$PBS_JOBFS/cdsflag_${dom}.tsv"
+done
+
+run_domain() {
+    local dom=$1
+    local pdir="$PBS_JOBFS/partials_$dom"
+    mkdir -p "$pdir"
+    ls "$DATA/entropy_rows/$dom"/*.tsv.gz | sort > "$PBS_JOBFS/files_$dom"
+    local nf; nf=$(wc -l < "$PBS_JOBFS/files_$dom")
+
+    # The expected chunk set is the accession manifest that 01b_make_chunks.sh
+    # writes and verifies, not whatever `ls` happened to find. Without this a
+    # domain missing chunks aggregates the rest and publishes it as complete --
+    # the defect family this run produced seven times.
+    ls "$ACC"/${dom}_*.txt | sed 's#.*/##; s#\.txt$##' | sort > "$PBS_JOBFS/expect_$dom"
+    sed 's#.*/##; s#\.tsv\.gz$##' "$PBS_JOBFS/files_$dom" | sort > "$PBS_JOBFS/have_$dom"
+    local ne; ne=$(wc -l < "$PBS_JOBFS/expect_$dom")
+    if ! comm -23 "$PBS_JOBFS/expect_$dom" "$PBS_JOBFS/have_$dom" > "$PBS_JOBFS/missing_$dom"; then
+        echo "FATAL: could not compare chunk manifests for $dom" >&2; exit 1
+    fi
+    if [ -s "$PBS_JOBFS/missing_$dom" ]; then
+        echo "FATAL: $dom expects $ne chunks, found $nf; missing:" >&2
+        head -20 "$PBS_JOBFS/missing_$dom" >&2
+        exit 1
+    fi
+    comm -13 "$PBS_JOBFS/expect_$dom" "$PBS_JOBFS/have_$dom" > "$PBS_JOBFS/extra_$dom" || true
+    if [ -s "$PBS_JOBFS/extra_$dom" ]; then
+        echo "WARNING: $dom has entropy_rows chunks absent from the manifest:" >&2
+        head -20 "$PBS_JOBFS/extra_$dom" >&2
+    fi
+    echo "$(date -Is) $dom: $nf chunks (manifest expects $ne) over $NPROC workers"
+    # `set -o pipefail` is NOT inherited by `bash -c`, so it has to be set
+    # again here. Without it a truncated chunk lets gzip fail after a valid
+    # header, the aggregator consumes the prefix and exits 0, and the worker
+    # reports success on a partial read.
+    if ! seq 0 $((NPROC - 1)) | xargs -P "$NPROC" -I{} bash -c '
+        set -euo pipefail
+        w=$1; pdir=$2; dom=$3; np=$4
+        awk -v w="$w" -v np="$np" "NR%np==w" "$PBS_JOBFS/files_$dom" > "$pdir/files.$w"
+        if [ -s "$pdir/files.$w" ]; then
+            xargs -a "$pdir/files.$w" gzip -dc \
+                | "$PBS_JOBFS/length_agg" "$PBS_JOBFS/cdsflag_$dom.tsv" \
+                  "$pdir/part.$w.bin" > "$pdir/part.$w.txt"
+        fi
+    ' _ {} "$pdir" "$dom" "$NPROC"; then
+        echo "FATAL: at least one $dom aggregation worker failed" >&2
+        exit 1
+    fi
+    echo "$(date -Is) $dom: aggregation done, combining"
+    "$PY" "$SRC/33_length_null_summary.py" "$dom" \
+        "$OUT/length_entropy_${dom}.tsv" "$OUT/length_entropy_${dom}.npz" \
+        "$pdir"/part.*.bin
+    mkdir -p "$OUT/partials_$dom"
+    for f in "$pdir"/part.*.bin; do gzip -c "$f" > "$OUT/partials_$dom/$(basename "$f").gz"; done
+    cp "$pdir"/part.*.txt "$OUT/partials_$dom/"
+}
+
+for dom in arc bac; do run_domain "$dom"; done
+
+echo "$(date -Is) done"
+ls -la "$OUT"

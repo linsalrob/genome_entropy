@@ -1,0 +1,46 @@
+#!/bin/bash
+#PBS -N gtdb_composition
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=24
+#PBS -l mem=96GB
+#PBS -l jobfs=10GB
+#PBS -l walltime=02:00:00
+#PBS -l storage=gdata/ob80+scratch/ob80
+#PBS -l wd
+#PBS -j oe
+#PBS -o /g/data/ob80/re3494/gtdb_entropy/logs/composition.log
+#
+# Marginal residue composition of the ORF population, for the length-conditioned
+# entropy null (30 -> 31 -> 32).
+#
+# Broad and shallow: a few genomes from every archaeal chunk and every tenth
+# bacterial one. A 20-symbol frequency vector is pinned to ~1e-4 by a few
+# million residues, so the sampling error is negligible next to the biological
+# variation between genomes -- which is why per-genome counts are written too.
+#
+# Reads only a prefix of each archive: the stream is abandoned once the
+# per-chunk genome quota is met, so this touches a few GB of the 1.5 TB.
+
+set -euo pipefail
+
+DATA=/g/data/ob80/re3494/gtdb_entropy
+SRC="${SRC:-/g/data/ob80/re3494/Projects/genome_entropy/claude}"
+OUT="${OUT:-$DATA/entropy_null/composition}"
+PY=/g/data/ob80/re3494/conda/genome_entropy/bin/python
+NPROC=${NPROC:-24}
+GENOMES_PER_CHUNK=${GENOMES_PER_CHUNK:-3}
+BAC_STRIDE=${BAC_STRIDE:-10}
+
+mkdir -p "$OUT" "$DATA/logs"
+
+"$PY" "$SRC/30_residue_composition.py" \
+    --results-dir "$DATA/entropy_3di_results" \
+    --accessions "$SRC/accessions" \
+    --output-dir "$OUT" \
+    --genomes-per-chunk "$GENOMES_PER_CHUNK" \
+    --bac-stride "$BAC_STRIDE" \
+    --workers "$NPROC"
+
+echo "composition written to $OUT"
+ls -la "$OUT"

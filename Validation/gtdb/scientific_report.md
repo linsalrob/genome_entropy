@@ -322,7 +322,9 @@ Three things in that table are worth stating in the main text.
    against 162 in archaea. A pilot showed length matching lowers matched-CDS
    median 3Di from 3.29 to 3.13, so part of this gap is length and not
    structure. Any use of these means as a discriminator must say so; §6.1's
-   comparator is length-matched for exactly this reason.
+   comparator is length-matched for exactly this reason. §4.2 decomposes that
+   length component: for 3Di it is ~14% estimator artefact and the rest real,
+   while for protein entropy the entire length trend is the artefact.
 3. **DNA entropy separates nothing.** 1.930 against 1.909 in bacteria — a
    0.02-bit difference on a 2-bit scale, with overlapping IQRs. It is carried in
    the machine-readable output for completeness and omitted from the tables
@@ -336,6 +338,159 @@ log₂(k) ceiling, is written to
 and `figure_sample_{bac,arc}{,_bands}.tsv`. The per-worker partials are kept
 alongside them, so a further statistic over the same strata does not require
 another pass over the 143 GB.
+
+### 4.2 Length-conditioned entropy references
+
+Every entropy in this report is a **plug-in** estimate: the Shannon entropy of
+the symbol frequencies actually observed in one sequence. That estimator is
+biased downward, and the bias depends on how many residues it was computed
+from. A 90 aa ORF and a 900 aa ORF drawn from identical residue distributions
+do not have the same expected entropy — the short one is lower, by roughly
+(k−1)/(2L ln2) bits, purely because it cannot sample every symbol. Comparing
+raw entropies across lengths therefore measures length as well as composition,
+which is the effect §4's item 2 records as "length matching lowers matched-CDS
+median 3Di from 3.29 to 3.13".
+
+Two reference distributions were built to separate the two, both conditioned on
+length. They answer different questions and only one of them is calibrated.
+
+#### The random reference: what a sequence of this length would score by chance
+
+`30_residue_composition.pbs` recovers the marginal residue composition of the
+ORF population — the entropy rows carry no composition, so it is read back from
+the packed per-genome JSON, three genomes from every archaeal chunk and every
+tenth bacterial one (351 genomes, 300M residues; 0.20 SU). `31_entropy_null.pbs`
+then draws counts ~ Multinomial(L, p) and takes the plug-in entropy of each
+draw: 400,000 replicates for each of 671 lengths × 2 domains × 3 alphabets,
+2.16 SU.
+
+Two properties of the statistic constrain what this null can be:
+
+- **Shannon entropy is permutation-invariant**, so shuffling a sequence leaves
+  its entropy exactly unchanged. A shuffle null has zero variance and is
+  degenerate here. (This is a different object from the shuffled-3Di null of
+  §6.1, which shuffles before a structural *search*, where order does matter.)
+- **The protein alphabet is 21 symbols, not 20.** `X` is 0.69% of residues and
+  `shannon_entropy()` takes no alphabet argument — it counts whatever
+  characters are present — so the null is drawn over 21. No observed ORF
+  reaches the log₂(20) = 4.3219 that `normalise_protein_entropy` divides by
+  (the maximum in a sampled chunk is 4.293), so this is a ceiling to be aware
+  of rather than an error in any published figure.
+
+Monte Carlo rather than the textbook asymptotics, because the first-order
+variance (1/L)[Σp log₂(p)² − H²] vanishes for uniform p and is worst for the
+alphabet closest to uniform. Measured as the ratio of simulated to asymptotic
+standard deviation:
+
+| alphabet | L=90 | L=150 | L=300 | L=1000 |
+|---|---:|---:|---:|---:|
+| protein | **1.26** | 1.18 | 1.09 | 1.02 |
+| three_di | 1.02 | 1.02 | 1.01 | 1.00 |
+| twelve_state | 1.05 | 1.03 | 1.01 | 1.00 |
+
+An analytic interval for protein entropy is **26% too narrow at the 90 aa ORF
+floor** and 9% too narrow at 300 aa — across the range holding most ORFs.
+
+#### The empirical reference: what real ORFs of this length actually score
+
+`33_empirical_length_null.pbs` streams the same 143 GB once, accumulating a 2-D
+(length bin × entropy bin) histogram per alphabet, stratified exactly as
+`29_population_entropy_summary.pbs` stratifies. 24 CPUs, 7 min 40 s, **6.13 SU**,
+zero malformed rows. Its marginals reproduce §4.1 exactly — 9,468,402 matched
+archaeal and 309,065,661 matched bacterial ORFs, and strata of 20,697,043 and
+24,692,953 in archaea — which is the cross-check that the two independent
+aggregators agree.
+
+Length bins are 1 aa wide from the 90 aa floor to 999, then 10 wide to 1999 and
+100 wide to 4999; entropy bins are 10⁻³ wide. Quantiles are the ceil-rank order
+statistic read from the histogram, so they are accurate to ±5×10⁻⁴ bits.
+
+These cells are bins, not samples of a curve, and `32_entropy_percentile.py`
+selects the bin *containing* an observed length rather than interpolating
+between bin midpoints. Below 1000 aa the distinction cannot arise — a bin is
+one residue wide — and above it the coarse bins would otherwise blend a
+1000 aa ORF mostly into the exact-length-999 distribution. It changes nothing
+in aggregate, because 99.5% of ORFs are shorter than 1000 aa; it is right for
+the 0.5% that are not. The random reference keeps interpolation, where it is
+correct: those are points on a continuous curve.
+
+#### Only the empirical reference is calibrated
+
+Decile occupancy of the percentile, scored over a systematic sample of the
+whole population (every 300th bacterial row, 1,028,059 matched ORFs). A
+calibrated reference puts 10% of observations in each decile:
+
+| reference | 10% | 20% | 30% | 40% | 50% | 60% | 70% | 80% | 90% | 100% |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| **empirical, protein** | 10.0 | 8.7 | 10.3 | 9.4 | 11.6 | 9.7 | 10.2 | 10.6 | 9.5 | 10.0 |
+| **empirical, 3Di** | 10.0 | 9.1 | 10.2 | 9.3 | 11.5 | 9.0 | 10.4 | 10.9 | 9.7 | 10.0 |
+| random, protein | **74.4** | 7.2 | 5.1 | 3.4 | 2.9 | 2.2 | 1.8 | 1.4 | 1.0 | 0.8 |
+| random, 3Di | **22.0** | 1.6 | 1.5 | 1.1 | 1.1 | 1.1 | 1.3 | 1.5 | 1.9 | **66.8** |
+| random, 12-state | **17.9** | 1.7 | 1.6 | 1.3 | 1.4 | 1.4 | 1.4 | 1.9 | 2.3 | **69.1** |
+
+The empirical z-score is standardised as well as centred, in both domains:
+
+| domain | sample | protein z | 3Di z |
+|---|---|---|---|
+| bacteria | every 300th row, n = 1,028,059 | +0.0005, sd 0.9986 | −0.0000, sd 1.0002 |
+| archaea | every 30th row, n = 315,638 | −0.0007, sd 1.0027 | −0.0004, sd 1.0013 |
+
+A caution about how that was checked, because two earlier attempts got it
+wrong. Scoring the first 20,000–40,000 matched rows of one chunk, or of
+eighteen chunks, produced a visibly tilted distribution (4.2% in the lowest
+decile against 14.9% in the highest) and a z mean of +0.38. That was the
+*sample*, not the table: taking the head of a chunk takes the first few
+genomes of it, and a few hundred genomes are not representative of composition
+across a domain. Only a systematic sample of the whole population — which is
+what `figure_samples/` already is — tests calibration.
+
+The random reference is not, and the reason is not a defect in the simulation.
+**Real proteins are systematically less compositionally even than an i.i.d.
+draw from a pooled background**, because each protein has its own idiosyncratic
+composition while the pooled background averages over all of them; the
+between-protein composition variance is far larger than the multinomial
+sampling variance the null models. A z against the random reference has a
+standard deviation of 3–7 rather than 1, so it removes the length trend but is
+not on a standard scale and must not be read as "how many σ unusual". For the
+structural alphabets its percentile is additionally U-shaped: it sorts ORFs
+into the two modes of §5 and says little in between.
+
+**Consequence for use.** Report percentiles and z-scores against the empirical
+reference. The random reference's value is its *mean curve*, which is the pure
+estimator bias and is what the next subsection uses.
+
+#### How much of the entropy–length trend is an artefact
+
+Subtracting the random reference's mean curve from the empirical one decomposes
+the observed rise in entropy with length. Matched archaeal ORFs, relative to
+L = 100, with "artefact" the random-reference rise as a percentage of the
+observed rise:
+
+| alphabet | L=150 | L=200 | L=300 | L=500 | L=800 |
+|---|---:|---:|---:|---:|---:|
+| **protein** | **106%** | **113%** | **122%** | **121%** | **152%** |
+| three_di | 13% | 14% | **14%** | 14% | 16% |
+| twelve_state | 8% | 8% | **8%** | 8% | 10% |
+
+- **Protein entropy does not meaningfully rise with length.** The whole
+  observed rise, and slightly more, is the plug-in estimator filling in its
+  alphabet. Any protein-entropy-versus-length trend should be read as an
+  artefact unless it survives this correction.
+- **3Di entropy rises for real.** From 100 to 300 aa, matched ORFs gain
+  **+0.76 bits** of 3Di entropy, of which only **+0.10** is estimator bias:
+  **86% is biology.** Longer proteins genuinely occupy more distinct structural
+  states. 12-state behaves the same way (≈92% real).
+
+This settles how to read §4's item 2. The length component of the matched /
+unmatched 3Di gap is largely a real structural effect rather than an estimator
+artefact — but the identical argument applied to protein entropy would have
+been entirely wrong, which is why the decomposition is worth having rather than
+assuming one answer for all three alphabets.
+
+`32_entropy_percentile.py` scores observations against either reference, or
+both side by side, from the entropy rows, a generic table, or a FASTA. Outputs
+land in `/g/data/ob80/re3494/gtdb_entropy/entropy_null/`; per-worker partials
+are kept so a further statistic does not require another pass over the 143 GB.
 
 ### Figures
 
@@ -1104,11 +1259,21 @@ verification step exceeded the jobfs quota and the cleanup trap fired.
   excluding never-annotated genomes: their ORFs have *higher* 3Di entropy than
   the unmatched ORFs they were pooled with, not lower, which is why they
   dominated the §6 candidate pool.
+- **Length-conditioned entropy references**, random and empirical, over the
+  same 2.62 billion rows (§4.2). The empirical one is calibrated — z mean
+  +0.0005, sd 0.9986 over a systematic million-ORF sample — and gives the
+  length-independent axis item 5 below was asking for. The random one supplies
+  the estimator-bias curve, which shows that **the entire protein-entropy rise
+  with length is an artefact** while **86% of the 3Di rise is real**.
 
 ### Analyses
 
 5. Compute **fraction of `D` residues** per ORF as a length-independent
-   alternative to 3Di entropy (§5.3).
+   alternative to 3Di entropy (§5.3). Partly superseded: §4.2's empirical
+   z-score is length-independent by construction (mean −0.0000, sd 1.0002 over
+   a million-ORF sample) and applies to all three alphabets, where fraction-`D`
+   applies only to 3Di. Fraction-`D` remains worth having as a direct
+   measurement of what §5's dominant state is doing, not as the length fix.
 6. **Resolve the structural-versus-Prodigal disagreement** (§6.1). The two
    estimates differ by ~1.7× and this report brackets rather than resolves them.
    The missing measurement is Prodigal's false-positive rate on sequence that is
@@ -1201,6 +1366,10 @@ Pipeline in `/g/data/ob80/re3494/Projects/genome_entropy/claude/`:
 | `27_build_dossiers.{py,pbs}` | dossiers, with neighbour products read back from the GenBank archives; also emits `exemplar_neighbours.tsv` |
 | `28_report_figures.py` | every figure in §6 and §6.1, read from the machine-readable artefacts the analysis stages emit rather than re-derived |
 | `29_population_entropy_summary.pbs`, `population_agg.c` | §4.1 full-population statistics: one streaming pass over all 2.62 billion ORF rows, stratified by (deposited CDS present, `in_genbank`) |
+| `30_residue_composition.{py,pbs}` | §4.2 marginal residue composition per alphabet, read back from the packed per-genome JSON; pooled and per-genome |
+| `31_entropy_null.{py,pbs}` | §4.2 random reference: Monte Carlo plug-in entropy of Multinomial(L, p) draws, per length per alphabet |
+| `33_empirical_length_null.pbs`, `length_entropy_agg.c`, `33_length_null_summary.py` | §4.2 empirical reference: 2-D (length × entropy) histogram over all 2.62 billion rows, same strata as `population_agg.c` |
+| `32_entropy_percentile.py` | §4.2 scores an observed (length, entropy) against either reference or both; entropy-rows, table and FASTA inputs |
 | `population_summary.py`, `population_tables.py` | combine the per-worker partials; render §4.1's tables from the TSVs rather than recomputing them |
 
 The same tree is committed under `Validation/gtdb/scripts/` in this repository;
