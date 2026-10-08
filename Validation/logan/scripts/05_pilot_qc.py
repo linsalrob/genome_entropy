@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -55,26 +56,30 @@ def load_chunks() -> list:
     return [json.load(open(p)) for p in sorted((lc.root() / "manifests" / "chunks").glob("*.json"))]
 
 
-def features_from_cache(chunks: list, accs: set) -> pd.DataFrame:
-    frames = []
-    for m in chunks:
-        if not set(m.get("accessions", [])) & accs:
-            continue
-        f = lc.root() / "cache" / "modernprost-50M" / lc.CACHE_VERSION / m["cache_file"]
-        df = pd.read_csv(f, sep="\t", dtype=str, keep_default_na=False,
-                         compression={"method": "zstd"})
-        df = df[df.accession.isin(accs)]
-        out = pd.DataFrame({
-            "accession": df.accession, "orf_id": df.orf_id,
-            "aa_len": df.aa_sequence.str.len(),
-            "len_ok": (df.aa_sequence.str.len() == df.three_di.str.len())
-                      & (df.aa_sequence.str.len() == df.twelve_state.str.len()),
-            "aa_entropy": [calculate_sequence_entropy(s) for s in df.aa_sequence],
-            "three_di_entropy": [calculate_sequence_entropy(s) for s in df.three_di],
-            "twelve_state_entropy": [calculate_sequence_entropy(s) for s in df.twelve_state],
-            "mi_3di_12st": [mutual_information(a, b) for a, b in zip(df.three_di, df.twelve_state)],
-        })
-        frames.append(out)
+def _chunk_features(args) -> pd.DataFrame:
+    path, accs = args
+    df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False,
+                     compression={"method": "zstd"})
+    df = df[df.accession.isin(accs)]
+    return pd.DataFrame({
+        "accession": df.accession.to_numpy(), "orf_id": df.orf_id.to_numpy(),
+        "aa_len": df.aa_sequence.str.len().to_numpy(),
+        "len_ok": ((df.aa_sequence.str.len() == df.three_di.str.len())
+                   & (df.aa_sequence.str.len() == df.twelve_state.str.len())).to_numpy(),
+        "aa_entropy": [calculate_sequence_entropy(x) for x in df.aa_sequence],
+        "three_di_entropy": [calculate_sequence_entropy(x) for x in df.three_di],
+        "twelve_state_entropy": [calculate_sequence_entropy(x) for x in df.twelve_state],
+        "mi_3di_12st": [mutual_information(a, b) for a, b in zip(df.three_di, df.twelve_state)],
+    })
+
+
+def features_from_cache(chunks: list, accs: set, procs: int) -> pd.DataFrame:
+    """Per-ORF features recomputed from the cache, one chunk per process."""
+    import multiprocessing as mp
+    jobs = [(lc.root() / "cache" / "modernprost-50M" / lc.CACHE_VERSION / m["cache_file"], accs)
+            for m in chunks if set(m.get("accessions", [])) & accs]
+    with mp.get_context("spawn").Pool(procs) as pool:
+        frames = pool.map(_chunk_features, jobs, chunksize=1)
     return pd.concat(frames, ignore_index=True)
 
 
@@ -91,6 +96,7 @@ def main() -> int:
     ap.add_argument("--batch", default="pilot")
     ap.add_argument("--inspect-n", type=int, default=12)
     ap.add_argument("--seed", type=int, default=102)
+    ap.add_argument("--procs", type=int, default=int(os.environ.get("SLURM_CPUS_PER_TASK", 8)))
     args = ap.parse_args()
     out = lc.root() / "qc" / args.batch
     out.mkdir(parents=True, exist_ok=True)
@@ -137,7 +143,7 @@ def main() -> int:
           {m["chunk_id"]: m["state"] for m in mine if m["state"] != "remote_verified"})
 
     # Features and labels.
-    feats = features_from_cache(chunks, acc_done)
+    feats = features_from_cache(chunks, acc_done, args.procs)
     check("no AA/3Di/12st length mismatches", bool(feats.len_ok.all()),
           f"{int((~feats.len_ok).sum())} bad of {len(feats):,}")
     labels = []
