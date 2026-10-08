@@ -134,14 +134,18 @@ def read_fasta_stream(fh) -> Iterator[Tuple[str, str]]:
 
 def stage_download(acc: str, wd: Path) -> None:
     url = lc.LOGAN_CONTIG_URL.format(acc=acc)
-    head = subprocess.run(["curl", "-sSfI", url], capture_output=True, text=True,
-                          check=True).stdout
+    # Retried like the download itself: one phaseb1 accession failed on a
+    # transient TLS error (curl 35) in this HEAD request.
+    head = subprocess.run(["curl", "-sSfI", "--retry", "5", "--retry-delay", "10",
+                           "--retry-all-errors", url],
+                          capture_output=True, text=True, check=True).stdout
     hdr = {k.strip().lower(): v.strip() for k, v in
            (l.split(":", 1) for l in head.splitlines() if ":" in l)}
     want = int(hdr["content-length"])
     dest = wd / "contigs.fa.zst"
     tmp = wd / "contigs.fa.zst.partial"
-    run(["curl", "-sSf", "--retry", "5", "--retry-delay", "10", "-o", str(tmp), url])
+    run(["curl", "-sSf", "--retry", "5", "--retry-delay", "10", "--retry-all-errors",
+         "-o", str(tmp), url])
     got = tmp.stat().st_size
     if got != want:
         raise RuntimeError(f"{acc}: downloaded {got} bytes, S3 says {want}")
