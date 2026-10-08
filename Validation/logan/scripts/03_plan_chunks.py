@@ -83,6 +83,7 @@ def main() -> int:
     elif cur:
         print(f"holding back a partial chunk of {cur_n:,} ORFs (use --final)")
 
+    new_chunks: dict = {}
     for members in chunks:
         cid = f"{PREFIX}_{next_id:06d}"
         next_id += 1
@@ -98,8 +99,17 @@ def main() -> int:
             "orf_count_expected": sum(m["n_rows"] for m in members),
         }
         lc.atomic_write_json(chunk_dir() / f"{cid}.json", man)
-        print(f"{cid}: {man['accession_count']} accessions, "
-              f"{man['orf_count_expected']:,} ORFs")
+        for m in members:
+            new_chunks.setdefault(m["accession"], []).append(cid)
+        if len(chunks) <= 20:
+            print(f"{cid}: {man['accession_count']} accessions, "
+                  f"{man['orf_count_expected']:,} ORFs")
+    # Record each accession's chunks in its state, so later stages never
+    # have to scan every manifest to find them (tens of thousands at scale).
+    for acc, ids in new_chunks.items():
+        prev = lc.load_state(acc).get("info", {}).get("chunks", [])
+        lc.update_info(acc, chunks=list(dict.fromkeys(prev + ids)))
+    print(f"planned {len(chunks):,} chunks for {len(new_chunks):,} accessions")
     return 0
 
 

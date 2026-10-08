@@ -19,7 +19,9 @@ their own state lets the GPU stage start from a known-good ORF table.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as _dt
+import fcntl
 import hashlib
 import json
 import os
@@ -116,30 +118,95 @@ def reached(st: Dict[str, Any], state: str) -> bool:
     return state_index(st.get("state")) >= STATES.index(state)
 
 
+@contextlib.contextmanager
+def locked(acc: str):
+    """Serialise read-modify-write of one accession's state file.
+
+    At Phase B scale an accession's ORFs can span chunks encoded by
+    different GPU streams at the same moment, and both finish by updating
+    the accession; without the lock one update can silently drop the other.
+    """
+    path = state_path(acc)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path.with_suffix(".lock"), "w") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh, fcntl.LOCK_UN)
+
+
 def advance(acc: str, state: str, **info: Any) -> Dict[str, Any]:
     """Move an accession forward to ``state``, merging ``info`` into it.
 
     Moving backwards is refused: a rerun that wants to redo a step must say
     so explicitly with ``reset``.
     """
-    st = load_state(acc)
-    if state_index(state) < state_index(st.get("state")):
-        raise RuntimeError(f"{acc}: refusing to move state back from "
-                           f"{st.get('state')} to {state}")
-    st["state"] = state
-    st.setdefault("history", []).append({"state": state, "time": now()})
-    st.setdefault("info", {}).update(info)
-    atomic_write_json(state_path(acc), st)
-    return st
+    with locked(acc):
+        st = load_state(acc)
+        if state_index(state) < state_index(st.get("state")):
+            raise RuntimeError(f"{acc}: refusing to move state back from "
+                               f"{st.get('state')} to {state}")
+        st["state"] = state
+        st.setdefault("history", []).append({"state": state, "time": now()})
+        st.setdefault("info", {}).update(info)
+        atomic_write_json(state_path(acc), st)
+        return st
+
+
+def update_info(acc: str, **info: Any) -> Dict[str, Any]:
+    """Merge ``info`` into an accession's state without changing the state."""
+    with locked(acc):
+        st = load_state(acc)
+        st.setdefault("info", {}).update(info)
+        atomic_write_json(state_path(acc), st)
+        return st
 
 
 def reset(acc: str, state: Optional[str], reason: str) -> None:
-    st = load_state(acc)
-    st.setdefault("history", []).append(
-        {"state": state, "time": now(), "reset_from": st.get("state"),
-         "reason": reason})
-    st["state"] = state
-    atomic_write_json(state_path(acc), st)
+    with locked(acc):
+        st = load_state(acc)
+        st.setdefault("history", []).append(
+            {"state": state, "time": now(), "reset_from": st.get("state"),
+             "reason": reason})
+        st["state"] = state
+        atomic_write_json(state_path(acc), st)
+
+
+# --------------------------------------------------------------------------
+# Chunk layout. Chunks are sharded 1,000 to a directory, locally and on the
+# remote: a SharePoint/OneDrive folder holding tens of thousands of items
+# runs into list-view thresholds, and so does a scratch directory listing.
+# --------------------------------------------------------------------------
+
+def chunk_number(chunk_id: str) -> int:
+    return int(chunk_id.rsplit("_", 1)[1])
+
+
+def chunk_shard(chunk_id: str) -> str:
+    return f"{chunk_number(chunk_id) // 1000:03d}"
+
+
+def chunk_manifest_path(chunk_id: str) -> Path:
+    return root() / "manifests" / "chunks" / f"{chunk_id}.json"
+
+
+def cache_path(chunk_id: str) -> Path:
+    return (root() / "cache" / "modernprost-50M" / CACHE_VERSION / chunk_shard(chunk_id)
+            / f"{chunk_id}.tsv.zst")
+
+
+def bundle_path(chunk_id: str) -> Path:
+    """Per-chunk tar of the Prodigal/match tables of the accessions that start in it."""
+    return root() / "bundles" / "prodigal" / CACHE_VERSION / chunk_shard(chunk_id) / f"{chunk_id}.tar"
+
+
+def cache_remote_dir(chunk_id: str) -> str:
+    return f"{REMOTE_ROOT}/modernprost-50M/{CACHE_VERSION}/{chunk_shard(chunk_id)}"
+
+
+def bundle_remote_dir(chunk_id: str) -> str:
+    return f"{REMOTE_ROOT}/prodigal/{CACHE_VERSION}/bundles/{chunk_shard(chunk_id)}"
 
 
 def sha256(path: Path, bufsize: int = 1 << 22) -> str:

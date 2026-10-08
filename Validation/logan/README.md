@@ -41,6 +41,35 @@ sbatch --wait $S/04_upload_verify.slurm --cleanup
 python $S/05_pilot_qc.py --batch pilot
 ```
 
+### Phase B (tens of thousands of accessions)
+
+The pilot path runs one array element per accession and one GPU per chunk;
+neither scales past Setonix's limits (arrays of 1,000, 256 running `work`
+jobs, 64 running `gpu` jobs). Phase B uses:
+
+| script | where | role |
+|---|---|---|
+| `01_select_accessions.py draw` | login | water-filled biome × size strata, ≤25 runs per BioProject, excludes anything already selected |
+| `02_cpu_batch.slurm` | work, half node | 100 accessions per element, 12 at a time; per-accession logs in `logs/cpu/`; Prodigal repro check on every 100th |
+| `03_encode_node.slurm` | gpu, whole node | 8 streams (one per GCD, `ROCR_VISIBLE_DEVICES`), 4 persistent encoder workers each, zstd -19 overlapped with encoding |
+| `04_upload_verify.py` | copy | one rclone copy/check/listing per remote folder; per-chunk Prodigal bundles |
+| `06_orchestrate.slurm` | long, 1 core | plans, submits GPU arrays as chunks become ready, retries once, uploads, stops when done |
+
+```bash
+python $S/01_select_accessions.py draw --n 25000 --name phaseb1 --seed 102
+C=$(sbatch --parsable --array=1-250 $S/02_cpu_batch.slurm manifests/phaseb1_accessions.tsv 100 12)
+sbatch $S/06_orchestrate.slurm --batch phaseb1 --cpu-job $C
+cat manifests/phaseb1_progress.json        # refreshed every 20 min
+```
+
+Phase B remote layout differs from the pilot's in two ways. Chunks and
+their manifests sit in 1,000-chunk shard folders
+(`modernprost-50M/v1/<shard>/`, `manifests/chunks/<shard>/`). Prodigal
+tables travel as one tar per chunk (`prodigal/v1/bundles/<shard>/<chunk>.tar`)
+holding every accession whose first row is in that chunk; the 91 pilot
+accessions keep their per-accession folders. Always resolve a chunk's files
+through its manifest (`cache_file`, `remote`, `bundle`).
+
 Every stage is resumable. Each accession carries a state file
 (`state/<acc>.json`) that moves through
 

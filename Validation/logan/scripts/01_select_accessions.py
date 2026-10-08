@@ -315,6 +315,90 @@ def cmd_pilot(args: argparse.Namespace) -> int:
     return 0
 
 
+MANIFEST_COLS = ["accession", "biome", "organism", "bioproject", "biosample",
+                 "sra_study", "assay_type", "librarysource", "libraryselection",
+                 "librarylayout", "platform", "instrument", "mbases",
+                 "contig_count", "contig_bp", "n50", "max_contig", "seqstats_source",
+                 "size_bin", "host_sam", "isolation_source_sam", "env_broad_scale_sam",
+                 "env_local_scale_sam", "env_medium_sam", "country", "collection_date"]
+
+
+def cmd_draw(args: argparse.Namespace) -> int:
+    """Phase B draw: the pilot's filters and strata at scale.
+
+    Differences from `pilot`, which stays as it was so the pilot can be
+    reproduced from the code that drew it:
+
+      * accessions already selected by an earlier batch (any state file)
+        are excluded, so tranches never overlap;
+      * at most --max-per-project runs per BioProject (one per project is
+        impossible at 25k: the whole pool spans ~9,000 projects);
+      * quotas are water-filled over biome x log-size strata, so a stratum
+        too small for its equal share gives its remainder to the others
+        instead of leaving the draw short.
+    """
+    df = pd.read_parquet(CANDIDATES)
+    keep = (
+        (df.assay_type == "WGS")
+        & df.libraryselection.isin(RANDOM_SELECTIONS)
+        & df.platform.isin(SHORT_READ_PLATFORMS)
+        & df.organism.fillna("").str.contains(r"metagenome$", case=False)
+        & ~df.organism.fillna("").str.contains(NON_NATURAL, case=False)
+        & df.contig_bp.between(args.min_bp, args.max_bp)
+        & (df.n50 >= args.min_n50)
+    )
+    taken = {p.stem for p in (lc.root() / "state").glob("*.json")}
+    pool = df[keep & ~df.accession.isin(taken)].copy()
+    print(f"pool: {len(pool):,} runs after filters, {len(taken):,} already selected excluded")
+
+    pool = pool.sample(frac=1, random_state=args.seed).reset_index(drop=True)
+    pool["project_rank"] = pool.groupby(pool.bioproject.fillna(pool.accession)).cumcount()
+    pool = pool[pool.project_rank < args.max_per_project]
+    edges = np.logspace(np.log10(args.min_bp), np.log10(args.max_bp), args.size_bins + 1)
+    pool["size_bin"] = np.clip(np.digitize(pool.contig_bp, edges) - 1, 0, args.size_bins - 1)
+    cap = pool.groupby(["biome", "size_bin"]).size()
+    print(f"after <= {args.max_per_project} per BioProject: {len(pool):,} runs in {len(cap)} strata")
+    if cap.sum() < args.n:
+        sys.exit(f"ERROR: only {cap.sum():,} runs available for n={args.n:,}")
+
+    # Water-fill: raise a common per-stratum quota until the total reaches n.
+    lo, hi = 0, int(cap.max())
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if cap.clip(upper=mid).sum() <= args.n:
+            lo = mid
+        else:
+            hi = mid - 1
+    quota = cap.clip(upper=lo)
+    short = args.n - int(quota.sum())
+    for k in cap[cap > lo].index[:short]:   # the remainder, one each
+        quota[k] += 1
+    pool["stratum_rank"] = pool.groupby(["biome", "size_bin"]).cumcount()
+    q = pool.set_index(["biome", "size_bin"]).index.map(quota)
+    draw = pool[pool.stratum_rank.to_numpy() < np.asarray(q)]
+    assert len(draw) == args.n, len(draw)
+    draw = draw.sort_values(["biome", "contig_bp"]).reset_index(drop=True)
+
+    out = lc.root() / "manifests" / f"{args.name}_accessions.tsv"
+    if out.exists():
+        sys.exit(f"ERROR: {out} exists; a batch name is never reused")
+    draw[MANIFEST_COLS].to_csv(out, sep="\t", index=False)
+    summ = draw.groupby("biome").agg(runs=("accession", "size"),
+                                     median_mbp=("contig_bp", lambda x: x.median() / 1e6),
+                                     total_gbp=("contig_bp", lambda x: x.sum() / 1e9))
+    print(summ.to_string())
+    print(f"total contig bp: {draw.contig_bp.sum() / 1e12:.3f} Tbp in {len(draw):,} runs; "
+          f"{draw.bioproject.nunique():,} BioProjects; per-stratum quota {lo}")
+    print(f"wrote {out}")
+    if not args.no_state:
+        for r in draw.itertuples():
+            lc.advance(r.accession, "selected", batch=args.name, biome=r.biome,
+                       expected_contig_count=int(r.contig_count),
+                       expected_contig_bp=int(r.contig_bp), expected_n50=int(r.n50),
+                       seqstats_source=r.seqstats_source)
+    return 0
+
+
 def cmd_refresh(args: argparse.Namespace) -> int:
     """Re-read a selection manifest's assembly statistics from the candidates
     table and update each accession's expected values in its state file.
@@ -357,10 +441,21 @@ def main() -> int:
     p.add_argument("--min-n50", type=int, default=300)
     p.add_argument("--size-bins", type=int, default=4)
     p.add_argument("--no-state", action="store_true")
+    d = sub.add_parser("draw")
+    d.add_argument("--n", type=int, required=True)
+    d.add_argument("--name", required=True)
+    d.add_argument("--seed", type=int, default=102)
+    d.add_argument("--min-bp", type=float, default=5e6)
+    d.add_argument("--max-bp", type=float, default=3e8)
+    d.add_argument("--min-n50", type=int, default=150)
+    d.add_argument("--size-bins", type=int, default=4)
+    d.add_argument("--max-per-project", type=int, default=25)
+    d.add_argument("--no-state", action="store_true")
     r = sub.add_parser("refresh")
     r.add_argument("--name", default="pilot")
     args = ap.parse_args()
-    return {"candidates": cmd_candidates, "pilot": cmd_pilot, "refresh": cmd_refresh}[args.cmd](args)
+    return {"candidates": cmd_candidates, "pilot": cmd_pilot, "draw": cmd_draw,
+            "refresh": cmd_refresh}[args.cmd](args)
 
 
 if __name__ == "__main__":
