@@ -24,19 +24,27 @@
 # fits in 115 GB with room; get_orfs threads share the 64 cores.
 #
 #   sbatch --array=1-250 02_cpu_batch.slurm manifests/phaseb1_accessions.tsv 100 12
+# (array size x PER_JOB must cover the list; rows are dealt round-robin)
+#   sbatch --array=37 02_cpu_batch.slurm manifests/phaseb1_accessions.tsv 100 12 250
 
 set -euo pipefail
-LIST="$1"; PER_JOB="${2:-100}"; PARALLEL="${3:-12}"
+LIST="$1"; PER_JOB="${2:-100}"; PARALLEL="${3:-12}"   # optional $4: stride
 source "${LOGAN_SCRIPTS:-$HOME/GitHubs/genome_entropy/Validation/logan/scripts}/env.sh"
 export TMPDIR="${LOGAN_ROOT}/tmp/${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 mkdir -p "$TMPDIR" "$LOGAN_ROOT/logs/cpu"
 trap 'rm -rf "$TMPDIR"' EXIT
 
 col=$(head -1 "$LIST" | tr '\t' '\n' | grep -nx accession | cut -d: -f1)
-first=$(( (SLURM_ARRAY_TASK_ID - 1) * PER_JOB + 1 ))
-# Data row r is line r+1; emit "row accession".
-awk -F'\t' -v c="$col" -v a="$first" -v n="$PER_JOB" \
-    'NR > 1 && NR - 1 >= a && NR - 1 < a + n {print NR - 1, $c}' "$LIST" > "$TMPDIR/todo"
+# STRIDED, not contiguous: element i of k takes data rows i, i+k, i+2k, ...
+# Selection manifests are sorted by size within biome, so contiguous blocks
+# put all the largest assemblies in the same elements; in phaseb1, 19 such
+# elements hit the 12 h limit while the same accessions took 30-40 min each
+# when run alone. k, the stride, defaults to the highest array index, so a
+# --array=1-250 submission strides by 250; to rerun one element alone
+# (--array=37) pass the original stride as the 4th argument.
+k="${4:-${SLURM_ARRAY_TASK_MAX:-1}}"
+awk -F'\t' -v c="$col" -v i="$SLURM_ARRAY_TASK_ID" -v k="$k" -v n="$PER_JOB" \
+    'NR > 1 && (NR - 2) % k == i - 1 && taken < n {print NR - 1, $c; taken++}' "$LIST" > "$TMPDIR/todo"
 echo "$(date -Is) element $SLURM_ARRAY_TASK_ID: $(wc -l < "$TMPDIR/todo") accessions, $PARALLEL at a time on $(hostname)"
 
 run_one() {
