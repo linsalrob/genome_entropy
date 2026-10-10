@@ -588,6 +588,11 @@ def main() -> int:
         stage_orfs(acc, wd)
     if not args.keep_fasta and (wd / "contigs.ge120.fa").exists():
         (wd / "contigs.ge120.fa").unlink()
+    # Peak memory, so 02_cpu_pack.py's estimate can be calibrated on real runs
+    # (Linux reports ru_maxrss in KiB; children = prodigal / get_orfs / zstd).
+    import resource
+    lc.update_info(acc, peak_rss_gb=round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 2**20, 2),
+                   peak_rss_children_gb=round(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss / 2**20, 2))
     print(f"{acc}: {lc.load_state(acc)['state']}")
     return 0
 
