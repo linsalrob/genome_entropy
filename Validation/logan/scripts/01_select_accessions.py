@@ -331,8 +331,9 @@ def cmd_draw(args: argparse.Namespace) -> int:
 
       * accessions already selected by an earlier batch (any state file)
         are excluded, so tranches never overlap;
-      * at most --max-per-project runs per BioProject (one per project is
-        impossible at 25k: the whole pool spans ~9,000 projects);
+      * at most --max-per-project runs per BioProject, counting runs it
+        already has in earlier batches (one per project is impossible at
+        25k: the whole pool spans ~9,000 projects);
       * quotas are water-filled over biome x log-size strata, so a stratum
         too small for its equal share gives its remainder to the others
         instead of leaving the draw short.
@@ -352,7 +353,11 @@ def cmd_draw(args: argparse.Namespace) -> int:
     print(f"pool: {len(pool):,} runs after filters, {len(taken):,} already selected excluded")
 
     pool = pool.sample(frac=1, random_state=args.seed).reset_index(drop=True)
-    pool["project_rank"] = pool.groupby(pool.bioproject.fillna(pool.accession)).cumcount()
+    # The cap is cumulative across batches: runs a BioProject already has in
+    # earlier batches count against it.
+    used = df[df.accession.isin(taken)].groupby("bioproject").size()
+    pool["project_rank"] = (pool.groupby(pool.bioproject.fillna(pool.accession)).cumcount()
+                            + pool.bioproject.map(used).fillna(0).astype(int))
     pool = pool[pool.project_rank < args.max_per_project]
     edges = np.logspace(np.log10(args.min_bp), np.log10(args.max_bp), args.size_bins + 1)
     pool["size_bin"] = np.clip(np.digitize(pool.contig_bp, edges) - 1, 0, args.size_bins - 1)

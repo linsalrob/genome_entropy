@@ -86,6 +86,8 @@ def main() -> int:
     ap.add_argument("--upload-min", type=int, default=300,
                     help="chunks waiting before an upload job is worth starting")
     ap.add_argument("--cpu-per-job", type=int, default=100)
+    ap.add_argument("--upload-parallel", type=int, default=3,
+                    help="concurrent upload jobs on disjoint chunk subsets (copy allows 4 per user)")
     ap.add_argument("--cycle", type=int, default=1200, help="seconds between cycles")
     ap.add_argument("--gpu-sbatch", default="", help="extra sbatch options for GPU arrays")
     ap.add_argument("--cpu-sbatch", default="", help="extra sbatch options for CPU retries")
@@ -117,7 +119,7 @@ def main() -> int:
                 pd.DataFrame({"accession": short}).to_csv(lst, sep="\t", index=False)
                 n = math.ceil(len(short) / args.cpu_per_job)
                 jid = sbatch(*args.cpu_sbatch.split(), f"--array=1-{n}", str(S / "02_cpu_batch.slurm"), str(lst),
-                             str(args.cpu_per_job), "12")
+                             str(args.cpu_per_job), "40")
                 o["cpu_jobs"].append(jid)
                 cpu_running = True
             save()
@@ -155,15 +157,22 @@ def main() -> int:
             gpu_running = True
             save()
 
-        # 4. upload.
-        waiting = sum(1 for s in mans.values() if s in ("cache_validated", "uploaded"))
-        upload_running = active(o["upload_jobs"])
+        # 4. upload: up to --upload-parallel jobs on disjoint chunk subsets.
         encoding_over = not cpu_running and not gpu_running
-        if waiting and not upload_running and (waiting >= args.upload_min or encoding_over):
-            jid = sbatch(str(S / "04_upload_verify.slurm"), "--batch", args.batch, "--cleanup")
-            o["upload_jobs"].append(jid)
-            upload_running = True
-            save()
+        k = args.upload_parallel
+        parts = o.setdefault("upload_parts", {})
+        for i in range(k):
+            waiting = sum(1 for c, s in mans.items() if s in ("cache_validated", "uploaded")
+                          and lc.chunk_number(c) % k == i)
+            if not waiting or active(parts.get(str(i), [])):
+                continue
+            if waiting >= args.upload_min / k or encoding_over:
+                extra = ["--part", f"{i}/{k}"] if k > 1 else []
+                jid = sbatch(str(S / "04_upload_verify.slurm"), "--batch", args.batch, "--cleanup", *extra)
+                o["upload_jobs"].append(jid)
+                parts.setdefault(str(i), []).append(jid)
+                save()
+        upload_running = active(o["upload_jobs"])
 
         # 6. progress, and the stopping rule.
         st = Counter(lc.load_state(a).get("state") for a in accs)

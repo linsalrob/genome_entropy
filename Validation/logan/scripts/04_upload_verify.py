@@ -242,7 +242,9 @@ def status_table() -> Path:
                      "chunks": ",".join(info.get("chunks", [])),
                      "last_update": st["history"][-1]["time"] if st.get("history") else ""})
     out = lc.root() / "manifests" / "accession_status.tsv"
-    pd.DataFrame(rows).to_csv(out, sep="\t", index=False)
+    tmp = out.with_name(out.name + f".tmp{os.getpid()}")   # concurrent upload jobs
+    pd.DataFrame(rows).to_csv(tmp, sep="\t", index=False)
+    os.replace(tmp, out)
     return out
 
 
@@ -253,6 +255,7 @@ def main() -> int:
     ap.add_argument("--cleanup", action="store_true")
     ap.add_argument("--cleanup-cache", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--part", help="i/k: only chunks whose number %% k == i")
     args = ap.parse_args()
     DRY = args.dry_run
 
@@ -262,6 +265,11 @@ def main() -> int:
     else:
         accs = [p.stem for p in sorted((lc.root() / "state").glob("*.json"))]
     chunk_ids = sorted({c for a in accs for c in lc.load_state(a).get("info", {}).get("chunks", [])})
+    if args.part:
+        # Disjoint subsets for concurrent upload jobs: phaseb1 measured ~47 GB/h
+        # for one job, limited by verification and listing, not bandwidth.
+        i, k = map(int, args.part.split("/"))
+        chunk_ids = [c for c in chunk_ids if lc.chunk_number(c) % k == i]
     do_chunks(chunk_ids)
     do_accessions(accs, args.cleanup, args.cleanup_cache)
     out = status_table()
