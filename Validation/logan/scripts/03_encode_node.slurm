@@ -43,6 +43,16 @@ echo "$(date -Is) element $SLURM_ARRAY_TASK_ID: $n chunks on $(hostname), $ngcd 
     > "logs/gpu_util_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}.csv" &
 mon=$!
 
+# Warm the page cache with the environment's ROCm/PyTorch shared libraries
+# (~6.5 GB) once, before 32 encoder processes (8 streams x 4 workers) each
+# page them in. On 2026-10-10 Lustre /scratch degraded to ~12-20 MB/s and
+# every stream started in that window spent ~2.7 h on its first chunk while
+# its workers loaded torch; subsequent chunks ran at the normal ~222k aa/s.
+# One sequential read is shared by every process through the page cache.
+t0=$(date +%s)
+find "$LOGAN_ENV/lib" -name '*.so*' -size +10M -print0 | xargs -0 cat > /dev/null
+echo "$(date -Is) page cache warmed in $(( $(date +%s) - t0 )) s"
+
 pids=()
 for g in $(seq 0 $((ngcd - 1))); do
     awk -v g="$g" -v k="$ngcd" '(NR - 1) % k == g' "$work/all" > "$work/stream_$g"
