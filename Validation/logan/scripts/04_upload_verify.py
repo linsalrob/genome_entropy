@@ -145,53 +145,69 @@ def build_bundle(man: dict) -> Tuple[Path, List[str]]:
     return out, accs
 
 
-def do_chunks(chunk_ids: List[str]) -> List[str]:
-    mans = {c: json.load(open(lc.chunk_manifest_path(c))) for c in chunk_ids}
-    todo = [c for c, m in mans.items() if m["state"] in ("cache_validated", "uploaded")]
-    print(f"{len(todo):,} chunk(s) to upload")
-    by_dir: Dict[Tuple[Path, str], List[str]] = defaultdict(list)
-    for c in todo:
-        m = mans[c]
-        f = lc.cache_path(c)
-        if lc.sha256(f) != m["sha256"]:
-            raise RuntimeError(f"{f} no longer matches its manifest sha256")
-        by_dir[(f.parent, lc.cache_remote_dir(c))].append(f.name)
-        # A chunk in which no accession starts has no bundle to carry.
-        if any(x["first_row"] == 0 for x in m["members"]):
-            b, baccs = build_bundle(m)
-            m["bundle"] = {"file": f"{lc.chunk_shard(c)}/{b.name}", "accessions": baccs,
-                           "bytes": b.stat().st_size, "sha256": lc.sha256(b)}
-            by_dir[(b.parent, lc.bundle_remote_dir(c))].append(b.name)
-        else:
-            m["bundle"] = None
-        if m["state"] == "cache_validated" and not DRY:
-            m["state"] = "uploaded"
+def do_chunks(chunk_ids: List[str], max_shards: int) -> List[str]:
+    """Upload and verify pending chunks one shard folder (<= 1,000 chunks) at a time.
+
+    Each shard's verification is written to its manifests before the next
+    shard starts. The first phaseb1 version verified everything and wrote
+    the results only at the end: on 22k chunks it never finished inside the
+    12 h limit, and three consecutive jobs lost all their work. At most
+    --max-shards shards are done per job; the orchestrator submits the next.
+    """
+    pending: Dict[str, List[str]] = defaultdict(list)
+    for c in chunk_ids:
+        st = json.load(open(lc.chunk_manifest_path(c)))["state"]
+        if st in ("cache_validated", "uploaded"):
+            pending[lc.chunk_shard(c)].append(c)
+    print(f"{sum(map(len, pending.values())):,} chunk(s) pending in {len(pending)} shard(s); "
+          f"this job does at most {max_shards}", flush=True)
+    done: List[str] = []
+    for shard in sorted(pending)[:max_shards]:
+        cs = pending[shard]
+        mans = {c: json.load(open(lc.chunk_manifest_path(c))) for c in cs}
+        by_dir: Dict[Tuple[Path, str], List[str]] = defaultdict(list)
+        for c in cs:
+            m = mans[c]
+            f = lc.cache_path(c)
+            if f.stat().st_size != m["bytes"] or (m["state"] == "cache_validated" and lc.sha256(f) != m["sha256"]):
+                raise RuntimeError(f"{f} no longer matches its manifest")
+            by_dir[(f.parent, lc.cache_remote_dir(c))].append(f.name)
+            # A chunk in which no accession starts has no bundle to carry.
+            if any(x["first_row"] == 0 for x in m["members"]):
+                b, baccs = build_bundle(m)
+                m["bundle"] = {"file": f"{lc.chunk_shard(c)}/{b.name}", "accessions": baccs,
+                               "bytes": b.stat().st_size, "sha256": lc.sha256(b)}
+                by_dir[(b.parent, lc.bundle_remote_dir(c))].append(b.name)
+            else:
+                m["bundle"] = None
+            if m["state"] == "cache_validated" and not DRY:
+                m["state"] = "uploaded"
+                lc.atomic_write_json(lc.chunk_manifest_path(c), m)
+        evidence: Dict[str, dict] = {}
+        for (ldir, rdir), names in sorted(by_dir.items()):
+            for n, e in verify_folder(ldir, rdir, names).items():
+                evidence[f"{rdir}/{n}"] = e
+        shard_done = []
+        for c in cs:
+            m = mans[c]
+            ce = evidence.get(f"{lc.cache_remote_dir(c)}/{c}.tsv.zst")
+            be = evidence.get(f"{lc.bundle_remote_dir(c)}/{c}.tar") if m["bundle"] else True
+            if DRY or not (ce and be):
+                continue
+            m["remote"] = ce
+            if m["bundle"]:
+                m["bundle"]["remote"] = be
+            m["state"], m["remote_verified"] = "remote_verified", True
             lc.atomic_write_json(lc.chunk_manifest_path(c), m)
-    evidence: Dict[str, dict] = {}
-    for (ldir, rdir), names in sorted(by_dir.items()):
-        for n, e in verify_folder(ldir, rdir, names).items():
-            evidence[f"{rdir}/{n}"] = e
-    done = []
-    for c in todo:
-        m = mans[c]
-        ce = evidence.get(f"{lc.cache_remote_dir(c)}/{c}.tsv.zst")
-        be = evidence.get(f"{lc.bundle_remote_dir(c)}/{c}.tar") if m["bundle"] else True
-        if DRY or not (ce and be):
-            continue
-        m["remote"] = ce
-        if m["bundle"]:
-            m["bundle"]["remote"] = be
-        m["state"], m["remote_verified"] = "remote_verified", True
-        lc.atomic_write_json(lc.chunk_manifest_path(c), m)
-        done.append(c)
-    # Manifests last, so the remote copy carries its own verification record.
-    by_shard: Dict[str, List[str]] = defaultdict(list)
-    for c in done:
-        by_shard[lc.chunk_shard(c)].append(c)
-    mdir = lc.root() / "manifests" / "chunks"
-    for shard, cs in by_shard.items():
-        verify_folder(mdir, f"{lc.REMOTE_ROOT}/manifests/chunks/{shard}", [f"{c}.json" for c in cs])
-    print(f"{len(done):,} chunk(s) remote_verified")
+            shard_done.append(c)
+        # Manifests after their chunks, so the remote copy carries its own
+        # verification record.
+        if shard_done:
+            verify_folder(lc.root() / "manifests" / "chunks", f"{lc.REMOTE_ROOT}/manifests/chunks/{shard}",
+                          [f"{c}.json" for c in shard_done])
+        done += shard_done
+        print(f"{lc.now()} shard {shard}: {len(shard_done):,}/{len(cs):,} remote_verified", flush=True)
+    print(f"{len(done):,} chunk(s) remote_verified", flush=True)
     return done
 
 
@@ -256,6 +272,8 @@ def main() -> int:
     ap.add_argument("--cleanup-cache", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--part", help="i/k: only chunks whose number %% k == i")
+    ap.add_argument("--max-shards", type=int, default=4,
+                    help="shard folders (<=1,000 chunks each) per job, to finish inside 12 h")
     args = ap.parse_args()
     DRY = args.dry_run
 
@@ -270,7 +288,7 @@ def main() -> int:
         # for one job, limited by verification and listing, not bandwidth.
         i, k = map(int, args.part.split("/"))
         chunk_ids = [c for c in chunk_ids if lc.chunk_number(c) % k == i]
-    do_chunks(chunk_ids)
+    do_chunks(chunk_ids, args.max_shards)
     do_accessions(accs, args.cleanup, args.cleanup_cache)
     out = status_table()
     if not DRY:
