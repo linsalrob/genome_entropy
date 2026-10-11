@@ -60,4 +60,12 @@ grep '^FAILED' "$TMPDIR/results" | cut -d' ' -f2 | sort -u > "$failed" || true
 n_fail=$(wc -l < "$failed")
 echo "$(date -Is) done: $(grep -c '^ok' "$TMPDIR/results" || true) ok, $n_fail failed"
 [[ "$n_fail" -eq 0 ]] && rm -f "$failed"
+# One archive per element instead of one loose log per accession (inode
+# quota); logs of failed accessions stay loose for debugging.
+ok_accs=$(grep '^ok' "$TMPDIR/results" | cut -d' ' -f2 | sort -u)
+if [[ -n "$ok_accs" ]]; then
+    arch="$LOGAN_ROOT/logs/cpu/element_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}.tar.zst"
+    (cd "$LOGAN_ROOT/logs/cpu" && printf '%s.log\n' $ok_accs | tar -cf - -T - | zstd -q -19 -o "$arch" -f) \
+        && zstd -tq "$arch" && (cd "$LOGAN_ROOT/logs/cpu" && printf '%s.log\n' $ok_accs | xargs rm -f)
+fi
 exit $(( n_fail > 0 ))

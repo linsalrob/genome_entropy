@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import subprocess
+import zlib
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -126,9 +127,13 @@ def locked(acc: str):
     different GPU streams at the same moment, and both finish by updating
     the accession; without the lock one update can silently drop the other.
     """
-    path = state_path(acc)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path.with_suffix(".lock"), "w") as fh:
+    # 256 lock stripes rather than one lock file per accession: per-file
+    # locks cost 50,000 inodes at two 25k tranches and, with everything else,
+    # pushed the run into the 1,000,000-file /scratch user quota (2026-10-10).
+    lockdir = root() / "state" / "locks"
+    lockdir.mkdir(parents=True, exist_ok=True)
+    stripe = zlib.crc32(acc.encode()) % 256
+    with open(lockdir / f"{stripe:03d}.lock", "a") as fh:
         fcntl.flock(fh, fcntl.LOCK_EX)
         try:
             yield
