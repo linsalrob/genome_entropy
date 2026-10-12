@@ -56,7 +56,19 @@ W=https://foldseek.steineggerlab.workers.dev
 fetch PDB                         pdb100          $W/pdb100.tar.gz          pdb.tar.gz
 fetch Alphafold/Swiss-Prot        afdb_swissprot  $W/afdb_swissprot.tar.gz  afdb_swissprot.tar.gz
 fetch CATH50                      cath50          $W/cath50.tar.gz          cath50.tar.gz
-fetch BFVD                        bfvd            https://bfvd.steineggerlab.workers.dev/bfvd_foldseekdb.tar.gz bfvd.tar.gz
+# BFVD: the tarball unpacks into a nested bfvd_foldseekdb/ directory, while
+# `foldseek databases` (10.941cd33) expects the files at the top of TMP, so
+# its mvdb steps move nothing and its final mv of bfvd_mapping/_taxonomy
+# fails (those files exist, one directory down). Unpack and move the files
+# directly instead. (No upstream issue found as of 2026-10-12.)
+if [[ ! -e "$FSROOT/bfvd.dbtype" ]]; then
+    stage https://bfvd.steineggerlab.workers.dev/bfvd_foldseekdb.tar.gz bfvd.tar.gz
+    tar -xzf "$FSROOT/tmp/bfvd.tar.gz" -C "$FSROOT/tmp"
+    mv "$FSROOT"/tmp/bfvd_foldseekdb/bfvd* "$FSROOT"/
+    [[ -e "$FSROOT/bfvd.dbtype" ]] || { echo "ERROR: bfvd not created" >&2; exit 1; }
+    rm -rf "$FSROOT/tmp/bfvd.tar.gz" "$FSROOT/tmp/bfvd_foldseekdb"
+    echo "$(date -Is) bfvd ready"
+fi
 fetch Alphafold/UniProt50-minimal afdb50          $W/afdb50.tar.gz          afdb50.tar.gz
 ls -la "$FSROOT" | head -40
 du -sh "$FSROOT"
