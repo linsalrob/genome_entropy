@@ -98,6 +98,20 @@ def fit_eval(d: pd.DataFrame, y: np.ndarray, w: np.ndarray, groups: np.ndarray, 
     return pd.DataFrame(rows), oof_all
 
 
+def fit_eval_one(d: pd.DataFrame, y: np.ndarray, c: list):
+    """Out-of-fold scores (grouped 5-fold) for one feature set."""
+    from sklearn.ensemble import HistGradientBoostingClassifier
+    from sklearn.model_selection import GroupKFold
+    X = d[c].to_numpy()
+    oof = np.zeros(len(y))
+    for tr, te in GroupKFold(n_splits=5).split(X, y, d.accession.to_numpy()):
+        m = HistGradientBoostingClassifier(max_iter=300, learning_rate=0.1, max_leaf_nodes=63,
+                                           early_stopping=True, random_state=0)
+        m.fit(X[tr], y[tr])
+        oof[te] = m.predict_proba(X[te])[:, 1]
+    return None, oof
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", required=True)
@@ -156,6 +170,29 @@ def main() -> int:
                                "roc_auc": roc_auc_score(yt, sc, sample_weight=t.weight),
                                "avg_precision": average_precision_score(yt, sc, sample_weight=t.weight)})
     pd.DataFrame(trunc_rows).to_csv(out / "models_truncated.tsv", sep="\t", index=False)
+
+    # The final scorer for the missed-gene scan (18_score_candidates.py):
+    # trained on ALL complete-ORF sample rows, Prodigal+ complete vs all
+    # Prodigal-. Score thresholds are set by population-weighted precision on
+    # out-of-fold scores of the same contrast, saved alongside.
+    import joblib
+    joblib.dump({"model": m, "features": cols("length+aa+3di+12st+mi"), "length_model": mlen},
+                out / "final_model.joblib")
+    sub = comp[comp.label.isin(["prodigal_complete"] + negs)].reset_index(drop=True)
+    y = (sub.label == "prodigal_complete").to_numpy().astype(int)
+    _, oof = fit_eval_one(sub, y, cols("length+aa+3di+12st+mi"))
+    w = sub.weight.to_numpy()
+    o = np.argsort(-oof)
+    tp, fp = np.cumsum(w[o] * y[o]), np.cumsum(w[o] * (1 - y[o]))
+    prec = tp / (tp + fp)
+    thr = {}
+    for target in (0.80, 0.90, 0.95, 0.99):
+        ok = np.nonzero(prec >= target)[0]
+        thr[str(target)] = float(oof[o][ok.max()]) if len(ok) else None
+    json.dump({"precision_thresholds": thr,
+               "note": "score thresholds at which population-weighted precision of Prodigal+ "
+                       "among complete ORFs reaches the target (out-of-fold, grouped CV)"},
+              open(out / "final_model_thresholds.json", "w"), indent=1)
     json.dump({"sample_shards": n_shards, "sample_rows": len(d)}, open(out / "inputs.json", "w"), indent=1)
     with pd.option_context("display.width", 220):
         print(R.round(4).to_string(index=False))
