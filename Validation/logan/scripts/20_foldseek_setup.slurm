@@ -70,5 +70,5 @@ if [[ ! -e "$FSROOT/bfvd.dbtype" ]]; then
     echo "$(date -Is) bfvd ready"
 fi
 fetch Alphafold/UniProt50-minimal afdb50          $W/afdb50.tar.gz          afdb50.tar.gz
-ls -la "$FSROOT" | head -40
+ls -la "$FSROOT" > "$FSROOT/listing.txt"   # not `| head`: SIGPIPE under pipefail fails the job (exit 141)
 du -sh "$FSROOT"
