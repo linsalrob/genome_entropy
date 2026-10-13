@@ -56,7 +56,11 @@ run() {   # qdb tag mode
     echo "$(date -Is) $tag $db $mode: $(wc -l < "$S/best/$tag.$db.$mode.m8") queries with a hit, $(wc -l < "$S/fullcov/$tag.$db.$mode.m8") full-length"
     rm -rf "$res"*
 }
+# MODES selects the searches (default: all three, in sequence). For a large
+# target they can run as separate jobs, e.g. MODES="qdb:struct", since each
+# writes its own outputs:
+#   sbatch --array=5 --export=ALL,MODES="qdb:seq qnull:struct" 23_foldseek_search.slurm dbs.txt
 echo "$(date -Is) $db on $(hostname)"
-run qdb   qdb   struct
-run qdb   qdb   seq
-run qnull qnull struct
+for m in ${MODES:-qdb:struct qdb:seq qnull:struct}; do
+    run "${m%%:*}" "${m%%:*}" "${m##*:}"
+done
