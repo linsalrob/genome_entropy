@@ -20,7 +20,16 @@
 # passes. rclone copy skips files already present with matching size and
 # hash, so rerunning a part resumes it.
 #
-#   sbatch --array=1-6 26_upload_analysis.slurm 6
+# OneDrive throttles the whole account, including the user's own access, so
+# the upload is kept gentle and can be confined to a window:
+#   TRANSFERS   parallel file transfers per part (default 4)
+#   TPSLIMIT    API transactions per second per part (default 8)
+#   STOP_AT     date(1) time after which no new transfer starts (e.g.
+#               "tomorrow 07:30"); in-flight files finish (--cutoff-mode
+#               soft), the part exits unverified and a rerun resumes it.
+#
+#   sbatch --array=1-3 --begin=18:00 \
+#       --export=ALL,STOP_AT="tomorrow 07:30" 26_upload_analysis.slurm 3
 
 set -euo pipefail
 K="$1"
@@ -34,9 +43,25 @@ mkdir -p "$OUT"
 LIST="$OUT/part_${I}_of_${K}.lst"
 (cd "$SRC" && find . -type f -printf '%P\n' | LC_ALL=C sort | awk -v k="$K" -v i="$I" '(NR - 1) % k == i - 1') > "$LIST"
 echo "$(date -Is) part $I/$K: $(wc -l < "$LIST") files, $(cd "$SRC" && xargs -d '\n' du -cb < "$LIST" | tail -1 | cut -f1) bytes -> $REMOTE"
-"$RCLONE" copy "$SRC" "$REMOTE" --files-from-raw "$LIST" --transfers 8 --checkers 16 --retries 5 \
-    --low-level-retries 20 --stats 10m --stats-one-line -v
+TRANSFERS="${TRANSFERS:-4}"
+TPSLIMIT="${TPSLIMIT:-8}"
+WINDOW=()
+if [[ -n "${STOP_AT:-}" ]]; then
+    secs=$(( $(date -d "$STOP_AT" +%s) - $(date +%s) ))
+    (( secs > 0 )) || { echo "STOP_AT ($STOP_AT) has passed; nothing to do"; exit 0; }
+    WINDOW=(--max-duration "${secs}s" --cutoff-mode soft)
+    echo "no new transfers after $(date -d "$STOP_AT" -Is)"
+fi
+# Parts start together and OneDrive fails concurrent creation of one folder
+# ("is a directory not a file"), so stagger the start and create it first.
+sleep $(( (I - 1) * 20 ))
+"$RCLONE" mkdir "$REMOTE"
+if ! "$RCLONE" copy "$SRC" "$REMOTE" --files-from-raw "$LIST" --transfers "$TRANSFERS" --checkers 4 \
+        --tpslimit "$TPSLIMIT" --retries 5 --low-level-retries 20 --stats 10m --stats-one-line -v "${WINDOW[@]}"; then
+    echo "$(date -Is) part $I/$K stopped before completion (window ended or error); rerun to resume" >&2
+    exit 1
+fi
 echo "$(date -Is) copy done; checking"
-"$RCLONE" check "$SRC" "$REMOTE" --one-way --files-from-raw "$LIST" --checkers 16
+"$RCLONE" check "$SRC" "$REMOTE" --one-way --files-from-raw "$LIST" --checkers 4 --tpslimit "$TPSLIMIT"
 date -Is > "$OUT/part_${I}_of_${K}.ok"
 echo "$(date -Is) part $I/$K verified"
