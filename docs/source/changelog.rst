@@ -1,6 +1,21 @@
 Changelog
 =========
 
+0.4.0 — 15 October 2026
+-----------------------
+
+Pipeline
+^^^^^^^^
+
+* Added ``--max-aa`` to ``genome_entropy run`` (``max_aa_len`` in
+  ``run_pipeline``), default 40,000. ORFs whose translated protein is longer
+  are omitted and reported in a warning with their IDs. The ModernProst
+  encoder builds a dense L×L mask, so a single pathological ORF call could
+  exhaust GPU memory and fail the whole genome. On GTDB r232 this caused 39
+  genome failures, from ORF calls of up to 766k aa. ``0`` restores the old,
+  unlimited behaviour. Output for proteins at or below the limit is
+  unchanged.
+
 0.2.0 — 17 August 2026
 ----------------------
 

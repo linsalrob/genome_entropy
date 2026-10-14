@@ -27,11 +27,17 @@ encoding, entropy, and optional CDS matching.
 Required: ``--output, -o PATH`` and at least one of ``--input, -i FASTA`` or
 ``--genbank, -g GENBANK``.
 
-Options: ``--table, -t`` (11), ``--min-aa`` (30), ``--model, -m`` (the 50M
+Options: ``--table, -t`` (11), ``--min-aa`` (30), ``--max-aa`` (40000; 0
+disables), ``--model, -m`` (the 50M
 default), ``--device, -d``, ``--skip-entropy``, ``--multi-gpu``, ``--gpu-ids``,
 ``--encoding-size, -e`` (10000), and logging options. When both input sources
 are supplied, FASTA provides sequences and GenBank provides annotations.
 ``--device`` is ignored in multi-GPU mode.
+
+ORFs whose translated protein exceeds ``--max-aa`` are omitted from the output
+and reported in a warning with their IDs. Encoder GPU memory grows with the
+square of protein length, so one pathological ORF call can otherwise exhaust
+the GPU and fail the whole input. The default fits a 32 GB V100 with headroom.
 
 .. code-block:: bash
 

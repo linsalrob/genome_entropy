@@ -8,7 +8,11 @@ try:
 except ImportError:
     typer = None
 
-from ...config import DEFAULT_PROSTT5_MODEL, supported_models_help
+from ...config import (
+    DEFAULT_MAX_AA_LENGTH,
+    DEFAULT_PROSTT5_MODEL,
+    supported_models_help,
+)
 
 
 def run_command(
@@ -36,6 +40,14 @@ def run_command(
         30,
         "--min-aa",
         help="Minimum protein length in amino acids",
+    ),
+    max_aa: int = typer.Option(
+        DEFAULT_MAX_AA_LENGTH,
+        "--max-aa",
+        min=0,
+        help="Maximum protein length in amino acids. Longer ORFs are skipped "
+        "and reported, because encoder GPU memory grows with the square of "
+        "protein length. The default fits a 32 GB V100. 0 disables the limit.",
     ),
     model: str = typer.Option(
         DEFAULT_PROSTT5_MODEL,
@@ -155,6 +167,7 @@ def run_command(
         typer.echo(f"  Output: {output}")
         typer.echo(f"  Genetic code table: {table}")
         typer.echo(f"  Minimum AA length: {min_aa}")
+        typer.echo(f"  Maximum AA length: {max_aa if max_aa else 'unlimited'}")
         typer.echo(f"  Model: {model}")
         typer.echo(f"  Encoding size: {encoding_size}")
 
@@ -181,6 +194,7 @@ def run_command(
             gpu_ids=parsed_gpu_ids,
             genbank_file=genbank,
             encoding_size=encoding_size,
+            max_aa_len=max_aa,
         )
 
         typer.echo(f"\n✓ Pipeline complete!")
@@ -190,6 +204,12 @@ def run_command(
         total_proteins = sum(len(r.proteins) for r in results)
         typer.echo(f"  Found {total_orfs} ORF(s)")
         typer.echo(f"  Translated {total_proteins} protein(s)")
+        total_skipped = sum(r.skipped_over_max_aa for r in results)
+        if total_skipped:
+            typer.echo(
+                f"  Skipped {total_skipped} ORF(s) longer than {max_aa} aa "
+                "(see the log for their IDs)"
+            )
         typer.echo(f"  Results saved to: {output}")
 
     except Exception as e:

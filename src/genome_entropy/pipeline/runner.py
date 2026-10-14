@@ -6,6 +6,7 @@ from typing import List, Optional, Union
 
 from ..config import (
     DEFAULT_GENETIC_CODE_TABLE,
+    DEFAULT_MAX_AA_LENGTH,
     DEFAULT_MIN_AA_LENGTH,
     DEFAULT_PROSTT5_MODEL,
     DEFAULT_ENCODING_SIZE,
@@ -45,6 +46,8 @@ class PipelineResult:
         proteins: List of translated proteins
         three_dis: List of 3Di encoded structures
         entropy: Entropy report for all representations
+        skipped_over_max_aa: Number of ORFs omitted because their protein
+            exceeded ``max_aa_len``
     """
 
     input_id: str
@@ -53,6 +56,7 @@ class PipelineResult:
     proteins: List[ProteinRecord]
     three_dis: List[ThreeDiRecord]
     entropy: EntropyReport
+    skipped_over_max_aa: int = 0
 
 
 def run_pipeline(
@@ -67,6 +71,7 @@ def run_pipeline(
     gpu_ids: Optional[List[int]] = None,
     genbank_file: Optional[Union[str, Path]] = None,
     encoding_size: Optional[int] = None,
+    max_aa_len: Optional[int] = DEFAULT_MAX_AA_LENGTH,
 ) -> List[PipelineResult]:
     """Run the complete DNA to 3Di pipeline with entropy calculation.
 
@@ -96,6 +101,10 @@ def run_pipeline(
                 FASTA sequences with GenBank CDS annotations.
         encoding_size: Maximum size (approx. amino acids) to encode per batch.
                 If None, uses DEFAULT_ENCODING_SIZE from config.
+        max_aa_len: Maximum protein length in amino acids. ORFs whose
+                translated protein is longer are omitted from the output,
+                because encoder memory grows quadratically with length.
+                0 or None disables the limit.
 
     Returns:
         List of PipelineResult objects (one per input sequence)
@@ -117,6 +126,9 @@ def run_pipeline(
         logger.info("GenBank file: %s", genbank_file)
     logger.info("Genetic code table: %d", table_id)
     logger.info("Minimum AA length: %d", min_aa_len)
+    if max_aa_len is not None and max_aa_len < 0:
+        raise ValueError(f"max_aa_len must be >= 0, got {max_aa_len}")
+    logger.info("Maximum AA length: %s", max_aa_len if max_aa_len else "unlimited")
     model_name = resolve_model_name(model_name)
     capabilities = get_model_capabilities(model_name, warn=False)
     logger.info("Model: %s", model_name)
@@ -256,6 +268,24 @@ def run_pipeline(
             proteins = translate_orfs(orfs, table_id=table_id)
             logger.info("Translated %d protein(s)", len(proteins))
 
+            skipped_over_max_aa = 0
+            if max_aa_len:
+                too_long = [p for p in proteins if p.aa_length > max_aa_len]
+                if too_long:
+                    skipped_over_max_aa = len(too_long)
+                    logger.warning(
+                        "Skipping %d ORF(s) in '%s' longer than the %d aa limit "
+                        "(longest %d aa): %s",
+                        skipped_over_max_aa,
+                        seq_id,
+                        max_aa_len,
+                        max(p.aa_length for p in too_long),
+                        ", ".join(p.orf.orf_id for p in too_long),
+                    )
+                    skipped_ids = {p.orf.orf_id for p in too_long}
+                    orfs = [orf for orf in orfs if orf.orf_id not in skipped_ids]
+                    proteins = [p for p in proteins if p.orf.orf_id not in skipped_ids]
+
             # Step 4: Encode to 3Di (reusing the same encoder instance)
             logger.info("Step 4: Encoding proteins to 3Di tokens...")
             three_dis = encoder.encode_proteins(
@@ -294,6 +324,7 @@ def run_pipeline(
                 proteins=proteins,
                 three_dis=three_dis,
                 entropy=entropy_report,
+                skipped_over_max_aa=skipped_over_max_aa,
             )
             results.append(result)
             logger.info("Completed processing for sequence '%s'", seq_id)

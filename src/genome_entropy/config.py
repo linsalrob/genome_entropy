@@ -8,6 +8,14 @@ from typing import Dict, Literal
 DEFAULT_GENETIC_CODE_TABLE = 11
 DEFAULT_MIN_NT_LENGTH = 90
 DEFAULT_MIN_AA_LENGTH = 30
+# Proteins longer than this are not encoded. The ModernProst remote code
+# builds a dense L x L sliding-window mask, so encoder memory grows with the
+# square of protein length; a single pathological ORF call can then exhaust
+# any GPU. Measured peak on a 32 GB V100 (NCI Gadi gpuvolta, modernprost-50M,
+# one sequence): 18.4 GiB at 35k aa, 24.0 at 40k, 30.3 at 45k, OOM at 50k.
+# 40k keeps the largest known proteins (~35k aa) and leaves headroom for other
+# encoders sharing the GPU. 0 disables.
+DEFAULT_MAX_AA_LENGTH = 40000
 
 MODERNPROST_50M_MODEL = "gbouras13/modernprost-50M"
 MODERNPROST_1B_MODEL = "gbouras13/modernprost-base"
