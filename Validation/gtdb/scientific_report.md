@@ -106,7 +106,7 @@ domains, from `29_population_entropy_summary.pbs`:
 | **all ORFs** | **2,568,244,984** | 100% | **54,858,398** | 100% |
 
 The archaeal matched count was previously given only as a percentage; it is
-9,468,402, and 17.2596% to four decimal places.
+9,468,402, and 17.2597% to four decimal places.
 
 The low matched fraction is expected and is not an error rate. `get_orfs`
 enumerates open reading frames in all six frames, so most calls are not genes.
