@@ -42,9 +42,10 @@ run() {   # qdb tag mode
     local res="$TMP/res_${tag}_${mode}"
     if [[ "$mode" == struct ]]; then
         foldseek search "$q" "$DBROOT/$db" "$res" "$TMP/w" --alignment-type 2 --sort-by-structure-bits 0 \
-            -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1
+            -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1 ${FS_OPTS:-}
     else
-        foldseek base:search "$q" "$DBROOT/$db" "$res" "$TMP/w" -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1
+        foldseek base:search "$q" "$DBROOT/$db" "$res" "$TMP/w" -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1 \
+            ${FS_OPTS:-}
     fi
     foldseek convertalis "$q" "$DBROOT/$db" "$res" "$out.partial" --format-output "$FIELDS" \
         --threads "$SLURM_CPUS_PER_TASK" -v 1
@@ -60,6 +61,10 @@ run() {   # qdb tag mode
 # target they can run as separate jobs, e.g. MODES="qdb:struct", since each
 # writes its own outputs:
 #   sbatch --array=5 --export=ALL,MODES="qdb:seq qnull:struct" 23_foldseek_search.slurm dbs.txt
+# FS_OPTS adds search options. AFDB50's k-mer prefilter exceeds 115 GB
+# (OUT_OF_MEMORY in 50803922/3), so it runs on a whole node with
+#   sbatch --array=5 --exclusive --mem=230G \
+#       --export=ALL,MODES=qdb:struct,FS_OPTS="--split-memory-limit 160G" ...
 echo "$(date -Is) $db on $(hostname)"
 for m in ${MODES:-qdb:struct qdb:seq qnull:struct}; do
     run "${m%%:*}" "${m%%:*}" "${m##*:}"
