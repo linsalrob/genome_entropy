@@ -21,7 +21,7 @@
 set -euo pipefail
 source "${LOGAN_SCRIPTS:-$HOME/GitHubs/genome_entropy/Validation/logan/scripts}/env.sh"
 FSENV="${FSENV:-/scratch/$PAWSEY_PROJECT/$USER/software/envs/foldseek}"
-D="$LOGAN_ROOT/qc/candidates"
+D="${CAND_DIR:-$LOGAN_ROOT/qc/candidates}"
 mkdir -p "$D/search"
 python - "$D" <<'PY'
 import sys, glob, pandas as pd
@@ -38,9 +38,11 @@ for kind, col in (("aa", "aa"), ("3di", "three_di")):
                 fc.write(f">{q}\n{x}\n")
 print(len(s), "queries;", s.query_id.str.split("|").str[0].value_counts().to_dict())
 PY
-B="$HOME/GitHubs/genome_entropy/Validation/gtdb/scripts/15_build_query_db.py"
+B="${GTDB_SCRIPTS:-$HOME/GitHubs/genome_entropy/Validation/gtdb/scripts}/15_build_query_db.py"
 python "$B" --aa "$D/search/queries.aa.fasta" --3di "$D/search/queries.3di.fasta" \
     --db-dir "$D/search" --prefix qdb --foldseek "$FSENV/bin/foldseek"
-python "$B" --aa "$D/search/cand.aa.fasta" --3di "$D/search/cand.3di.fasta" \
-    --db-dir "$D/search" --prefix qnull --shuffle-3di 0 --foldseek "$FSENV/bin/foldseek"
+if [[ -s "$D/search/cand.aa.fasta" ]]; then   # no candidate arm (e.g. qc/candidates_extra): no null
+    python "$B" --aa "$D/search/cand.aa.fasta" --3di "$D/search/cand.3di.fasta" \
+        --db-dir "$D/search" --prefix qnull --shuffle-3di 0 --foldseek "$FSENV/bin/foldseek"
+fi
 ls -la "$D/search"

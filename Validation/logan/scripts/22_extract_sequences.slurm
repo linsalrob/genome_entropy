@@ -16,4 +16,4 @@
 set -euo pipefail
 source "${LOGAN_SCRIPTS:-$HOME/GitHubs/genome_entropy/Validation/logan/scripts}/env.sh"
 shard=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "$1")
-python "$LOGAN_SCRIPTS/22_extract_sequences.py" --shard "$shard" --selection "$LOGAN_ROOT/qc/candidates/selection.parquet"
+python "$LOGAN_SCRIPTS/22_extract_sequences.py" --shard "$shard" --selection "${CAND_DIR:-$LOGAN_ROOT/qc/candidates}/selection.parquet"

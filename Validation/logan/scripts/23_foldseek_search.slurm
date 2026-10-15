@@ -30,7 +30,7 @@ LOGAN_ROOT="${LOGAN_ROOT:-/scratch/$PAWSEY_PROJECT/$USER/Logan}"
 DBROOT="${DBROOT:-$LOGAN_ROOT/foldseek_db}"
 EVALUE="${EVALUE:-0.001}"
 db=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "$1")
-S="$LOGAN_ROOT/qc/candidates/search"
+S="${CAND_DIR:-$LOGAN_ROOT/qc/candidates}/search"
 TMP="$LOGAN_ROOT/tmp/fs_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 mkdir -p "$TMP" "$S/best" "$S/fullcov"
 trap 'rm -rf "$TMP"' EXIT

@@ -28,6 +28,9 @@
 #               "tomorrow 07:30"); in-flight files finish (--cutoff-mode
 #               soft), the part exits unverified and a rerun resumes it.
 #
+# UPLOAD_SUBDIR selects the directory (default analysis/v1). Markers and file
+# lists live in upload_state/<subdir>, outside the tree being uploaded.
+#
 #   sbatch --array=1-3 --begin=18:00 \
 #       --export=ALL,STOP_AT="tomorrow 07:30" 26_upload_analysis.slurm 3
 
@@ -35,10 +38,11 @@ set -euo pipefail
 K="$1"
 I="$SLURM_ARRAY_TASK_ID"
 LOGAN_ROOT="${LOGAN_ROOT:-/scratch/$PAWSEY_PROJECT/$USER/Logan}"
-REMOTE="${LOGAN_REMOTE:-genome_entropy:General/LOGAN}/analysis/v1"
+SUB="${UPLOAD_SUBDIR:-analysis/v1}"   # any directory under LOGAN_ROOT, e.g. qc
+REMOTE="${LOGAN_REMOTE:-genome_entropy:General/LOGAN}/$SUB"
 RCLONE="${RCLONE:-$(command -v rclone || echo /software/projects/$PAWSEY_PROJECT/$USER/miniconda3/envs_dirs/rclone/bin/rclone)}"
-SRC="$LOGAN_ROOT/analysis/v1"
-OUT="$LOGAN_ROOT/qc/upload_analysis"
+SRC="$LOGAN_ROOT/$SUB"
+OUT="$LOGAN_ROOT/upload_state/${SUB//\//_}"
 mkdir -p "$OUT"
 LIST="$OUT/part_${I}_of_${K}.lst"
 (cd "$SRC" && find . -type f -printf '%P\n' | LC_ALL=C sort | awk -v k="$K" -v i="$I" '(NR - 1) % k == i - 1') > "$LIST"
