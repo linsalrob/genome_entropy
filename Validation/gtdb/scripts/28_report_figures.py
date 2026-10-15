@@ -332,6 +332,8 @@ def fig_prodigal(out_dir):
                    "opposite\nstrand"], fontsize=7.8)
     ax.set_ylabel("% coinciding")
     ax.set_ylim(0, 108)
+    # Below the note box and above the low opposite-strand bars.
+    ax.legend(fontsize=8, loc="center right", bbox_to_anchor=(0.99, 0.5))
     ax.set_title("Why the frame class had to be fixed (all shadows, "
                  "before matching)", loc="left", fontweight="bold")
     ax.text(0.99, 0.74,
