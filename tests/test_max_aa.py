@@ -93,7 +93,15 @@ def test_zero_or_none_disables_the_limit(
     assert result.skipped_over_max_aa == 0
 
 
-def test_every_orf_skipped_still_yields_a_record(fasta, two_orfs, mock_prostt5_encoder):
+def test_every_orf_skipped_still_yields_a_record(
+    fasta, two_orfs, mock_prostt5_encoder, monkeypatch
+):
+    from genome_entropy.encode3di.prostt5 import ProstT5ThreeDiEncoder
+
+    def must_not_encode(self, *args, **kwargs):
+        raise AssertionError("encoder called with nothing to encode")
+
+    monkeypatch.setattr(ProstT5ThreeDiEncoder, "encode_proteins", must_not_encode)
     (result,) = _run(fasta, max_aa_len=10)
     assert result.input_id == "seq1"
     assert result.orfs == [] and result.three_dis == []

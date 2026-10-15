@@ -288,12 +288,18 @@ def run_pipeline(
 
             # Step 4: Encode to 3Di (reusing the same encoder instance)
             logger.info("Step 4: Encoding proteins to 3Di tokens...")
-            three_dis = encoder.encode_proteins(
-                proteins,
-                encoding_size=actual_encoding_size,
-                use_multi_gpu=use_multi_gpu,
-                gpu_ids=gpu_ids,
-                multi_gpu_encoder=multi_gpu_encoder,
+            # Every protein may have been removed by max_aa_len; encoding an
+            # empty list would still load the model.
+            three_dis = (
+                encoder.encode_proteins(
+                    proteins,
+                    encoding_size=actual_encoding_size,
+                    use_multi_gpu=use_multi_gpu,
+                    gpu_ids=gpu_ids,
+                    multi_gpu_encoder=multi_gpu_encoder,
+                )
+                if proteins
+                else []
             )
             logger.info("Encoded %d structural-state sequence(s)", len(three_dis))
 
