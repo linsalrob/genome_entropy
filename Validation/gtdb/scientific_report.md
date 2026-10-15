@@ -933,7 +933,7 @@ matched clean comparator (antisense and frameshift shadows only):
 | database | candidate | clean shadow | annotated | real-gene share (95% CI) | published comparator |
 |---|---:|---:|---:|---:|---:|
 | **bacteria** | | | | | |
-| afdb_swissprot | 10.3% | 7.4% | 35.3% | **10.3% (10.0 – 10.7)** | 23.3% |
+| afdb_swissprot | 10.3% | 7.4% | 35.3% | **10.4% (10.0 – 10.7)** | 23.3% |
 | cath50 | 8.4% | 6.7% | 23.9% | **9.9% (9.3 – 10.5)** | 27.0% |
 | pdb100 | 8.7% | 6.6% | 30.1% | **9.0% (8.6 – 9.5)** | 23.4% |
 | bfvd | 6.8% | 4.5% | 11.0% | 36.2% (discounted) | 54.2% |
@@ -975,7 +975,7 @@ On the *uncorrected* comparator, the full-scale shares are **lower** than the
 pilot's: 6.6 / 10.4 / 6.5% against 10.4 / 13.0 / 7.9%. On the same-frame-filtered
 but unmatched comparator they are **higher**: 23.3 / 27.0 / 23.4% against
 15.8 / 19.7 / 13.9%. On the matched comparator they come back to
-10.3 / 9.9 / 9.0%. Confidence intervals tighten from ±3 points to ±0.4.
+10.4 / 9.9 / 9.0%. Confidence intervals tighten from ±3 points to ±0.4.
 
 Hit rate remains the wrong readout — above 3Di 3.38 bits everything hits at 99%,
 real gene and unmatched ORF alike, because a sequence-only 3Di encoder emits
