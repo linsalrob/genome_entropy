@@ -197,10 +197,9 @@ def run_pipeline(
                 encoder_class=encoder_class,
                 gpu_ids=gpu_ids,
             )
-            # Load models on all GPUs once at initialization
-            logger.info("Loading models on all GPUs...")
-            for gpu_encoder in multi_gpu_encoder.encoders:
-                gpu_encoder._load_model()
+        # Models on all GPUs are loaded once, on the first input that has
+        # proteins to encode, so an input with none never loads them.
+        multi_gpu_models_loaded = False
 
         results = []
 
@@ -288,6 +287,12 @@ def run_pipeline(
 
             # Step 4: Encode to 3Di (reusing the same encoder instance)
             logger.info("Step 4: Encoding proteins to 3Di tokens...")
+            if proteins and multi_gpu_encoder and not multi_gpu_models_loaded:
+                logger.info("Loading models on all GPUs...")
+                for gpu_encoder in multi_gpu_encoder.encoders:
+                    gpu_encoder._load_model()
+                multi_gpu_models_loaded = True
+
             # Every protein may have been removed by max_aa_len; encoding an
             # empty list would still load the model.
             three_dis = (

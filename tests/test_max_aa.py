@@ -127,3 +127,24 @@ def test_cli_documents_max_aa():
     # Remove ANSI codes; rich splits option names with them when colour is on
     clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
     assert "--max-aa" in clean_output
+
+
+def test_multi_gpu_models_not_loaded_when_every_orf_skipped(
+    fasta, two_orfs, mock_prostt5_encoder, monkeypatch
+):
+    from unittest.mock import Mock
+
+    from genome_entropy.encode3di.multi_gpu import MultiGPUEncoder
+
+    gpu_encoders = []
+
+    def fake_init(self, model_name, encoder_class, gpu_ids=None):
+        self.encoders = [Mock() for _ in gpu_ids or [0, 1]]
+        gpu_encoders.extend(self.encoders)
+
+    monkeypatch.setattr(MultiGPUEncoder, "__init__", fake_init)
+    (result,) = _run(fasta, max_aa_len=10, use_multi_gpu=True, gpu_ids=[0, 1])
+
+    assert result.skipped_over_max_aa == 2
+    assert len(gpu_encoders) == 2
+    assert all(not e._load_model.called for e in gpu_encoders)
