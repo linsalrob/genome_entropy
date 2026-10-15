@@ -38,10 +38,10 @@ eval "$(conda shell.bash hook)"; conda activate "$FSENV"
 FIELDS="query,target,fident,alnlen,qlen,tlen,qcov,tcov,evalue,bits,taxid,taxname"
 run() {   # qdb tag mode
     local q="$S/$1" tag="$2" mode="$3" out="$S/$2.$db.$3.m8"
-    # Done only when all three outputs exist. fullcov may legitimately be empty
-    # (e.g. the shuffled null), so it is tested for existence, not size; the
-    # reductions are written to .partial and renamed, so existence means complete.
-    [[ -s "$out" && -s "$S/best/$tag.$db.$mode.m8" && -e "$S/fullcov/$tag.$db.$mode.m8" ]] \
+    # Done only when all three outputs exist. Each is written to .partial and
+    # renamed, so existence means complete; any may legitimately be empty (a
+    # search with no hits, e.g. the shuffled null against BFVD).
+    [[ -e "$out" && -e "$S/best/$tag.$db.$mode.m8" && -e "$S/fullcov/$tag.$db.$mode.m8" ]] \
         && { echo "$tag $db $mode done"; return; }
     local res="$TMP/res_${tag}_${mode}"
     if [[ "$mode" == struct ]]; then
