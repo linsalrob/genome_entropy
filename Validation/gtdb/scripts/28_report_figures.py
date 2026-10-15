@@ -264,31 +264,36 @@ def fig_ladder(out_dir):
 
 # --------------------------------------------------------------------------
 def fig_prodigal(out_dir):
-    """Agreement with an independent gene caller, by arm and by frame class."""
+    """Agreement with an independent gene caller, by arm and by frame class.
+
+    Left panel: per-arm rates against the matched clean comparator, weighted
+    by draw multiplicity (41_comparator_summary.py, committed). Right panel:
+    the frame-class breakdown of the original, unfiltered shadow_hi arm from
+    the v6 coincidence tables (Gadi only) -- the point there is why same-frame
+    shadows had to leave the comparator, which matching does not change.
+    """
     got = {}
     for dom, path in (("bacteria", f"{BAC}/prodigal_bac4.coincidence.tsv.gz"),
                       ("archaea", f"{ARC}/prodigal_arc4.coincidence.tsv.gz")):
         if Path(path).exists():
-            got[dom] = pd.read_csv(path, sep="\t", low_memory=False)
-    if not got:
+            got[dom] = pd.read_csv(path, sep="\t", low_memory=False,
+                                   usecols=["group", "cds_frame_class",
+                                            "coincides"])
+    matched = {dom: read_matched(tag)
+               for dom, tag in (("bacteria", "bac"), ("archaea", "arc"))}
+    if not got or any(m is None for m in matched.values()):
         print("  (no coincidence tables; skipping prodigal_validation.png)")
         return
 
-    CLEAN = {"opposite strand", "same strand, frameshift"}
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 3.7))
 
     ax = axes[0]
-    arms = ["annotated_cds", "candidate", "shadow_hi", "intergenic_lo"]
+    arms = ["annotated_cds", "candidate", "comparator", "intergenic_lo"]
     labels = ["annotated CDS\n(positive control)", "candidate",
               "matched shadow\n(clean)", "intergenic_lo\n(unoccupied space)"]
     w = 0.36
-    for k, (dom, d) in enumerate(got.items()):
-        vals = []
-        for a in arms:
-            sub = d[d.group == a]
-            if a == "shadow_hi":
-                sub = sub[sub.cds_frame_class.isin(CLEAN)]
-            vals.append(sub.coincides.mean() * 100 if len(sub) else np.nan)
+    for k, (dom, m) in enumerate(matched.items()):
+        vals = [m[f"prodigal_{a}"][0] * 100 for a in arms]
         ax.bar(np.arange(len(arms)) + (k - 0.5) * w, vals, width=w, label=dom,
                color=[ARM["candidate"], "#3f8fa8"][k])
         for i, v in enumerate(vals):
@@ -303,8 +308,9 @@ def fig_prodigal(out_dir):
     # Placed over the low bars on the right, not over the candidate bars: at
     # (0.5, 0.52) the box hid the archaeal candidate's value label.
     ax.text(0.72, 0.82,
-            "the two backgrounds agree to within\nhalf a point — the "
-            "already-committed-call\nconfound is measurably absent",
+            "unoccupied space scores LOWER than\nmatched shadows, so a "
+            "committed\noverlapping call is not what keeps\nthe "
+            "background low",
             transform=ax.transAxes, ha="center", fontsize=7.4, color=MUTED,
             bbox=dict(facecolor=PLATE, edgecolor="#e0ddd8", boxstyle="round,pad=0.35"))
 
@@ -326,8 +332,8 @@ def fig_prodigal(out_dir):
                    "opposite\nstrand"], fontsize=7.8)
     ax.set_ylabel("% coinciding")
     ax.set_ylim(0, 108)
-    ax.set_title("Why the frame class had to be fixed", loc="left",
-                 fontweight="bold")
+    ax.set_title("Why the frame class had to be fixed (all shadows, "
+                 "before matching)", loc="left", fontweight="bold")
     ax.text(0.99, 0.74,
             "a same-frame shadow IS the annotated\nprotein, so Prodigal calls "
             "it — leaving\nthose in the comparator hides the signal",

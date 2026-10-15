@@ -922,8 +922,7 @@ Every other step is unchanged: the same Foldseek binary, databases and
 parameters, and the same analysis scripts. Methods, balance tables and
 sensitivity runs are in [`matched_comparator.md`](matched_comparator.md). All
 numbers below are weighted by how often each comparator ORF was drawn, and so
-are the coverage and ladder figures. The Prodigal figure still shows the
-published comparator.
+are the figures.
 
 #### Full-length mutual coverage is the readout that discriminates
 
@@ -1049,8 +1048,8 @@ produced zero matches and the false conclusion that Prodigal disagrees.
 | `intergenic_lo` (unoccupied space) | 9.85% | 15.44% |
 | *published clean shadow (unmatched)* | *9.41%* | *16.00%* |
 
-![Prodigal agreement by arm, and by shadow frame class (published
-comparator)](figures/prodigal_validation.png)
+![Prodigal agreement by arm (matched comparator), and by shadow frame class
+(all shadows, before matching)](figures/prodigal_validation.png)
 
 Two objections fail against their own controls.
 
