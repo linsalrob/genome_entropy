@@ -54,6 +54,11 @@ RATES = {
     ("marginal_overlap", "open3"): 2e-4,
     ("same_frame_unmatched", "complete"): 2e-2,
     ("same_frame_unmatched", "open5"): 2e-2,
+    # Prodigal- like the rest; sampled heavily because it is rare (0 ORFs in
+    # the ~50 k set), so that it reaches the "all Prodigal-" contrast if present.
+    ("frame_undefined_overlap", "complete"): 2e-2,
+    ("frame_undefined_overlap", "open5"): 2e-2,
+    ("frame_undefined_overlap", "open3"): 2e-2,
 }
 KEEP = ["accession", "contig_n", "start", "strand", "contig_len", "stop", "five_open", "aa_len",
         "prodigal_class", "match_gene_partial", "best_overlap_bp", "biome", "batch", "chunk",

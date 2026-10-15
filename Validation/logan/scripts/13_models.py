@@ -47,7 +47,7 @@ SETS = ["length", "length+aa", "length+3di", "length+12st", "length+mi",
         "length+3di+12st+mi", "length+aa+3di+12st+mi"]
 CONTRASTS = {
     "vs all Prodigal-": ["antisense_overlap", "frameshift_overlap", "intergenic", "marginal_overlap",
-                         "same_frame_unmatched"],
+                         "same_frame_unmatched", "frame_undefined_overlap"],
     "vs intergenic": ["intergenic"],
     "vs antisense shadows": ["antisense_overlap"],
     "vs frameshift shadows": ["frameshift_overlap"],
@@ -184,11 +184,16 @@ def main() -> int:
     w = sub.weight.to_numpy()
     o = np.argsort(-oof)
     tp, fp = np.cumsum(w[o] * y[o]), np.cumsum(w[o] * (1 - y[o]))
-    prec = tp / (tp + fp)
+    # Downstream selection is score >= threshold, which takes a tied group
+    # whole, so precision is only evaluated at the end of each unique-score group.
+    so = oof[o]
+    last = np.r_[so[1:] != so[:-1], True]
+    prec = tp[last] / (tp[last] + fp[last])
+    ends = so[last]
     thr = {}
     for target in (0.80, 0.90, 0.95, 0.99):
         ok = np.nonzero(prec >= target)[0]
-        thr[str(target)] = float(oof[o][ok.max()]) if len(ok) else None
+        thr[str(target)] = float(ends[ok.max()]) if len(ok) else None
     json.dump({"precision_thresholds": thr,
                "note": "score thresholds at which population-weighted precision of Prodigal+ "
                        "among complete ORFs reaches the target (out-of-fold, grouped CV)"},

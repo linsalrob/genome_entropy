@@ -120,7 +120,10 @@ def main() -> int:
     json.dump(info, open(out / f"part_{args.part}.json", "w"), indent=1)
     print(json.dumps({k: v for k, v in info.items() if k != "errors"}))
     if errors:
-        print(f"WARNING: {len(errors)} accessions failed; first: {next(iter(errors.items()))}", file=sys.stderr)
+        # Fail the part: downstream (Kraken2, 30_prodigal_skip) would otherwise
+        # read outputs that silently lack these accessions' queries.
+        print(f"ERROR: {len(errors)} accessions failed; first: {next(iter(errors.items()))}", file=sys.stderr)
+        return 1
     return 0
 
 

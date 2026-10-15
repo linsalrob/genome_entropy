@@ -244,8 +244,14 @@ def build_shard(shard: str, mans: list, procs: int) -> bool:
     out_dir = OUT()
     man_path = out_dir / f"{shard}.json"
     if man_path.exists():
-        print(f"shard {shard}: built already")
-        return True
+        # Built already, but only for the chunks it recorded: a later tranche
+        # may add chunks to the same 1,000-id shard, and the shard must then be
+        # rebuilt rather than permanently omit them.
+        built = set(json.load(open(man_path)).get("chunks", []))
+        if built == {m["chunk_id"] for m in mans}:
+            print(f"shard {shard}: built already")
+            return True
+        print(f"shard {shard}: chunk set changed ({len(built)} -> {len(mans)}); rebuilding")
     not_ready = [m["chunk_id"] for m in mans if m["state"] != "remote_verified"]
     if not_ready:
         print(f"shard {shard}: {len(not_ready)} chunk(s) not remote_verified yet; skipped")

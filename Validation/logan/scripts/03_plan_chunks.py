@@ -48,10 +48,28 @@ def main() -> int:
 
     import json
     accs = pd.read_csv(args.accessions, sep="\t").accession.tolist()
-    assigned = {}
+    assigned, member_of = {}, {}
     for p in existing_chunks():
         for m in json.load(open(p))["members"]:
             assigned[m["accession"]] = assigned.get(m["accession"], 0) + m["n_rows"]
+            member_of.setdefault(m["accession"], []).append(p.stem)
+
+    # Reconcile first: a run interrupted between writing a manifest and
+    # recording it in the accessions' states would leave chunks no stage can
+    # find (the orchestrator discovers work only through state). Manifests are
+    # the source of truth for membership.
+    wanted = set(accs)
+    repaired = 0
+    for acc, ids in member_of.items():
+        if acc not in wanted:
+            continue
+        prev = lc.load_state(acc).get("info", {}).get("chunks", [])
+        missing = [c for c in ids if c not in prev]
+        if missing:
+            lc.update_info(acc, chunks=list(dict.fromkeys(prev + missing)))
+            repaired += 1
+    if repaired:
+        print(f"reconciled chunk references for {repaired:,} accessions")
 
     pending = []
     for acc in accs:
