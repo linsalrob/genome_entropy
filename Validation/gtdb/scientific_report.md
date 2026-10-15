@@ -921,8 +921,9 @@ runs out.
 Every other step is unchanged: the same Foldseek binary, databases and
 parameters, and the same analysis scripts. Methods, balance tables and
 sensitivity runs are in [`matched_comparator.md`](matched_comparator.md). All
-numbers below are weighted by how often each comparator ORF was drawn. The
-coverage and ladder figures still show the published comparator.
+numbers below are weighted by how often each comparator ORF was drawn, and so
+are the coverage and ladder figures. The Prodigal figure still shows the
+published comparator.
 
 #### Full-length mutual coverage is the readout that discriminates
 
@@ -950,7 +951,7 @@ published). The difference is therefore the arm's 3Di and length composition,
 not its per-ORF behaviour.
 
 ![Full-length coverage by arm and database, with the implied real-gene
-share (published comparator)](figures/candidate_coverage.png)
+share (matched comparator)](figures/candidate_coverage.png)
 
 BFVD is excluded from estimation because its annotated ceiling is ~11%, so the
 mixture denominator is small and the ratio unstable. It is retained for
@@ -1009,8 +1010,7 @@ construction. The published ladder gave C2 −26,768: that was the truncation
 imbalance, not evidence. Against the published comparator, C3 and C7 were
 62,507 / 3,256 and 19,232 / 1,118.
 
-![Direct evidence: candidates against clean shadows (published
-comparator)](figures/evidence_ladder.png)
+![Direct evidence: candidates against matched clean shadows](figures/evidence_ladder.png)
 
 **These are a set, not a nested ladder** — C6 (4,439) exceeds C4 (2,777) in
 archaea, so reading down the column as increasing stringency is wrong. C3–C6 are
