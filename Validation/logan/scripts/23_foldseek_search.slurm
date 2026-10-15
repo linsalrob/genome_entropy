@@ -38,7 +38,11 @@ eval "$(conda shell.bash hook)"; conda activate "$FSENV"
 FIELDS="query,target,fident,alnlen,qlen,tlen,qcov,tcov,evalue,bits,taxid,taxname"
 run() {   # qdb tag mode
     local q="$S/$1" tag="$2" mode="$3" out="$S/$2.$db.$3.m8"
-    [[ -s "$out" && -s "$S/best/$tag.$db.$mode.m8" ]] && { echo "$tag $db $mode done"; return; }
+    # Done only when all three outputs exist. fullcov may legitimately be empty
+    # (e.g. the shuffled null), so it is tested for existence, not size; the
+    # reductions are written to .partial and renamed, so existence means complete.
+    [[ -s "$out" && -s "$S/best/$tag.$db.$mode.m8" && -e "$S/fullcov/$tag.$db.$mode.m8" ]] \
+        && { echo "$tag $db $mode done"; return; }
     local res="$TMP/res_${tag}_${mode}"
     if [[ "$mode" == struct ]]; then
         foldseek search "$q" "$DBROOT/$db" "$res" "$TMP/w" --alignment-type 2 --sort-by-structure-bits 0 \
@@ -51,9 +55,11 @@ run() {   # qdb tag mode
         --threads "$SLURM_CPUS_PER_TASK" -v 1
     mv "$out.partial" "$out"
     awk -F'\t' '{ if (!($1 in b) || $10+0 > b[$1]) { b[$1]=$10+0; l[$1]=$0 } } END { for (q in l) print l[q] }' \
-        "$out" > "$S/best/$tag.$db.$mode.m8"
+        "$out" > "$S/best/$tag.$db.$mode.m8.partial"
     awk -F'\t' '$7+0 >= 0.8 && $8+0 >= 0.8 { if (!($1 in b) || $10+0 > b[$1]) { b[$1]=$10+0; l[$1]=$0 } } END { for (q in l) print l[q] }' \
-        "$out" > "$S/fullcov/$tag.$db.$mode.m8"
+        "$out" > "$S/fullcov/$tag.$db.$mode.m8.partial"
+    mv "$S/fullcov/$tag.$db.$mode.m8.partial" "$S/fullcov/$tag.$db.$mode.m8"
+    mv "$S/best/$tag.$db.$mode.m8.partial" "$S/best/$tag.$db.$mode.m8"
     echo "$(date -Is) $tag $db $mode: $(wc -l < "$S/best/$tag.$db.$mode.m8") queries with a hit, $(wc -l < "$S/fullcov/$tag.$db.$mode.m8") full-length"
     rm -rf "$res"*
 }

@@ -66,7 +66,9 @@ def main() -> int:
         print("nothing to plan")
         return 0
 
-    next_id = len(existing_chunks()) + 1
+    # One past the highest id, not the count: a gap (a removed or restored
+    # manifest) must never lead to reusing, and overwriting, a live id.
+    next_id = max((lc.chunk_number(p.stem) for p in existing_chunks()), default=0) + 1
     chunks, cur, cur_n = [], [], 0
     for acc, start, n in pending:
         while n > 0:

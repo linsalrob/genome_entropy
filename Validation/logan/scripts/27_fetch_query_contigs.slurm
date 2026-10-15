@@ -18,7 +18,7 @@ LOGAN_ROOT="${LOGAN_ROOT:-/scratch/$PAWSEY_PROJECT/$USER/Logan}"
 ENV="${LOGAN_ENV:-/scratch/$PAWSEY_PROJECT/$USER/software/envs/logan}"
 export PATH="$ENV/bin:$PATH"
 cd "$LOGAN_ROOT"
-SCRIPTS="${LOGAN_SCRIPTS:-$HOME/GitHubs/genome_entropy-logan/Validation/logan/scripts}"
+SCRIPTS="${LOGAN_SCRIPTS:-$HOME/GitHubs/genome_entropy/Validation/logan/scripts}"   # as every other LOGAN job
 python "$SCRIPTS/27_fetch_query_contigs.py" \
     --selection qc/candidates/selection.parquet --out qc/candidates/contigs \
     --part "$SLURM_ARRAY_TASK_ID" --parts "$1" --workers 12

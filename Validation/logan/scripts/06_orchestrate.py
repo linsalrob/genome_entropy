@@ -186,8 +186,21 @@ def main() -> int:
         stuck = [c for c, s in mans.items() if s == "planned" and o["submitted"].get(c, {}).get("tries", 0) >= 2]
         if (not cpu_running and not gpu_running and not upload_running
                 and o["cpu_retry_done"] and unfinished_chunks - len(stuck) == 0):
-            log(f"finished; {len(stuck)} chunk(s) failed twice: {stuck[:20]}")
-            return 0 if not stuck else 1
+            # Accessions that never reached orfs_called contribute no chunk, so
+            # the chunk count alone cannot show them. Those with a recorded
+            # reason (not in LOGAN, contig stats disagree) are expected
+            # exclusions; any other is a failure of the batch.
+            excluded, failed = [], []
+            for a in accs:
+                st = lc.load_state(a)
+                if lc.reached(st, "orfs_called"):
+                    continue
+                info = st.get("info", {})
+                (excluded if ("unavailable" in info or "validation_failed" in info) else failed).append(a)
+            log(f"finished; {len(stuck)} chunk(s) failed twice: {stuck[:20]}; "
+                f"{len(excluded)} accession(s) excluded with a recorded reason; "
+                f"{len(failed)} accession(s) unfinished without one: {failed[:20]}")
+            return 0 if not stuck and not failed else 1
         time.sleep(args.cycle)
 
 
