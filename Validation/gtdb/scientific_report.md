@@ -964,7 +964,7 @@ is **~51,000–59,000**.
 The bacterial share is robust to how it is estimated:
 - 5×5 standardisation instead of matching gives 10.3%;
 - counting each comparator ORF once instead of weighting gives 10.6%;
-- dropping the with-replacement draws leaves it unchanged.
+- dropping the with-replacement draws gives 10.3%.
 
 The archaeal share is not robust. It ranges **14.0–19.8%** (Swiss-Prot) across
 those three variants, because the clean pool is thin in the high-3Di, long
