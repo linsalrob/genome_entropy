@@ -82,6 +82,30 @@ Each chunk carries a manifest (`manifests/chunks/<id>.json`) that moves
 through `planned → cache_validated → uploaded → remote_verified`. Rerunning
 any stage skips work already recorded.
 
+## Analysis (the ~50 k-metagenome set)
+
+The write-up, with figures and tables, is
+`agent-handoffs/projects/genome_entropy_logan/manuscript/`. Derived tables
+(`analysis/v1`) and results (`qc/`) are mirrored to `genome_entropy:General/LOGAN/`.
+
+| script | where | role |
+|---|---|---|
+| `07_pilot_figures.py`, `08_tranche_costs.py` | login | pilot figures; measured per-tranche cost and size |
+| `09_build_analysis_tables.py` (`.slurm`, array) | work | per-shard Parquet: labels, coordinates, truncation, features (`*_q4` = feature × 10⁴), no sequences |
+| `10_feature_histograms.py` (`.slurm`), `11_summarise_histograms.py` | work | exact AUC/AP from stratified histograms, overall and within length bins |
+| `12_sample_orfs.py`, `13_models.py` (`.slurm`) | work | class-stratified sample; gradient-boosted nested models, 5-fold CV grouped by accession; final model + score thresholds |
+| `14_six_frame.py` (`.slurm`), `16_six_frame_summary.py`, `17_six_frame_figures.py` | work | six-frame inheritance and discrimination |
+| `15_analysis_figures.py`, `19_final_analysis.slurm` | work | figures; reruns 11, 13, 16, 15, 17 on all shards |
+| `18_score_candidates.py` (`.slurm`, array) | work | final model over intergenic Prodigal− ORFs ≥100 aa plus sampled controls |
+| `20_foldseek_setup.slurm` | copy | Foldseek and PDB100, AFDB/Swiss-Prot, CATH50, BFVD, AFDB50 |
+| `21_candidates_select.py`, `21b_extra_arms.py` | work | candidate and matched control arms (`qc/candidates`, `qc/candidates_extra`) |
+| `22_extract_sequences.py` (`.slurm`), `23a_build_queries.slurm`, `23_foldseek_search.slurm` | work | AA/3Di from the cache, query DBs (+ shuffled-3Di null), structure and sequence searches; `CAND_DIR`, `MODES`, `FS_OPTS` (AFDB50: whole node, `--split-memory-limit 160G`) |
+| `24_candidates_evidence.py`, `25_candidate_figures.py` | login | full-length (qcov, tcov ≥ 0.8) evidence by arm, classes, target superkingdom |
+| `27_fetch_query_contigs.py` (`.slurm`), `28_kraken_contigs.slurm` | work | query contigs streamed from LOGAN; Prodigal `-p meta -s` rerun; Kraken2 (PlusPFP) |
+| `29_contig_taxonomy.py`, `30_prodigal_skip.py` | work | eukaryotic contigs vs eukaryotic hits; why Prodigal did not call candidates |
+| `31_prodigal_lowscore.py` | login | the Prodigal+ / low-score discordant class and the frameshift control |
+| `26_upload_analysis.slurm` | copy | upload any subdirectory (`UPLOAD_SUBDIR`) with per-part `rclone check`; `STOP_AT` window because OneDrive throttling reaches the user's own access |
+
 ## Conventions
 
 **Coordinates.** Every table uses 0-based half-open coordinates on the
