@@ -1,5 +1,7 @@
 """Tests for the --max-aa guard against over-long ORFs."""
 
+import re
+
 import pytest
 from typer.testing import CliRunner
 
@@ -122,4 +124,6 @@ def test_negative_limit_is_rejected(fasta, two_orfs, mock_prostt5_encoder):
 def test_cli_documents_max_aa():
     result = CliRunner().invoke(app, ["run", "--help"])
     assert result.exit_code == 0
-    assert "--max-aa" in result.output
+    # Remove ANSI codes; rich splits option names with them when colour is on
+    clean_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+    assert "--max-aa" in clean_output

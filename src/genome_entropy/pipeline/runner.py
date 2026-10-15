@@ -71,7 +71,7 @@ def run_pipeline(
     gpu_ids: Optional[List[int]] = None,
     genbank_file: Optional[Union[str, Path]] = None,
     encoding_size: Optional[int] = None,
-    max_aa_len: Optional[int] = DEFAULT_MAX_AA_LENGTH,
+    max_aa_len: int | None = DEFAULT_MAX_AA_LENGTH,
 ) -> List[PipelineResult]:
     """Run the complete DNA to 3Di pipeline with entropy calculation.
 
