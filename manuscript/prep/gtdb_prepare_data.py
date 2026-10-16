@@ -315,8 +315,26 @@ def prep_gs03(repo, gd):
     write(pd.DataFrame(rhos), "figGS03_burden_rho.tsv.gz")
 
 
+def prep_tabg02(repo, gd):
+    """v7 matched-comparator strata (D15), as written by 43_assembly_strata_v7.py.
+
+    Copied verbatim from Validation/gtdb/matched_comparator/ (both domains, both
+    stratum schemes); the notebook renders scheme (i) as the table.
+    """
+    frames = []
+    for dom, tag in DOMAINS:
+        p = repo / f"Validation/gtdb/matched_comparator/assembly_strata_v7_{tag}.tsv"
+        note(p)
+        d = pd.read_csv(p, sep="\t")
+        if "prodigal_share_larger_bg" not in set(d.metric):
+            sys.exit(f"{p} predates #136; regenerate with 43_assembly_strata_v7.py")
+        d.insert(0, "domain_name", dom)
+        frames.append(d)
+    write(pd.concat(frames, ignore_index=True), "tabG02_assembly_strata_v7.tsv.gz")
+
+
 PREP = {"G01": prep_g01, "G02": prep_g02, "G04": prep_g04, "G05": prep_g05,
-        "G06": prep_g06, "GS03": prep_gs03}
+        "G06": prep_g06, "GS03": prep_gs03, "tabG02": prep_tabg02}
 
 
 def main():
