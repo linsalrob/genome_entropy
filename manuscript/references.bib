@@ -1,8 +1,7 @@
 % References for manuscript/genome_entropy.md (pandoc: --citeproc --bibliography references.bib).
-% Entries with note = {verify} need their bibliographic details checked against
-% the publisher before submission; everything else was written from the
-% published record as known to the authors' tooling and should still be
-% spot-checked.
+% Checked against Crossref, PubMed, bioRxiv, Zenodo/DataCite and Hugging Face in the
+% checkpoint F audit (2026-10-16; manuscript/audit_checkpoint_F.md). Open item: ModernProst
+% has no paper; ask G. Bouras for the preferred citation.
 
 @article{Akhter2013,
   author  = {Akhter, Sajia and Bailey, Barbara A. and Salamon, Peter and Aziz, Ramy K. and Edwards, Robert A.},
@@ -10,15 +9,17 @@
   journal = {Scientific Reports},
   year    = {2013},
   volume  = {3},
-  pages   = {1033}
+  pages   = {1033},
+  doi     = {10.1038/srep01033}
 }
 
 @article{Chikhi2024logan,
-  author  = {Chikhi, Rayan and Lemane, T{\'e}o and Loll-Krippleber, Rapha{\"e}l and Montoliu-Nerin, M{\'e}rce and Raffestin, Brice and others},
+  author  = {Chikhi, Rayan and Lemane, T{\'e}o and Loll-Krippleber, Rapha{\"e}l and Montoliu-Nerin, Merc{\`e} and Raffestin, Brice and others},
   title   = {Logan: planetary-scale genome assembly surveys life's diversity},
   journal = {bioRxiv},
-  year    = {2024},
-  doi     = {10.1101/2024.07.30.605881}
+  year    = {2025},
+  doi     = {10.1101/2024.07.30.605881},
+  note    = {bioRxiv preprint, version 2 (2025-09-01); not yet published in a journal}
 }
 
 @article{Hyatt2010,
@@ -27,16 +28,18 @@
   journal = {BMC Bioinformatics},
   year    = {2010},
   volume  = {11},
-  pages   = {119}
+  pages   = {119},
+  doi     = {10.1186/1471-2105-11-119}
 }
 
 @article{Besemer2001,
   author  = {Besemer, John and Lomsadze, Alexandre and Borodovsky, Mark},
-  title   = {{GeneMarkS}: a self-training method for prediction of gene starts in microbial genomes},
+  title   = {{GeneMarkS}: a self-training method for prediction of gene starts in microbial genomes. {Implications} for finding sequence motifs in regulatory regions},
   journal = {Nucleic Acids Research},
   year    = {2001},
   volume  = {29},
-  pages   = {2607--2618}
+  pages   = {2607--2618},
+  doi     = {10.1093/nar/29.12.2607}
 }
 
 @article{Delcher2007,
@@ -45,7 +48,8 @@
   journal = {Bioinformatics},
   year    = {2007},
   volume  = {23},
-  pages   = {673--679}
+  pages   = {673--679},
+  doi     = {10.1093/bioinformatics/btm009}
 }
 
 @article{vanKempen2024,
@@ -69,26 +73,29 @@
 }
 
 @misc{modernprost,
-  author       = {Bouras, George},
+  author       = {Bouras, George and Mihaila, Victor},
   title        = {{ModernProst}: protein language models predicting {3Di} and 12-state structural alphabets from sequence ({gbouras13/modernprost-50M})},
   howpublished = {Hugging Face model repository, \url{https://huggingface.co/gbouras13/modernprost-50M}},
   year         = {2026},
-  note         = {revision 2d68d506d4ce8d59025c985fd00243a8860363c6; verify preferred citation}
+  note         = {revision 2d68d506d4ce8d59025c985fd00243a8860363c6; no paper yet: ask G. Bouras for the preferred citation}
 }
 
 @software{genome_entropy,
   author  = {Edwards, Robert A. and others},
   title   = {genome\_entropy},
   url     = {https://github.com/linsalrob/genome_entropy},
-  doi     = {10.5281/zenodo.18312207},
-  note    = {versions 0.1.15--0.4.0 as stated per dataset}
+  doi     = {10.5281/zenodo.18312206},
+  note    = {Zenodo concept DOI (all versions); versions 0.1.15--0.4.0 as stated per dataset; v0.4.0 not yet archived},
+  year    = {2026}
 }
 
 @misc{get_orfs,
   author       = {Edwards, Robert A.},
   title        = {get\_orfs: six-frame open reading frame extraction},
   howpublished = {\url{https://github.com/linsalrob/get_orfs}},
-  note         = {verify}
+  note         = {Zenodo concept DOI; latest release v1.1.0},
+  doi     = {10.5281/zenodo.11218737},
+  year    = {2024}
 }
 
 @article{Parks2022,
@@ -97,7 +104,8 @@
   journal = {Nucleic Acids Research},
   year    = {2022},
   volume  = {50},
-  pages   = {D785--D794}
+  pages   = {D785--D794},
+  doi     = {10.1093/nar/gkab776}
 }
 
 @article{OLeary2024,
@@ -106,7 +114,8 @@
   journal = {Scientific Data},
   year    = {2024},
   volume  = {11},
-  pages   = {732}
+  pages   = {732},
+  doi     = {10.1038/s41597-024-03571-y}
 }
 
 @article{Chklovski2023,
@@ -115,7 +124,8 @@
   journal = {Nature Methods},
   year    = {2023},
   volume  = {20},
-  pages   = {1203--1212}
+  pages   = {1203--1212},
+  doi     = {10.1038/s41592-023-01940-w}
 }
 
 @article{Varadi2024,
@@ -124,7 +134,8 @@
   journal = {Nucleic Acids Research},
   year    = {2024},
   volume  = {52},
-  pages   = {D368--D375}
+  pages   = {D368--D375},
+  doi     = {10.1093/nar/gkad1011}
 }
 
 @article{Berman2000,
@@ -133,7 +144,8 @@
   journal = {Nucleic Acids Research},
   year    = {2000},
   volume  = {28},
-  pages   = {235--242}
+  pages   = {235--242},
+  doi     = {10.1093/nar/28.1.235}
 }
 
 @article{Sillitoe2021,
@@ -142,7 +154,8 @@
   journal = {Nucleic Acids Research},
   year    = {2021},
   volume  = {49},
-  pages   = {D266--D273}
+  pages   = {D266--D273},
+  doi     = {10.1093/nar/gkaa1079}
 }
 
 @article{Kim2025bfvd,
@@ -152,7 +165,7 @@
   year    = {2025},
   volume  = {53},
   pages   = {D340--D347},
-  note    = {verify pages}
+  doi     = {10.1093/nar/gkae1119}
 }
 
 @article{Wood2019,
@@ -161,7 +174,8 @@
   journal = {Genome Biology},
   year    = {2019},
   volume  = {20},
-  pages   = {257}
+  pages   = {257},
+  doi     = {10.1186/s13059-019-1891-0}
 }
 
 @article{Pedregosa2011,
@@ -188,7 +202,8 @@
   journal = {PHAGE},
   year    = {2021},
   volume  = {2},
-  pages   = {214--223}
+  pages   = {214--223},
+  doi     = {10.1089/phage.2021.0007}
 }
 
 @article{Bouras2023pharokka,
@@ -197,14 +212,18 @@
   journal = {Bioinformatics},
   year    = {2023},
   volume  = {39},
-  pages   = {btac776}
+  pages   = {btac776},
+  doi     = {10.1093/bioinformatics/btac776}
 }
 
-@misc{Bouras2025phold,
-  author = {Bouras, George and others},
-  title  = {Protein structure-informed bacteriophage genome annotation with {Phold}},
-  year   = {2025},
-  note   = {verify venue (preprint or journal) and details}
+@article{Bouras2026phold,
+  author  = {Bouras, George and Grigson, Susanna R. and Mirdita, Milot and Heinzinger, Michael and Papudeshi, Bhavya and Mallawaarachchi, Vijini and Green, Renee and Kim, Rachel Seongeun and Mihaila, Victor and Psaltis, Alkis James and Wormald, Peter-John and Vreugde, Sarah and Steinegger, Martin and Edwards, Robert A.},
+  title   = {Protein structure-informed bacteriophage genome annotation with {Phold}},
+  journal = {Nucleic Acids Research},
+  year    = {2026},
+  volume  = {54},
+  pages   = {gkaf1448},
+  doi     = {10.1093/nar/gkaf1448}
 }
 
 @article{Larralde2022,
@@ -214,7 +233,8 @@
   year    = {2022},
   volume  = {7},
   pages   = {4296},
-  note    = {the phage annotations used Pyrodigal-gv 0.3.2; verify whether to cite Pyrodigal-gv separately}
+  note    = {the phage annotations used Pyrodigal-gv 0.3.2, whose authors also ask for the geNomad citation (Camargo2024)},
+  doi     = {10.21105/joss.04296}
 }
 
 @article{Camacho2009,
@@ -223,7 +243,8 @@
   journal = {BMC Bioinformatics},
   year    = {2009},
   volume  = {10},
-  pages   = {421}
+  pages   = {421},
+  doi     = {10.1186/1471-2105-10-421}
 }
 
 @article{Duan2024,
@@ -233,7 +254,7 @@
   year    = {2024},
   volume  = {15},
   pages   = {7563},
-  note    = {verify article number}
+  doi     = {10.1038/s41467-024-51894-6}
 }
 
 @article{Washietl2011,
@@ -242,7 +263,8 @@
   journal = {RNA},
   year    = {2011},
   volume  = {17},
-  pages   = {578--594}
+  pages   = {578--594},
+  doi     = {10.1261/rna.2536111}
 }
 
 @article{Steinegger2017,
@@ -251,5 +273,36 @@
   journal = {Nature Biotechnology},
   year    = {2017},
   volume  = {35},
-  pages   = {1026--1028}
+  pages   = {1026--1028},
+  doi     = {10.1038/nbt.3988}
+}
+
+@article{Camargo2024,
+  author  = {Camargo, Antonio Pedro and others},
+  title   = {Identification of mobile genetic elements with {geNomad}},
+  journal = {Nature Biotechnology},
+  year    = {2024},
+  volume  = {42},
+  pages   = {1303--1312},
+  doi     = {10.1038/s41587-023-01953-y}
+}
+
+@article{Steinegger2018,
+  author  = {Steinegger, Martin and S{\"o}ding, Johannes},
+  title   = {Clustering huge protein sequence sets in linear time},
+  journal = {Nature Communications},
+  year    = {2018},
+  volume  = {9},
+  pages   = {2542},
+  doi     = {10.1038/s41467-018-04964-5}
+}
+
+@article{Parks2026,
+  author  = {Parks, Donovan H. and others},
+  title   = {{GTDB} release 10: a complete and systematic taxonomy for 715 230 bacterial and 17 245 archaeal genomes},
+  journal = {Nucleic Acids Research},
+  year    = {2026},
+  volume  = {54},
+  pages   = {D743--D754},
+  doi     = {10.1093/nar/gkaf1040}
 }
