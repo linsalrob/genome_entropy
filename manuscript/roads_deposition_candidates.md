@@ -13,7 +13,7 @@ This document is checkpoint E of agent-handoffs#24 (Gadi). It lists the data pac
   - `.total` gives the totals;
   - `.SHA256SUMS` gives a sha256 per file.
 
-  They were produced by PBS job 181368857 (0.64 SU, exit 0).
+  They were produced by PBS job 181368857 (0.64 SU, exit 0). R2 was extended with the query sequences by PBS 181374800.
 
   Copies of the `.SHA256SUMS`, `.sizes` and `.total` files are committed in [`roads/`](roads/). Paths in them are relative to `/g/data/ob80/re3494/`.
 
@@ -22,10 +22,12 @@ This document is checkpoint E of agent-handoffs#24 (Gadi). It lists the data pac
 | ID | proposed title | size | files | owner | recommendation |
 |---|---|---:|---:|---|---|
 | R1 | Per-ORF sequence and structural entropy for six-frame ORFs of GTDB r232 representatives | 152.9 GB | 807 | Gadi | deposit; splitting is likely needed (see notes) |
-| R2 | GTDB r232 missed-gene candidates: structural search, matched comparator (v7), Prodigal coincidence and ranking | 1.12 GB | 2,465 | Gadi | deposit (priority: supports the headline estimate) |
+| R2 | GTDB r232 missed-gene candidates: structural search, matched comparator (v7), Prodigal coincidence and ranking, with the query sequences | 3.25 GB | 5,695 | Gadi | deposit (priority: supports the headline estimate) |
 | R3 | Length-conditioned reference distributions for plug-in entropy of ORFs (GTDB r232) | 0.59 GB | 111 | Gadi | deposit (reusable by `32_entropy_percentile.py`) |
 | R4 | Sequence and structural entropy of 43.7 M GMSC benchmark smORFs | 6.08 GB | 69 | Gadi | deposit **after** confirming GMSC terms |
-| R5 | LOGAN metagenome feature table and accession manifests | 4.3 GB (`LOGAN/qc/pilot/features.tsv.zst`, per the integrator's Teams inventory) | — | LOGAN agent | for the LOGAN agent to specify |
+| R5a | LOGAN accession selection and run provenance (all 89,994 chunk manifests) | 0.54 GB | 10 | LOGAN agent | deposit; see [`roads/R5_logan.md`](roads/R5_logan.md) (#129) |
+| R5b | LOGAN analysis summaries: every input to the reported LOGAN statistics | 2.41 GB | 466 | LOGAN agent | deposit; see [`roads/R5_logan.md`](roads/R5_logan.md) (#129) |
+| R5c | LOGAN missed-gene evidence, including query sequences sufficient to re-run Foldseek | 1.07 GB | 321 | LOGAN agent | deposit; see [`roads/R5_logan.md`](roads/R5_logan.md) (#129) |
 
 **Not recommended for deposit:**
 - Public inputs, which should be cited instead:
@@ -75,10 +77,13 @@ This document is checkpoint E of agent-handoffs#24 (Gadi). It lists the data pac
   - **summaries:** the `summary/*_v7_matched.tsv` tables, which are the exact source of the manuscript numbers;
   - **ranking, classes and Prodigal:** `ranked6_*`, `func_*_classified.tsv.gz` and `prodigal_v7_*.coincidence.tsv.gz`;
   - **per-chunk funnel counts:** `{bac,arc}/*.stats.tsv`;
-  - **examples:** `manuscript_examples.tsv`, the `dossiers/` and `candidate_burden_*.tsv`.
-- **Size and integrity:** 1.12 GB in 2,465 files; sha256 in `R2_gtdb_missed_genes_v7.SHA256SUMS`.
+  - **examples:** `manuscript_examples.tsv`, the `dossiers/` and `candidate_burden_*.tsv`;
+  - **query sequences:** the amino-acid and 3Di FASTA for every query, which is sufficient to re-run Foldseek. These are `full_bac/seqs_shard[1-4]/` and `pilot_arc/seqs/`, the v6 queries (candidates, annotated CDS, intergenic ORFs and the reused shadows), plus `matched_clean/{bac,arc}/seqs*/` and `to_search*.tsv`, the newly searched v7 comparators.
+    - Every query in `wanted_v7.tsv` has a sequence in these files: 1,501,656 bacterial and 111,263 archaeal queries, 0 missing (PBS 181371728).
+    - They are uncompressed FASTA (about 2.1 GB), and compression is recommended at packaging.
+- **Size and integrity:** 3.25 GB in 5,695 files; sha256 in `R2_gtdb_missed_genes_v7.SHA256SUMS`.
 - **Excluded:**
-  - raw Foldseek outputs, `matched_clean/*/search*` (about 11 GB). They can be regenerated from `seqs*` plus the cited databases, and `best_v7/` already holds the per-query best hits;
+  - raw Foldseek outputs, `matched_clean/*/search*` (about 11 GB). They can be regenerated from the deposited query sequences plus the cited databases (Foldseek 10.941cd33, parameters below), and `best_v7/` already holds the per-query best hits;
   - the full shadow `pool/`, about 0.3 GB. Optional, since it is regenerable with `39_shadow_pool.py`.
 - **Provenance:**
   - Foldseek 10.941cd33 with `-e 0.001`;
@@ -117,17 +122,31 @@ This document is checkpoint E of agent-handoffs#24 (Gadi). It lists the data pac
   - the density count array.
 - **Size and integrity:** 6.08 GB in 69 files; sha256 in `R4_gmsc_smorf_entropy.SHA256SUMS`.
 - **Provenance:** `genome_entropy` 0.3.0, ModernProst revision `2d68d506`, encoding size 50,000, V100, MMseqs2 14.7e284. See `Validation/smorfs/README.md`.
-- **Licence and permission: UNCONFIRMED.** The positive and negative sets were supplied by the GMSC authors as benchmark data, and their terms of reuse are not recorded anywhere in the project. The 3Di and 12-state strings are derived per sequence from those sets. Before deposit, Rob should confirm with the GMSC authors whether derived per-sequence data can be redistributed. A fallback that needs no permission is to deposit only the aggregate tables, which are already in GitHub as `manuscript/data/figS*` and `tabS*`.
+- **Licence and permission: UNCONFIRMED.** The positive and negative sets were supplied by the GMSC authors as benchmark data, and their terms of reuse are not recorded anywhere in the project. The 3Di and 12-state strings are derived per sequence from those sets. Before deposit, Rob should confirm with the GMSC authors whether derived per-sequence data can be redistributed. A fallback that needs no permission is to deposit only aggregates. Those are added to GitHub by linsalrob/genome_entropy#124, which **must be merged before this fallback is relied on**. The files are:
+  - `manuscript/data/figS01_length_hist.tsv.gz`, `figS01_entropy_hist.tsv.gz`, `figS01_single_feature_auc.tsv.gz` and `figS01_models_by_split.tsv.gz`;
+  - `figSS01_density_aa_3di.tsv.gz` and `figSS02_stripe_bands.tsv.gz`;
+  - `tabS01_length_bins.tsv.gz` to `tabS04_dataset_summary.tsv.gz`.
+
+  These contain only per-class counts, histograms and model metrics, with no per-sequence values.
 - **Package boundaries:**
   - R4a: entropy table plus clusters, stripes and tables, 1.56 GB;
   - R4b: the 3Di and 12-state strings (`states/`), 4.52 GB, which are the most sensitive to the GMSC terms.
 
 ## R5. LOGAN (owner: LOGAN agent)
 
-The LOGAN agent should complete this entry. The integrator's inventory flags these items:
-- `LOGAN/qc/pilot/features.tsv.zst` (4.3 GB);
-- the four accession manifests in `LOGAN/manifests/`, which are small and could go to GitHub instead;
-- the LOGAN 16-October AFDB50 and low-score results, which were still uploading on 2026-10-16.
+Specified in [`roads/R5_logan.md`](roads/R5_logan.md), added by linsalrob/genome_entropy#129, with per-file sha256, sizes and totals in the same format as R1–R4.
+
+| package | size | files |
+|---|---:|---:|
+| R5a: accession selection and run provenance | 0.54 GB | 10 |
+| R5b: analysis summaries | 2.41 GB | 466 |
+| R5c: missed-gene evidence | 1.07 GB | 321 |
+
+That file gives the reasons for **not** depositing:
+- the 5.95 TB cache;
+- the 1.64 TB per-ORF tables;
+- the 3.32 TB of Prodigal bundles;
+- the 4.3 GB pilot `qc/pilot/features.tsv.zst`, which is superseded by the analysis tables.
 
 ## Open items for Rob
 
