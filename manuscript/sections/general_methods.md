@@ -42,7 +42,7 @@ For each ORF, Shannon entropy was computed in bits from the observed symbol freq
 
 $$H(X) = -\sum_{i} p_i \log_2 p_i ,$$
 
-where $p_i$ is the fraction of positions in the ORF that carry symbol $i$. This was done separately for the nucleotide sequence (4 symbols), the amino-acid sequence (20), the 3Di string (20) and the 12-state string (12). The maxima are therefore 2, $\log_2 20 \approx 4.32$, $\log_2 20$ and $\log_2 12 \approx 3.58$ bits.
+where $p_i$ is the fraction of positions in the ORF that carry symbol $i$. This was done separately for the nucleotide sequence (4 symbols), the amino-acid sequence (20 standard residues; the GTDB analyses also counted `X` as a symbol), the 3Di string (20) and the 12-state string (12). The maxima are therefore 2, $\log_2 20 \approx 4.32$, $\log_2 20$ and $\log_2 12 \approx 3.58$ bits.
 
 The per-ORF mutual information between the aligned 3Di and 12-state strings was computed from their joint frequencies:
 
