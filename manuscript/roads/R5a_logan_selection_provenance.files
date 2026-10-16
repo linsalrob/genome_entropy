@@ -1,0 +1,10 @@
+manifests/accession_status.tsv
+manifests/phaseb1_accessions.tsv
+manifests/phaseb2_accessions.tsv
+manifests/pilot_accessions.tsv
+meta/SHA256SUMS
+meta/candidate_ledger.tsv
+meta/census_librarysource_assay.tsv
+meta/logan_metagenomic_candidates.parquet
+meta/total_records.txt
+roads/R5a_chunk_manifests.tar.zst

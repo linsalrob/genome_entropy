@@ -1,0 +1,10 @@
+10042453	manifests/accession_status.tsv
+5528290	manifests/phaseb1_accessions.tsv
+5465444	manifests/phaseb2_accessions.tsv
+20560	manifests/pilot_accessions.tsv
+388	meta/SHA256SUMS
+213	meta/candidate_ledger.tsv
+1075	meta/census_librarysource_assay.tsv
+489977232	meta/logan_metagenomic_candidates.parquet
+10	meta/total_records.txt
+27535947	roads/R5a_chunk_manifests.tar.zst
