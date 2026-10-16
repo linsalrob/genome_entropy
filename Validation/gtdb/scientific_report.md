@@ -1182,7 +1182,12 @@ estimate was recomputed within contig-N50 and CheckM2-completeness quartiles,
 using exactly the `41_comparator_summary.py` computation, and an unstratified
 row reproduces all 51 published metrics. Strata follow the candidate's genome,
 so matched pairs stay together. Placing every ORF by its own genome instead
-changes individual cells by up to 3.3 points (bacteria) and changes no trend.
+changes individual cells by up to 3.3 points (bacteria). It leaves the
+direction of the combined share and of the Prodigal share unchanged; two
+single-database readouts without a trend under either scheme (bacterial
+Swiss-Prot by N50, archaeal PDB100 by completeness) flip endpoint direction.
+In every stratum the matched comparator is the larger Prodigal background, so
+the Prodigal shares below follow the report's larger-background rule.
 
 - **The excess is present at every assembly quality.** It holds in every
   quartile, in both domains and for every database, with every lower CI bound

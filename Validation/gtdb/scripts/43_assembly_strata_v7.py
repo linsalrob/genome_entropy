@@ -4,7 +4,9 @@
 Every number is computed exactly as 41_comparator_summary.py computes it --
 comparator weighted by draw multiplicity, first-order CIs from its share(), the
 #97 ladder from 22_rank_candidates.tiers(), Prodigal shares against the matched
-comparator -- but within strata of contig N50 and CheckM2 completeness. A
+comparator and against intergenic_lo, and the report's rule of taking the
+larger background -- but within strata of contig N50 and CheckM2
+completeness. A
 stratum "all" is computed too and must reproduce the committed
 matched_comparator/<dom>_v7_matched.tsv; the script exits if it does not, so
 the stratified rows cannot drift from the published pooled ones.
@@ -20,7 +22,8 @@ post-matching tables share bins. Two assignments (decision D15):
   own_genome        (sensitivity) every ORF, comparator draws included, is
                                   placed by its own genome
 
-Annotated CDS have no partner and are placed by their own genome in both.
+Annotated CDS and intergenic_lo ORFs have no partner and are placed by their
+own genome in both.
 
   43_assembly_strata_v7.py --domain bac --mc <matched_clean/bac> \
       --v6-wanted <full_bac/wanted.tsv> --prodigal <prodigal_v7_bac.coincidence.tsv.gz> \
@@ -63,7 +66,7 @@ def edges_from_v6(v6_wanted, md, cov):
     return e
 
 
-def summarise(cand_ids, ann_ids, w, n_rep, full_sets, tc, ts, prod):
+def summarise(cand_ids, ann_ids, inter_ids, w, n_rep, full_sets, tc, ts, prod):
     """41_comparator_summary.py's numbers for one subset. Returns {metric: (v, lo, hi)}."""
     out = {}
     n_c, n_a = len(cand_ids), len(ann_ids)
@@ -108,7 +111,16 @@ def summarise(cand_ids, ann_ids, w, n_rep, full_sets, tc, ts, prod):
     out["prodigal_candidate"] = (rc, np.nan, np.nan)
     out["prodigal_annotated_cds"] = (ra, np.nan, np.nan)
     out["prodigal_comparator"] = (s, np.nan, np.nan)
-    out["prodigal_share_clean_bg"] = share(rc, n_c, s, n_eff, ra, n_a)
+    f, lo, hi = share(rc, n_c, s, n_eff, ra, n_a)
+    out["prodigal_share_clean_bg"] = (f, lo, hi)
+    # As 41: a second background from unoccupied space, and the report's rule
+    # of taking the larger one, computed within the stratum.
+    ri = float(pi.reindex(sorted(inter_ids)).mean()) if inter_ids else np.nan
+    out["prodigal_intergenic_lo"] = (ri, np.nan, np.nan)
+    if inter_ids:
+        f2, lo2, hi2 = share(rc, n_c, ri, len(inter_ids), ra, n_a)
+        out["prodigal_share_intergenic_lo_bg"] = (f2, lo2, hi2)
+        out["prodigal_share_larger_bg"] = ((f if s >= ri else f2), np.nan, np.nan)
     return out
 
 
@@ -133,6 +145,8 @@ def main():
     w_all = draws.qid.value_counts()
 
     cand = wanted[wanted.group == "candidate"].assign(qid=lambda d: qid(d, "candidate"))
+    # intergenic_lo is unchanged by the v7 re-matching; it comes from the
+    # Prodigal table, keyed by qid (genome is the qid's first field).
     ann = wanted[wanted.group == "annotated_cds"].assign(qid=lambda d: qid(d, "annotated_cds"))
 
     best = m22.load_hits([str(mc / "best_v7")], m22.DBS)
@@ -169,7 +183,10 @@ def main():
                              value=v, lo=l, hi=h))
 
     rep_all = int((draws.match_level == "with replacement").sum())
-    allres = summarise(set(cand.qid), set(ann.qid), w_all, rep_all, full_sets, tc, ts, prod)
+    inter = pd.DataFrame({"qid": prod[2].index})
+    inter["genome"] = inter.qid.str.split("|").str[0]
+    allres = summarise(set(cand.qid), set(ann.qid), set(inter.qid), w_all, rep_all,
+                       full_sets, tc, ts, prod)
     emit("all", "all", "all", np.nan, np.nan, allres)
 
     # Reproduction check against the committed 41 output.
@@ -202,11 +219,13 @@ def main():
         q, e = gq[cov]
         c_q = cand.genome.map(q)
         a_q = ann.genome.map(q)
+        i_q = inter.genome.map(q)
         for scheme in ("candidate_genome", "own_genome"):
             d_q = (draws.cand_genome if scheme == "candidate_genome" else draws.genome).map(q)
             for i, s in enumerate(LABELS):
                 dsel = draws[d_q.values == s]
                 res = summarise(set(cand.qid[c_q.values == s]), set(ann.qid[a_q.values == s]),
+                                set(inter.qid[i_q.values == s]),
                                 dsel.qid.value_counts(),
                                 int((dsel.match_level == "with replacement").sum()),
                                 full_sets, tc, ts, prod)
@@ -220,7 +239,7 @@ def main():
     show = out[out.metric.isin(["n_candidate", "n_comparator_with_replacement_draws",
                                 "share_afdb_swissprot", "share_any_sp_pdb_cath",
                                 "ladder_C3_excess", "ladder_C7_excess",
-                                "prodigal_share_clean_bg"])]
+                                "prodigal_share_clean_bg", "prodigal_share_larger_bg"])]
     with pd.option_context("display.width", 200, "display.max_rows", 400):
         print(show.pivot_table(index=["covariate", "scheme", "stratum"], columns="metric",
                                values="value", sort=False).round(4).to_string())

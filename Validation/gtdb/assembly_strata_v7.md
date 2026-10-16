@@ -84,11 +84,15 @@ The full sensitivity tables, scheme (ii), are in the TSVs.
    - The bacterial Swiss-Prot decline with N50 (28.1 / 26.0 / 20.0 / 19.6%) **does not survive** re-matching: it becomes 9.8 / 12.1 / 10.3 / 9.2%. Most of that apparent trend was the comparator imbalance.
    - The decline with completeness survives at about half the magnitude: 32.3% → 16.8% before, 14.2% → 7.8% after.
    - The archaeal Q2 peak is present in both.
-6. **The two assignments agree on every direction, not on every cell.**
+6. **The two assignments agree on the direction of the combined readout and the Prodigal share, not on every database or cell.**
+   - The Q1 → Q4 direction of the combined Swiss-Prot/PDB/CATH share and of the Prodigal share is the same under both schemes, in both domains and for both covariates.
+   - Two single-database readouts that have no trend under either scheme flip endpoint direction: bacterial Swiss-Prot by N50 (9.8 → 9.2% under (i), 10.5 → 11.3% under (ii)) and archaeal PDB100 by completeness (13.4 → 12.3% under (i), 11.1 → 11.1% under (ii)).
    - Bacteria: shares differ by up to 3.3 points (mean 1.6), and 9 of 32 share cells have non-overlapping CIs between schemes.
    - Archaea: up to 6.9 points (CATH50), with no non-overlapping cells.
-   - Individual stratum values depend on how cross-genome draws are assigned, so quote scheme (i). The trends do not depend on it.
+   - Individual stratum values depend on how cross-genome draws are assigned, so quote scheme (i). The combined and Prodigal trends do not depend on it.
 7. **With-replacement draws are concentrated in poorer archaeal assemblies** (294 / 329 / 236 / 113 across N50 quartiles under (i)). Archaeal Q1–Q3 estimates lean more on reused comparator ORFs than Q4. In bacteria the count is at most 326 per stratum (under 0.3%).
+
+8. **The Prodigal shares are the larger-background shares in every stratum.** The report's rule (as in `41_comparator_summary.py`) takes the larger of two backgrounds: the matched comparator and `intergenic_lo`. In all 32 strata (2 domains × 2 covariates × 2 schemes × 4 quartiles) the matched comparator is the larger. Per-stratum `intergenic_lo` rates are 8.2–13.7% in bacteria and 13.0–18.9% in archaea, against comparator rates of 13.8–27.1% and 15.6–35.0%. So the Prodigal shares above are the report-rule values, and the trend stands. This was checked on Setonix from the `intergenic_lo` arm of `prodigal_{bac,arc}4.coincidence.tsv.gz`, which the v7 re-matching left unchanged: its pooled rate reproduces the published v7 values (9.8508% and 15.4408%). `43_assembly_strata_v7.py` now emits `prodigal_intergenic_lo`, `prodigal_share_intergenic_lo_bg` and `prodigal_share_larger_bg` per stratum. The committed TSVs predate that change and are regenerated on the next run.
 
 ## What it does and does not establish
 
