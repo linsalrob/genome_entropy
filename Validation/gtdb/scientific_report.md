@@ -1162,19 +1162,49 @@ top ten covering 10.0%.
 
 #### Where the separation lives
 
-Stratifying the archaeal coverage contrast by assembly quality shows the
-candidate-versus-shadow separation is **not uniform across genomes**. In the top
-contig-N50 quartile candidates reach 43.5% against shadows at 32.6% — an
-11-point gap — while in the bottom quartile the two are indistinguishable
-(65.8% against 65.5%).
+**Corrected (2026-10-16); the earlier version of this paragraph is
+withdrawn.** It reported that in archaea the candidate-versus-shadow contrast
+appears only in the best assemblies: 43.5% against 32.6% in the top contig-N50
+quartile, and indistinguishable (65.8% against 65.5%) in the bottom quartile.
+From this it concluded that high-N50 genomes are "where the signal demonstrably
+is". Those numbers are reproduced exactly, but they use the **any-hit** readout
+against **all** shadows, both of which §6.1 rejects above.
 
-This argues *against* the separation being an assembly artefact: an artefact of
-fragmentation would appear most strongly in the worst assemblies, and it appears
-only in the best. It also gives a positive reason to draw manuscript examples
-from high-completeness, high-N50 genomes — not merely to avoid artefacts, but
-because that is where the signal demonstrably is. A candidate in a poorly
-assembled genome carries little evidential weight however good its structural
-hit.
+- Same-frame shadows hit at about 90%, and so do contig-truncated shadows.
+- Both are concentrated in fragmented assemblies, which inflates the shadow
+  rate in exactly the quartile where the contrast seemed to vanish.
+- On the same readout, bacteria show no top-quartile contrast at all (40.3%
+  against 41.8%).
+
+On the readout this section actually uses (full-length Swiss-Prot coverage
+against clean antisense and frameshift shadows), candidates exceed clean
+shadows **in every N50 and every CheckM2-completeness quartile of both
+domains**.
+
+- **Bacteria:** the implied share *declines* with assembly quality, from 28%
+  to 20% across N50 quartiles and from 32% to 17% across completeness
+  quartiles.
+- **Archaea:** it is roughly flat.
+
+Those quartile tables are in `supplementary_analyses.md` §7 and
+`supp_assembly_strata.png`. They were computed against the clean comparator
+*before* it was re-matched, so their absolute shares carry the same upward bias
+as the published v6 shares (bacterial Swiss-Prot 23.3% against 10.4% matched).
+Per-quartile shares against the v7 matched comparator have not been computed.
+What survives the correction is the pattern: an excess at every assembly
+quality, with no concentration in the best assemblies.
+
+This weakens the original paragraph's other argument as well. It argued that
+the separation cannot be an assembly artefact because it appears only in the
+best assemblies. In bacteria the opposite holds: the implied share is highest
+in the most fragmented and least complete quartiles. A contribution from
+assembly quality therefore cannot be excluded on this evidence. What the
+strata do show is that the excess persists in the top N50 and completeness
+quartiles (bacteria about 20% and 17%, before re-matching). The separation is
+therefore not *solely* an assembly artefact.
+
+Drawing manuscript examples from high-completeness, high-N50 genomes remains
+sensible to avoid artefacts, not because the signal is concentrated there.
 
 #### Examples
 
