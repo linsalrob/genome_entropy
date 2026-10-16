@@ -24,7 +24,7 @@ Status as of 2026-10-16 (integrator, Setonix).
 | D12 | Unsupported text claims (FLOPs, Phynteny, GenBank-vs-LOGAN agreement) | Results, Discussion | remove unless a source is supplied |
 | D13 | LOGAN follow-ups (MetaEuk, single-mode Prodigal, clustering) | Discussion | future work |
 | D14 | Data deposition (ROADS) | Data availability | Gadi drafts `roads_deposition_candidates.md`; Rob arranges DOIs |
-| D15 | How to stratify the v7 comparison by assembly quality | G-17, GTDB Results | (i) by the candidate's genome; (ii) as a sensitivity check |
+| D15 | How to stratify the v7 comparison by assembly quality | G-17, GTDB Results | **decided:** (i) by the candidate's genome; (ii) as a sensitivity check |
 
 ---
 
@@ -262,7 +262,7 @@ LOGAN raw outputs (5.95 + 3.32 TB) and the GTDB raw tars (1.5 TB) are too large 
 
 **Recommendation.** (i) as the primary analysis, because the estimand is a matched contrast. Report (ii) as a sensitivity check. If they agree, assembly quality is not confounding the estimate. If they differ, that difference is the finding.
 
-**Decision.** _open_ (Gadi runs it once decided).
+**Decision.** 2026-10-16, Rob: (i) as the primary analysis, (ii) as a sensitivity check. Gadi to run it (agent-handoffs#24); G-17 is updated from the result.
 
 ---
 
