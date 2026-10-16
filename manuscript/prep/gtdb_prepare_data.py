@@ -133,12 +133,17 @@ def prep_g01(repo, gd):
     for dom, tag in DOMAINS:
         p = gd / f"figure_samples/sample_{tag}.tsv.gz"
         note(p)
-        d = pd.read_csv(p, sep="\t", dtype={"in_genbank": str, "genome_annotated": str},
-                        usecols=["in_genbank", "protein_entropy",
-                                 "three_di_entropy", "genome_annotated"])
-        # Same restriction as figstyle.load_sample(annotated_only=True).
+        # Same restriction as figstyle.load_sample(annotated_only=True): the
+        # sampler now writes matcher_matched_a_cds; samples drawn before the
+        # rename (including the committed figure samples) carry genome_annotated.
+        cols = pd.read_csv(p, sep="\t", nrows=0).columns
+        flag = next((c for c in ("matcher_matched_a_cds", "genome_annotated") if c in cols), None)
+        if flag is None:
+            sys.exit(f"{p}: no annotation flag column; re-run 08b_sample_for_figures.pbs")
+        d = pd.read_csv(p, sep="\t", dtype={"in_genbank": str, flag: str},
+                        usecols=["in_genbank", "protein_entropy", "three_di_entropy", flag])
         n_all = len(d)
-        d = d[d.genome_annotated == "True"]
+        d = d[d[flag] == "True"]
         print(f"    {dom}: {n_all:,} sampled rows, {len(d):,} in CDS-bearing genomes")
         for cls, sub in (("matched", d[d.in_genbank == "True"]),
                          ("unmatched", d[d.in_genbank == "False"])):
