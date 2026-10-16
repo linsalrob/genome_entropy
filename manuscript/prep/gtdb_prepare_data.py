@@ -233,7 +233,85 @@ def prep_g02(repo, gd):
     write(pd.DataFrame(summ), "figGS02_summary.tsv.gz")
 
 
-PREP = {"G01": prep_g01, "G02": prep_g02, "G04": prep_g04, "G05": prep_g05}
+def prep_g06(repo, gd):
+    """Functional class of all candidates, C3 and C7; the ten worked examples.
+
+    C3/C7 are properties of the candidate alone (22_rank_candidates.py), so the
+    sets are identical under the v6 and v7 comparators (bac C3 90,658, C7
+    23,540; arc C7 1,574 -- ladder_*_candidates in *_v7_matched.tsv).
+    """
+    rows = []
+    for dom, p in (("bacteria", gd / "missed_genes/full_bac/func_bac_classified.tsv.gz"),
+                   ("archaea", gd / "missed_genes/pilot_arc/func_arc_classified.tsv.gz")):
+        note(p)
+        d = pd.read_csv(p, sep="\t", low_memory=False,
+                        usecols=["functional_class", "c3", "c7"])
+        for c in ("c3", "c7"):
+            d[c] = d[c].astype(str).str.lower().eq("true")
+        for name, m in (("all candidates", np.ones(len(d), bool)),
+                        ("C3", d.c3.to_numpy()), ("C7", d.c7.to_numpy())):
+            vc = d.loc[m, "functional_class"].fillna("unclassified").value_counts()
+            for cls, n in vc.items():
+                rows.append(dict(domain=dom, set=name, n_set=int(m.sum()),
+                                 functional_class=cls, n=int(n)))
+    write(pd.DataFrame(rows), "figG06_functional_sets.tsv.gz")
+
+    ex_p = gd / "missed_genes/manuscript_examples.tsv"
+    nb_p = gd / "missed_genes/dossiers/exemplar_neighbours.tsv"
+    note(ex_p)
+    note(nb_p)
+    ex = pd.read_csv(ex_p, sep="\t", low_memory=False).reset_index(drop=True)
+    ex.insert(0, "example", ex.index + 1)
+    write(ex[["example", "slot", "domain", "genome", "input_id", "orf_id", "strand",
+              "aa_length", "g_start", "g_end", "functional_class", "best_product",
+              "n_db_full_struct", "structure_only", "prodigal_coincides",
+              "three_di_entropy", "strict_rule"]], "figG06_examples.tsv.gz")
+    nb = pd.read_csv(nb_p, sep="\t")
+    write(nb[["example", "window_lo", "window_hi", "nb_start", "nb_end",
+              "nb_strand", "nb_locus_tag", "nb_product"]], "figG06_neighbours.tsv.gz")
+
+
+BURDEN_COVS = ("n50_contigs", "contig_count", "genome_size_mb", "coding_density",
+               "frac_orfs_in_genbank", "checkm2_completeness", "checkm2_contamination")
+
+
+def prep_gs03(repo, gd):
+    """Candidate burden per genome against genome covariates (as 36_*.py)."""
+    bins, rhos = [], []
+    for dom, tag in DOMAINS:
+        p = gd / f"missed_genes/candidate_burden_{tag}.tsv"
+        note(p)
+        df = pd.read_csv(p, sep="\t")
+        for cov in BURDEN_COVS:
+            for ycol in ("n_candidates", "cand_per_mb"):
+                x, y = df[cov], df[ycol]
+                ok = x.notna() & y.notna()
+                if ycol == "n_candidates":
+                    rhos.append(dict(domain=dom, covariate=cov, n_genomes=int(ok.sum()),
+                                     rho_per_genome=float(x[ok].rank().corr(y[ok].rank())),
+                                     rho_per_mb=float(x[ok].rank().corr(df.cand_per_mb[ok].rank()))))
+                e = np.unique(np.nanquantile(x, np.linspace(0, 1, 21)))
+                b = pd.cut(x, e, include_lowest=True)
+                g = pd.DataFrame({"x": x, "y": y, "b": b}).groupby("b", observed=True)
+                t = pd.DataFrame({"x_median": g.x.median(), "q10": g.y.quantile(.1),
+                                  "q25": g.y.quantile(.25), "q50": g.y.median(),
+                                  "q75": g.y.quantile(.75), "q90": g.y.quantile(.9),
+                                  "mean": g.y.mean(), "n": g.y.size()}).reset_index(drop=True)
+                t.insert(0, "bin", np.arange(len(t)))
+                t.insert(0, "burden", ycol)
+                t.insert(0, "covariate", cov)
+                t.insert(0, "domain", dom)
+                bins.append(t)
+        for r in rhos:
+            if r["domain"] == dom:
+                r["genome_candidates_total"] = int(df.n_candidates.sum())
+                r["genome_candidates_median"] = float(df.n_candidates.median())
+    write(pd.concat(bins, ignore_index=True), "figGS03_burden_bins.tsv.gz")
+    write(pd.DataFrame(rhos), "figGS03_burden_rho.tsv.gz")
+
+
+PREP = {"G01": prep_g01, "G02": prep_g02, "G04": prep_g04, "G05": prep_g05,
+        "G06": prep_g06, "GS03": prep_gs03}
 
 
 def main():
