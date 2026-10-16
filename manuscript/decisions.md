@@ -134,7 +134,7 @@ The alternative, re-running ranking on the full Gadi set, is new compute.
 
 **Checked 2026-10-16** against the corrected phage model (`work/phage_rank/rank_orfs_relabelled_intrinsic`, Setonix):
 - **The example stands.** All OM869708 genes are on the plus strand, so the strand bug does not affect it.
-- **ORF3** (+, frame 1, 4722–5730, 335 aa, 3Di 2.98 bits) scores **p = 0.889** with the corrected intrinsic model, against 0.947 legacy.
+- **ORF3** (+, frame 1, 4723..5730, 335 aa, 3Di 2.98 bits) scores **p = 0.889** with the corrected intrinsic model, against 0.947 legacy.
 - **The annotated ORF7 (CDS_0007)** scores **p = 0.175**, against 0.199 legacy.
 - **Ranking:** ORF3 → ORF7 is replacement **179 of 4,102** in the corrected list, against 121 of 1,797 legacy.
 
