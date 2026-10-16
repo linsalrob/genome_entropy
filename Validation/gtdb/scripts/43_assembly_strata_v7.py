@@ -49,6 +49,7 @@ m22 = _load("rank", "22_rank_candidates.py")
 m41 = _load("cmpsum", "41_comparator_summary.py")
 KEY, STR, qid, share = m41.KEY, m41.STR, m41.qid, m41.share
 COVS = ("n50_contigs", "checkm2_completeness")
+NEW_METRICS = {"n_comparator_with_replacement_draws"}  # not in 41's output
 LABELS = ["Q1", "Q2", "Q3", "Q4"]
 
 
@@ -174,13 +175,18 @@ def main():
     # Reproduction check against the committed 41 output.
     pub = pd.read_csv(a.published, sep="\t")
     pub = {r.metric: (r.value, r.lo, r.hi) for r in pub.itertuples()}
+    # Every metric this script produces must exist in the published table,
+    # except the replacement count, which 41 does not report.
+    expected = set(allres) - NEW_METRICS
+    missing = sorted(expected - set(pub))
+    if missing:
+        sys.exit(f"ERROR: {len(missing)} metrics absent from {a.published}: {missing}")
     bad = []
-    for k, (v, l, h) in allres.items():
-        if k in pub:
-            for x, y in zip((v, l, h), pub[k]):
-                if not (pd.isna(x) and pd.isna(y)) and not np.isclose(x, y, rtol=1e-9, atol=1e-9):
-                    bad.append((k, x, y))
-    checked = sum(k in pub for k in allres)
+    for k in sorted(expected):
+        for x, y in zip(allres[k], pub[k]):
+            if not (pd.isna(x) and pd.isna(y)) and not np.isclose(x, y, rtol=1e-9, atol=1e-9):
+                bad.append((k, x, y))
+    checked = len(expected)
     if bad:
         for b in bad[:20]:
             print("MISMATCH", b, file=sys.stderr)
