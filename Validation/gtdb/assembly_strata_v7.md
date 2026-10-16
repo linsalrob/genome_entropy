@@ -4,7 +4,7 @@ This is report §11 item 12, carrying out decision D15 from agent-handoffs#24. I
 
 ## Method
 
-- **Script:** `scripts/43_assembly_strata_v7.py`, run by `43_assembly_strata_v7.pbs` (PBS 181378085, 0.33 SU, exit 0).
+- **Script:** `scripts/43_assembly_strata_v7.py`, run by `43_assembly_strata_v7.pbs`. The committed TSVs come from PBS 181387980 (0.28 SU, exit 0), the run with the per-stratum Prodigal background added in #136. The first run, PBS 181378085 (0.33 SU), is superseded; none of its values changed.
 - **Inputs:** only existing v7 tables, with no new search:
   - `matched_clean/<dom>/{wanted_v7.tsv, comparator.tsv.gz, best_v7/, context_v7/}`;
   - `prodigal_v7_<dom>.coincidence.tsv.gz`;
@@ -14,7 +14,7 @@ This is report §11 item 12, carrying out decision D15 from agent-handoffs#24. I
   - the first-order CI from its `share()`;
   - the #97 ladder from `22_rank_candidates.tiers()`;
   - the Prodigal share against the matched comparator.
-- **Reproduction check.** An unstratified "all" row must reproduce `matched_comparator/<dom>_v7_matched.tsv`, and the script exits otherwise. It reproduced **51 of 51 metrics in both domains**.
+- **Reproduction check.** An unstratified "all" row must reproduce `matched_comparator/<dom>_v7_matched.tsv`, and the script exits otherwise. It reproduced **54 of 54 metrics in both domains**: the original 51 plus the three Prodigal-background metrics added in #136.
 - **Quartile edges.** They are those of §7: `pd.qcut` over the pooled query rows of the v6 query set (`34_supplementary_arms.py`, `t_assembly`, scheme `pooled_query_rows`). Pre- and post-matching tables therefore share bins:
   - bacteria N50 at 17.2 kb, 59.1 kb and 262 kb; completeness at 89.81%, 96.75% and 99.99%;
   - archaea N50 at 13.7 kb, 39.0 kb and 222 kb; completeness at 83.22%, 92.28% and 99.17%.

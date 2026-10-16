@@ -1180,7 +1180,7 @@ against **all** shadows, both of which §6.1 rejects above.
 full tables in [`assembly_strata_v7.md`](assembly_strata_v7.md)). The v7
 estimate was recomputed within contig-N50 and CheckM2-completeness quartiles,
 using exactly the `41_comparator_summary.py` computation, and an unstratified
-row reproduces all 51 published metrics. Strata follow the candidate's genome,
+row reproduces all 54 published metrics. Strata follow the candidate's genome,
 so matched pairs stay together. Placing every ORF by its own genome instead
 changes individual cells by up to 3.3 points (bacteria). It leaves the
 direction of the combined share and of the Prodigal share unchanged; two
