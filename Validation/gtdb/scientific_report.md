@@ -921,8 +921,8 @@ runs out.
 Every other step is unchanged: the same Foldseek binary, databases and
 parameters, and the same analysis scripts. Methods, balance tables and
 sensitivity runs are in [`matched_comparator.md`](matched_comparator.md). All
-numbers below are weighted by how often each comparator ORF was drawn. The
-coverage and ladder figures still show the published comparator.
+numbers below are weighted by how often each comparator ORF was drawn, and so
+are the figures.
 
 #### Full-length mutual coverage is the readout that discriminates
 
@@ -932,7 +932,7 @@ matched clean comparator (antisense and frameshift shadows only):
 | database | candidate | clean shadow | annotated | real-gene share (95% CI) | published comparator |
 |---|---:|---:|---:|---:|---:|
 | **bacteria** | | | | | |
-| afdb_swissprot | 10.3% | 7.4% | 35.3% | **10.3% (10.0 – 10.7)** | 23.3% |
+| afdb_swissprot | 10.3% | 7.4% | 35.3% | **10.4% (10.0 – 10.7)** | 23.3% |
 | cath50 | 8.4% | 6.7% | 23.9% | **9.9% (9.3 – 10.5)** | 27.0% |
 | pdb100 | 8.7% | 6.6% | 30.1% | **9.0% (8.6 – 9.5)** | 23.4% |
 | bfvd | 6.8% | 4.5% | 11.0% | 36.2% (discounted) | 54.2% |
@@ -950,7 +950,7 @@ published). The difference is therefore the arm's 3Di and length composition,
 not its per-ORF behaviour.
 
 ![Full-length coverage by arm and database, with the implied real-gene
-share (published comparator)](figures/candidate_coverage.png)
+share (matched comparator)](figures/candidate_coverage.png)
 
 BFVD is excluded from estimation because its annotated ceiling is ~11%, so the
 mixture denominator is small and the ratio unstable. It is retained for
@@ -963,7 +963,7 @@ is **~51,000–59,000**.
 The bacterial share is robust to how it is estimated:
 - 5×5 standardisation instead of matching gives 10.3%;
 - counting each comparator ORF once instead of weighting gives 10.6%;
-- dropping the with-replacement draws leaves it unchanged.
+- dropping the with-replacement draws gives 10.3%.
 
 The archaeal share is not robust. It ranges **14.0–19.8%** (Swiss-Prot) across
 those three variants, because the clean pool is thin in the high-3Di, long
@@ -974,7 +974,7 @@ On the *uncorrected* comparator, the full-scale shares are **lower** than the
 pilot's: 6.6 / 10.4 / 6.5% against 10.4 / 13.0 / 7.9%. On the same-frame-filtered
 but unmatched comparator they are **higher**: 23.3 / 27.0 / 23.4% against
 15.8 / 19.7 / 13.9%. On the matched comparator they come back to
-10.3 / 9.9 / 9.0%. Confidence intervals tighten from ±3 points to ±0.4.
+10.4 / 9.9 / 9.0%. Confidence intervals tighten from ±3 points to ±0.4.
 
 Hit rate remains the wrong readout — above 3Di 3.38 bits everything hits at 99%,
 real gene and unmatched ORF alike, because a sequence-only 3Di encoder emits
@@ -1009,8 +1009,7 @@ construction. The published ladder gave C2 −26,768: that was the truncation
 imbalance, not evidence. Against the published comparator, C3 and C7 were
 62,507 / 3,256 and 19,232 / 1,118.
 
-![Direct evidence: candidates against clean shadows (published
-comparator)](figures/evidence_ladder.png)
+![Direct evidence: candidates against matched clean shadows](figures/evidence_ladder.png)
 
 **These are a set, not a nested ladder** — C6 (4,439) exceeds C4 (2,777) in
 archaea, so reading down the column as increasing stringency is wrong. C3–C6 are
@@ -1049,8 +1048,8 @@ produced zero matches and the false conclusion that Prodigal disagrees.
 | `intergenic_lo` (unoccupied space) | 9.85% | 15.44% |
 | *published clean shadow (unmatched)* | *9.41%* | *16.00%* |
 
-![Prodigal agreement by arm, and by shadow frame class (published
-comparator)](figures/prodigal_validation.png)
+![Prodigal agreement by arm (matched comparator), and by shadow frame class
+(all shadows, before matching)](figures/prodigal_validation.png)
 
 Two objections fail against their own controls.
 

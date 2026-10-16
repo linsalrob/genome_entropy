@@ -1,0 +1,313 @@
+{
+ "outputs": {
+  "figL01_feature_distributions.tsv.gz": {
+   "rows": 9391,
+   "sha256": "581972d4537555de9102f5bcc3338bb1f90a49d507f7abce31104f7e72d0e308",
+   "note": "complete ORFs; counts in 0.01-bit bins, summed over 90 shard histograms (all ORFs)",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/000.npz": "a077b23f20d36ab99e8be26a85fe586a10fd979ded04d58e4845e354514a6e39",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/001.npz": "0685f64019cbdc396d24777f9dd2f503b2909a0dfbe079bd3712ce22044dcda5",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/002.npz": "8f32434821aee96b1fb97f93d81f3ae05aa6b64e37967c99f3341336dafe584c",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/003.npz": "4901744d82a6e597a4f000b3e10846c981bba07b097e54bbfc9e32d26777ac9e",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/004.npz": "70e1d357e8fddeaaa8b336f3f07340d4a75fe1df959ed1092ccc704b7a80613b",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/005.npz": "9aa416d5fc6f5314228797b974f6a648c66abdc8fdafd90d0c0d25b119009d6d",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/006.npz": "58723f225a300c764920996b64bd62eb1479ba9191a20f540348f10602abe538",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/007.npz": "406e87e9948c1dfd04a3488afc3fb6c8ae77fb42b6f7c9b9b9b071dd95a25da5",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/008.npz": "1167ed263664fd571deda3877df466bf563dedab4e022e3170b50eeec583b6c2",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/009.npz": "230b14d8771f792cb8a49d8f791353fc3e0848b37a2af8fbf4d9f6ff7c13ce4b",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/010.npz": "0788a80a9141832ca5ebee42978cbf004534fece321578553cd05fb97cfa0658",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/011.npz": "a09fff98f418c152d31cb2a5e53edb16bac162abf06ce9a57055ac7eae49a833",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/012.npz": "7ba0240ff08deb065f08c16bd1e8301db56cfe87cff6318e8e26b2893c2caab1",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/013.npz": "0ba7ec36b6163326fc138dbd88de8f69750dd71610914749374becb474134359",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/014.npz": "d9aa715acd0cc1f5ad2fb6f8b92f2dbcea029b1586cc0289a3fd08736a296d89",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/015.npz": "333f69fdd0ed335041deda1d3d37102e55cc5a19ab57b09cd120842aa1a9972a",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/016.npz": "90fdb981ff31e28387c64ee0648332b9e75c1c9f7fead3a53a0a7a7254e946e3",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/017.npz": "b91253d7bda92fad2379f38432c6eb0c39fece462865413c94c0bc8fbf34a12a",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/018.npz": "99fe5b39ab8f0b95e8ca071f89ecb738ad7f510088c375da1949040b7c0a16a5",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/019.npz": "15f763d09b35c75ff8029f2729b4e26ceab49204b524468f8a586fc3d9f9e994",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/020.npz": "b02fbaa954ace90dee890dbee4f4f57e56feeb3000d8227bc8d5e6fbb0a91320",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/021.npz": "0ae59406263d63e5969409d26aa56d7707a4b65eab5076d5320e14f286f55e12",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/022.npz": "e7717ee33f658667f2ca227d27c0a70cfc0eb42b24542e212abc88a411fb01da",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/023.npz": "827cc0715713b9f5c28c7a16e8491f7fd3775a52059e5dd29cdba3074ffd8cea",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/024.npz": "6bfcf3bffaa874264707ea91004587f5a7269dba41424e4f6c5a00f9890b6ea5",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/025.npz": "439fdea7686fe7ea3fe1649d49e39c00ecb8fa7fab64ddef51f2d0cad0cc8fee",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/026.npz": "2ee16c4db2d37ce8aa163f3a94c39176ea5482775255895fb85802f5dde04aca",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/027.npz": "f9b86279efa77dab9bd5f49afdf3110802022a298e0a988e72cea2b2baf36a9d",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/028.npz": "75e4f8fb1a3c9b95df5f1f1c4746cacc0a2fe9b1cdf96fb14af5c48552b25090",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/029.npz": "aa738a4999e3f0f9c09eed3d306519aed4e5a0c6000b50fec4ae5e5faf10a203",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/030.npz": "30a45cb79f1a6f9459bedd4de351fd1d94acba4986e356ceea39959b75375d90",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/031.npz": "f5849bdf5c1f3b887e782bbb971eb4d1a353a1f71cedbe0ea96c20c94299c8c9",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/032.npz": "556c52c01298ba7854bad8e086fcfc4949b5737ab1e5b0698f974a1f97357561",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/033.npz": "a46a746193d2e26d0e7cebda26c1a2d556492ca3c6c53f43d8de59fbaad0ebec",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/034.npz": "1aafb457c36e4deb83fdf1136fae36fd90938273bad2ecf8156284d46d2ec18c",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/035.npz": "bd605e806193c2c3ecdf9f95d00dc6632bc265d0afb6792e2e82a952da68cf44",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/036.npz": "35a9150bfec99c98fdfc4fb34661e225dce092d37ec8cade009f67eb4e4de65c",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/037.npz": "2b3eb593a8ca0db2f83e165c4c3da7e0db6488a9dad6f2c7d6955702e6507bdf",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/038.npz": "aaa38878add631863b59d3586a4b08cf3097faf55b6651623e52da4d7c103135",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/039.npz": "693008d3ef1462b84bb44ee4815ae877916a81eb946dec1d8cf5a52895269925",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/040.npz": "6cae0aaa838704bd5250cf703b584d1169a8d7fabd992c827025577328843972",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/041.npz": "06512929b8bf92535bba46209e8e154c07aabba3faa0ec3b186497c09b30715c",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/042.npz": "e441af672ff5c465e7d12484c025e1446f31075089781eaab8cb803469084095",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/043.npz": "f32b8605ad643ab65ce035ad5e61327e5702a1f15af3bdd9f0f7c47595531800",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/044.npz": "06677e3b7cf65fd40ac4b4ccb2ff8d6300108b8686a57378d29ef8dd53bf46b9",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/045.npz": "26a1b84d3ac90ad134e59c3316fa1724c71c7c71dbe8563d84933f08641eff46",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/046.npz": "fb39a2b306cb74e4c87e1fd33ca179fc201860480058d2ed692948959f392a5e",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/047.npz": "c62067b90fc06cd7ea205dd554596628ca74815f09e2a22b7c12cddba54e83aa",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/048.npz": "796e3485cbddfdc8706ea7f799c17b4d95736af7acb43dba58090b16b2fc6ac3",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/049.npz": "34c51d28947f8849dbf3a50f5592baea6e50774a76400b92abbadcc118f4d710",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/050.npz": "c8ffd10a673a812a905c29e38bd5ff6e0a55d8300ab70079bf2968096401db65",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/051.npz": "f47028fe309fa8b400bf4dce4cab3cab551f3a18b4cb056283560f388d8b0b26",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/052.npz": "2d34af820ad4190d4abe8132e828b14a9f3fa45c7bb0674334d3ed2e73fa5143",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/053.npz": "9b98f2314f08c95a26b2638621ed39bab846dacef94774133294262b44de50b6",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/054.npz": "421c0edea3f9afb30a73a7687d24a8ed4eedb57d063ff5d1256193d404b2ad71",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/055.npz": "125fa3cb46c71ec4b18a0671db80a08df519cef007ea322de5f4826f4239ee0e",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/056.npz": "9db85f84130ecdaf877cfd0bc2b40e2f837333e30b9e63246177f1c09bb842f8",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/057.npz": "3ce1a34a91b0cea9bd3989b265301d41fe40e3b114b8257968d4ed1d62d4f27a",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/058.npz": "e17270662fba2b419b62093d27538fbdd56579beedf642801e042b50e932219f",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/059.npz": "a374fdc8b6d385a0e32050a890334472443c25425f9797603be5180a9a8ca8f5",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/060.npz": "48b47f29b17aed8e75c40dc7fbfd88263926acd7a6b583a48ca88cf2bbd217a3",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/061.npz": "2c0033080df8398e9ff0ca781e0ab32551ae4fcd1264f18a5f09f89b8676668f",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/062.npz": "20869ce14cfdf705ae9683c154fc26873d170f77b50a6d64c656ca3dd3a040a5",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/063.npz": "a4361fe0141c139b76df2b59f5bbe24f084f3bb335d89fd6a4002a5f425319bf",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/064.npz": "cf376987848170840a4ada51552f9d694973d0af1c5e8dff0864ae6b80a02b28",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/065.npz": "59a55b85e5d007cb099669de2f4f379fc2029b93126b37ffd26937fe2b65af1e",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/066.npz": "31ef1ffbc59b6c37efbc60ed3975a9709cc0873b711949db4dc534db56f95dca",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/067.npz": "293a4a6c45a9253d1ad95fd24e5d829831f09936402eae20748d57a4d1a5076e",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/068.npz": "300fb384ebb5c7758ddff7f12278a926c9fee3900f3db90c45b27b0818fca33f",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/069.npz": "7545ce25db6043ca60fdc0f16c33893477dee861963668fcc3b03cc6243fb480",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/070.npz": "0343feed7da1da5f61509735395d158e600776f10d2cc0f99ccfca095eaa8699",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/071.npz": "2835ea62776f02c7fbe0dab1e350ede71f8f8be6147ef222fe19117e14d19281",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/072.npz": "8f474833fd9fedbba93030733d9eaac3a8cd1510c53cf259ed25e504b604fc36",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/073.npz": "460ed1b2eeb01655336daca99d917688cd4853146139446b6e15264b49815377",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/074.npz": "13341d2a9ca703bf5765efcc1dd6e9e118a9f9d6e740e890af784cfdb0c727f0",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/075.npz": "425ae124c015cd4c6ddece10b63299e4c6dc64e81561bdc51448d8d9b1f44aee",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/076.npz": "ccedfe4b0a389d9cec1cc729b8ec8c1b8ac4c69d3c6df979e68a1bd076655903",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/077.npz": "7a92e94c461cfb72d6d2cd10f50eb3639d0d7375e090234dcdb7c69e987b95fd",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/078.npz": "1a1d47a48b444874c587d36617933184ee3a6aeaa15759dda19bb1a3091e8daa",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/079.npz": "2c7ea00b40a0c123324eb115d1a1685b6f5b3ae9165d3e6f303aaffc3dafac32",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/080.npz": "58e9481824a847284c9d4f4a1062ff6ce51b621dc3c311dd73cae41a4312cb34",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/081.npz": "e10d83a61cc3ea9815f9e4bbfc78d31a0eb5957d7149a8c92b06073006b78c0a",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/082.npz": "7eb6e0efb24615c8e3b0f92f556b462db1565ad4a2c1fb8d045292a9044e3dde",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/083.npz": "0aff03c3461985478d2ec14e9db709a035cb4fa3afdd8a363ebc29351045304f",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/084.npz": "9725e0d1580fa89c9bd1991da17604cd70394ffa7715b468a0be99ab5f963a81",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/085.npz": "d5dc7a62e292b5936eab8a82bc9bd80b46cb5eade883872d6ccb750f6311d36c",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/086.npz": "381860164d8d657f24939b85ae587e851112cd47e161654b860deb2eb18a9742",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/087.npz": "b3a4db0b7eca8baa9c56d94ad849789d303b99ec91ad71db1e6d96d05bff8817",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/088.npz": "5c0b0ef20a1a0e1b5592cc66c775ff712e3bf36361801959a1ca198f1255840b",
+    "/scratch/pawsey1018/edwa0468/Logan/analysis/v1/hist/089.npz": "6ab430f4ac785adaeb2eb919a31f39307d4f115c2b633ab9e7986a1cc0d55220"
+   },
+   "histogram_files": 90
+  },
+  "figL02_models_overall.tsv.gz": {
+   "rows": 28,
+   "sha256": "4350f8ec90fd73b819f72accc70ddb2d2970f97562145416bc3c199e7c87741b",
+   "note": "AUC / AP \u00b1 fold SD, nested feature sets, 4 contrasts",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/models_overall.tsv": "fed049364951712116c12b23f1ceef311262696cba5fd3345fdac5bfbb906b36"
+   }
+  },
+  "figL03_models_by_length.tsv.gz": {
+   "rows": 217,
+   "sha256": "241f3c61a0a6fe8a8b4bded24daae9377ff5dc1a0658186226615e8317cababa",
+   "note": "within-bin AUC of out-of-fold scores; sampled_pos/neg counted from 90 sample shards",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/models_by_length.tsv": "b5a9e81a0b24f11b3e44797494c65913a3af460c324a5faeba0e91db7ab0fe32"
+   }
+  },
+  "figL04_fragments.tsv.gz": {
+   "rows": 4,
+   "sha256": "f2938973c38d39cedc32d128c57f539dd63b6ba523e3f6d83ec1d7af30870918",
+   "note": "complete-ORF model applied to contig-end fragments",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/models_truncated.tsv": "0642bd4e786efcf4730fc0115d3b1c72143f5252bfe5f8b2f3722a9daaf1bf68"
+   }
+  },
+  "figL05_six_frame_inheritance.tsv.gz": {
+   "rows": 25,
+   "sha256": "7bd4bfbe4dc27a654f1aee07578e6461da033a14fb62775ea598fe832a4b07a3",
+   "note": "Spearman rho, selected vs each alternative frame",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/six_frame_final/inheritance.tsv": "2d88a1746d5eff6452acf1ecc75e5cdbb23a736702948cc94438cfdc9300752f"
+   }
+  },
+  "figL05_six_frame_discrimination.tsv.gz": {
+   "rows": 10,
+   "sha256": "fdfaf51e8d067058310f61e3036c5f061e8f492c23d6ee9950cadb012f1a9397",
+   "note": "tie-aware top-k rates and chance",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/six_frame_final/discrimination.tsv": "23f82e12cd08efd4c80ffa4e01776534927fd6d89d1c2f72450a7488f3b83a65"
+   }
+  },
+  "figL05_six_frame_delta.tsv.gz": {
+   "rows": 600,
+   "sha256": "76589b3cfe6ebd1a63dba835a601956276a7336db02feb0b74a183e03e92f3aa",
+   "note": "histogram of \u0394 (selected \u2212 median of 5 alternatives), central 99%, 120 bins; genes with all 5",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/six_frame_final/delta_sample.parquet": "c0aad135fc386c77f769c31524a2809ac662e29079d7acb19053915398705349"
+   }
+  },
+  "figL06_evidence_rates.tsv.gz": {
+   "rows": 90,
+   "sha256": "d9c1154ad24fd841895c4a2a34444f59a9d9085bc153d98730f1cd776a69ed41",
+   "note": "hit and full-length (qcov,tcov>=0.8) rates by arm, mode and database (five DBs)",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/evidence_rates.tsv": "c8397e40575278b176549b9093cd3610df077f503bb13f1acdec851bed9c14c0",
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/evidence_rates.tsv": "1dae015208a07930ee4dd1948d2e20c429e41361db7a13e5f8a4a643bcca877c"
+   }
+  },
+  "figL07_evidence_by_length.tsv.gz": {
+   "rows": 16,
+   "sha256": "836d04fa3fd72ddba3abd37e735709e68f938bbbf61345b84231395ac88ea9bb",
+   "note": "full-length structural rate by arm and length bin",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/evidence_by_length.tsv": "85de6719de6a89a51e37d5a345641ac1199401db97891dcdd861fb061ddcba7a"
+   }
+  },
+  "figL07_evidence_classes.tsv.gz": {
+   "rows": 4,
+   "sha256": "0dc7efa493c8665e933415b366edaaadf5899360f36962daf2a59d5de2032a0a",
+   "note": "share of queries in each full-length evidence class",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/evidence_classes.tsv": "2fc854b0c75c059e865f8dce4c73f6669c8f022cd9458321b6820e0194f25d36"
+   }
+  },
+  "figL07_hit_biome.tsv.gz": {
+   "rows": 52,
+   "sha256": "50d6cab79ff747bb1a5100aa26959d65eeae525c4b9e8d806c3c73e29076fdba",
+   "note": "full-length structural hit rate and best-target superkingdom by arm and biome",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/hit_biome.tsv": "66cf8d5b4b5028162f4f084810f7d904627176554cf0246833158a08e9118436"
+   }
+  },
+  "figL08_contig_group_by_arm.tsv.gz": {
+   "rows": 4,
+   "sha256": "9b29a817b922606297c6b84fa73a4eb9cb423a42c1f206f686a345132e34b1fe",
+   "note": "Kraken2 (PlusPFP) class of each query's contig, share by arm",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/taxonomy/contig_group_by_arm.tsv": "32e67983fff6d4e0e63cbe4292064e98589c1635be12aedc26494fb691abb456"
+   }
+  },
+  "figL08_hit_vs_contig.tsv.gz": {
+   "rows": 103,
+   "sha256": "9f07f85355559a2bdabb1c9ea9e6ba435f1ec2b5995fa439df8fbdb66401fe45",
+   "note": "queries with a full-length hit: best-target group x contig group",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/taxonomy/hit_vs_contig.tsv": "bb4b249af4e89d26ebb23c11e4c4ec07f0376ab6daf5051d81df82b8c4e5290a"
+   }
+  },
+  "figL09_prodigal_skip.tsv.gz": {
+   "rows": 52834,
+   "sha256": "e096bf02c944f4e2b48d4a1bf3930763f5a612cbc1988097b203e3a07c71be01",
+   "note": "Prodigal -s best potential gene at each query stop; one row per query",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/skip/skip_features.parquet": "2c827225b90acb9fe580dc30e6ffb89753f5ad4cbbc272821f16817c18190c4d"
+   }
+  },
+  "figL10_lowscore_population.tsv.gz": {
+   "rows": 9,
+   "sha256": "3e42feb41e60300a25fb62af4e1b3ade33143bf458c0ad3cc36f7ab9e3fa473a",
+   "note": "share of complete Prodigal genes below t0.80, by length",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/lowscore_population.tsv": "a37438f59b533900e3ef44a6f15811f640464b103f1b1fcf81adfe12d37e11e0"
+   }
+  },
+  "figL10_lowscore_evidence_by_length.tsv.gz": {
+   "rows": 8,
+   "sha256": "162f36ea61fc7178c7631fc9e5b9e624094f348bf47b2db4b2eefd4467422312",
+   "note": "low- vs high-score Prodigal genes, length-matched",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/lowscore_evidence_by_length.tsv": "6356db19ba37ab837d6b0f164da6349813a7efb45e55fc164591394a6b9e22e2"
+   }
+  },
+  "figL10_all_arms_evidence.tsv.gz": {
+   "rows": 8,
+   "sha256": "85ec60c0bfb194f6a9f206d1cbe062cff9adb3bf4596f2c58f14d8df02b5f43f",
+   "note": "hit / full-length rates of every arm over all five databases",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/all_arms_evidence.tsv": "d51908ef35bab9b25ff8e4d4fd27803cfec314c58065960af79733b8bde7ac11"
+   }
+  },
+  "figLS1_biome_batch_separation.tsv.gz": {
+   "rows": 864,
+   "sha256": "f272a047da376f6bcdd1ae6ae443a0bbf96d55cf7e59a197b4fa3a8ee6d2a638",
+   "note": "exact AUC by biome / tranche and length bin (15b_biome_batch_figure.py)",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/biome_batch_separation.tsv": "1fe4cec496e26aefcb7be3f7f4aaa02b42f2990478bbf3606f2099be2533fc12"
+   }
+  },
+  "tabL01_orf_classes_by_truncation.tsv.gz": {
+   "rows": 8,
+   "sha256": "7ef5a814af014ba0eed12b1bb5160f5b26dfdf025ae2ae08d875043e689a4212",
+   "note": "ORF classes x truncation, all 89.99 B ORFs",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/class_by_truncation.tsv": "4d5fcd79fa3279fb1eebe24806b69002484229d47199ac05157da6a94a46c09b"
+   }
+  },
+  "tabL02_single_feature_overall.tsv.gz": {
+   "rows": 20,
+   "sha256": "2747b9e14034efa7a33075545567cb111715dbc7dd4b00a160b39f72802fc7e6",
+   "note": "exact single-feature AUC/AP",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/separation_overall.tsv": "06f0978880958553978f3d1a161d4cc014dac7ec38e53054540a54bd16635dc4"
+   }
+  },
+  "tabL03_single_feature_by_length.tsv.gz": {
+   "rows": 180,
+   "sha256": "75c1175c1bffbb5b38fe312def86e9e698ea13bd202cbdacd0cea9a55878b600",
+   "note": "within length bins",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/separation_by_length.tsv": "353bbd1d0dc075cefd9da6b033247457eee79109dfe28b31cf85972b57847f3f"
+   }
+  },
+  "tabL04_final_model_thresholds.tsv.gz": {
+   "rows": 4,
+   "sha256": "52099a1c4cbb547240ef7e1ebcb764415a0f0764393f2010ad60d3413dbb9199",
+   "note": "out-of-fold score thresholds by target precision",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/final_model_thresholds.json": "7410250c6e61a183001203f70a620c84cb426cb1fd0091cb842b2bf827e5e94f"
+   }
+  },
+  "tabL05_candidate_counts.tsv.gz": {
+   "rows": 48,
+   "sha256": "ce2be62a8275436919d6504b17e4de9317c2bdcb6e4a34c8f412c416019ee3e5",
+   "note": "intergenic ORFs >=100 aa above each threshold",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/candidate_counts.tsv": "c84c59905fe9a4fb403bd70cab6afd4ea96500ba10af37f5984b916a5ac07cff"
+   }
+  },
+  "tabL06_evidence_by_truncation.tsv.gz": {
+   "rows": 11,
+   "sha256": "e3edaf2dd3a55e5dd3f9811e8fe5a2e1b2ce9ca41a4b885f7c50ff182a1a9fd6",
+   "note": "full-length evidence by arm and truncation",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/evidence_by_truncation.tsv": "292a26418482aaa1908cb9a8941c2fd5515d67ffb7c2a9396288a3c4fb4e57ea"
+   }
+  },
+  "tabL07_lowscore_features.tsv.gz": {
+   "rows": 8,
+   "sha256": "3a4e895f4cfa2790fee19c42301add62f931b6111e2f9c0c1e7572ae9557b1b4",
+   "note": "median features, low vs high score",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/lowscore_features.tsv": "4ed34e5f11e3ed48937125f6ccab2699e40f069706ca81fa3e2782bde1b7927d"
+   }
+  },
+  "tabL08_skip_reasons.tsv.gz": {
+   "rows": 5,
+   "sha256": "daf5e85ea8c64136228567629f1dc8c552c7fb692a41c34e0f9c7709a3e18481",
+   "note": "why Prodigal did not call each group",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/skip/skip_reasons.tsv": "8bad923bcbd2e44838e87c036e78684ad8b4454a84377479461f483947a9f565"
+   }
+  },
+  "tabL09_euk_explained.tsv.gz": {
+   "rows": 2,
+   "sha256": "664356a4c30aeeb02c090a4c5e9dfe4b09d054329e0434fefdd311a0c0658194",
+   "note": "eukaryotic best hits by contig class",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/taxonomy/euk_explained.tsv": "943efa2afa95dc41adabae0791fcf511d08eb1ed6e407889df7f699900d3b762"
+   }
+  }
+ },
+ "scripts_commit": "06080b4b6e085554eba3a513eae8a8c4e7ff412a",
+ "logan_root": "/scratch/pawsey1018/edwa0468/Logan"
+}

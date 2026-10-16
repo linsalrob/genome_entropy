@@ -82,7 +82,7 @@ weighted estimate from `41`.
 
 | | published v6 | Setonix re-weighted | **matched (new)** |
 |---|---:|---:|---:|
-| **Bacteria** Swiss-Prot | 23.3% (23.0–23.7) | 9.0% (8.4–9.6) | **10.3% (10.0–10.7)** |
+| **Bacteria** Swiss-Prot | 23.3% (23.0–23.7) | 9.0% (8.4–9.6) | **10.4% (10.0–10.7)** |
 | PDB100 | 23.4% (23.1–23.8) | 8.2% (7.4–8.9) | **9.0% (8.6–9.5)** |
 | CATH50 | 27.0% (26.5–27.5) | 10.7% (9.7–11.6) | **9.9% (9.3–10.5)** |
 | any SP/PDB/CATH | 31.4% | 13.2% | **13.9% (13.4–14.3)** |
@@ -109,7 +109,7 @@ weighted estimate from `41`.
     5,334.
   - Archaea: 19.8 / 21.2 / 26.8%; C3 2,152, C7 748.
 - Sensitivity: drop the with-replacement candidates and their draws.
-  - Bacteria: unchanged (10.3%).
+  - Bacteria: essentially unchanged (10.3%).
   - Archaea: Swiss-Prot 14.0%, CATH 21.7%.
 - C2 (not truncated) now has zero excess by construction. The published
   −26,768 was an artefact of the truncation imbalance, so C2 is a filter,
