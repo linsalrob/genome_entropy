@@ -51,6 +51,5 @@ to redraw a published figure. This is the standing requirement from
    The check runs each notebook in a temporary copy of `manuscript/`, so it
    never writes into the checkout, and works whether a notebook saves through
    `msfig.save()` or directly to `../images/`. Then add or update the panel's
-   rows in `figures_manifest.tsv`. (The first LOGAN and GTDB packages keep
-   their rows in `figures_manifest_{logan,gtdb}.tsv` until the integrator
-   merges them.)
+   rows in `figures_manifest.tsv`. Its `figure` column is the final figure or
+   table number (see `../figure_plan.md`).

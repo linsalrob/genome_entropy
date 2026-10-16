@@ -1,2 +1,0 @@
-figure_id	panel	content	notebook	plotting_data	original_source	producing_pipeline	outputs	main_or_supp_suggested	status
-tabG01	-	encoding determinism: repeat run, encoding size, and cross-platform (Gadi V100 vs Setonix ROCm) agreement of per-ORF 3Di/12-state entropy and MI, 6,284 Inphared ORFs	-	data/tabG01_encoding_determinism.tsv.gz	agent-handoffs@4b81cfb:projects/genome_entropy_logan/inphared_gadi/tables/determinism_50genomes.txt	inphared_gadi/scripts/50_determinism.pbs (PBS 181181761), 50_determinism_compare.py; prep/determinism_prepare_data.py	-	supp table	draft
