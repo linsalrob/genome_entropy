@@ -617,8 +617,12 @@ def provenance_md(data_files: list[str]) -> str:
     lines = []
     for f in data_files:
         o = PROV["outputs"][f]
-        srcs = "; ".join(f"`{Path(s).relative_to(PROV['logan_root']) if s.startswith(PROV['logan_root']) else s}`"
-                         for s in o["sources"])
+        rel = [str(Path(s).relative_to(PROV["logan_root"])) if s.startswith(PROV["logan_root"]) else s
+               for s in o["sources"]]
+        if len(rel) > 5:   # e.g. the 90 histogram shards: summarise, full list with sha256 in the JSON
+            srcs = f"{len(rel)} files under `{Path(rel[0]).parent}/` (each with sha256 in `logan_provenance.json`)"
+        else:
+            srcs = "; ".join(f"`{s}`" for s in rel)
         lines.append(f"- `../data/{f}` ({o['rows']:,} rows; sha256 `{o['sha256'][:12]}…`): {o['note']}. "
                      f"Source on Setonix (`$LOGAN_ROOT`): {srcs or 'see logan_provenance.json'}.")
     return "\n".join(lines)

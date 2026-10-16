@@ -109,7 +109,7 @@ def main() -> int:
                     if n:
                         rows.append((ltxt, feat, cl, round(float(c), 3), int(n)))
     write(pd.DataFrame(rows, columns=["length_bin_aa", "feature", "orf_class", "bin_centre_bits", "count"]),
-          out, "figL01_feature_distributions", [Path(files[0]).parent / "."],
+          out, "figL01_feature_distributions", [Path(f) for f in files],
           f"complete ORFs; counts in 0.01-bit bins, summed over {len(files)} shard histograms (all ORFs)")
     PROV["outputs"]["figL01_feature_distributions.tsv.gz"]["histogram_files"] = len(files)
 
@@ -206,10 +206,14 @@ def main() -> int:
             write(pd.DataFrame({"precision_target": list(t), "score_threshold": list(t.values())}), out, name,
                   [MF / "final_model_thresholds.json"], note)
         else:
-            hdr = [0, 1] if name == "tabL07_lowscore_features" else 0
-            df = pd.read_csv(src, sep="\t", header=hdr)
             if name == "tabL07_lowscore_features":
-                df.columns = ["length_bin"] + [f"{a}_{b}" for a, b in df.columns[1:]]
+                # Two-row header plus an index-name row: read the first column as the
+                # index (as for L10) so the name row does not become a data row.
+                df = pd.read_csv(src, sep="\t", header=[0, 1], index_col=0)
+                df.columns = [f"{a}_{b}" for a, b in df.columns]
+                df = df.rename_axis("length_bin").reset_index()
+            else:
+                df = pd.read_csv(src, sep="\t")
             write(df, out, name, [src], note)
 
     json.dump(PROV, open(out / "logan_provenance.json", "w"), indent=1)
