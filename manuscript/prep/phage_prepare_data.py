@@ -44,7 +44,9 @@ FEATURE_LABEL = {
 
 def write(df, name, sources):
     path = OUT / name
-    df.to_csv(path, sep="\t", index=False, float_format="%.6g")
+    # mtime 0: re-running the prep reproduces each .gz byte for byte.
+    df.to_csv(path, sep="\t", index=False, float_format="%.6g",
+              compression={"method": "gzip", "mtime": 0})
     PROVENANCE[name] = {
         "rows": len(df),
         "sources": {str(s.relative_to(REPO)) if s.is_relative_to(REPO) else str(s):
