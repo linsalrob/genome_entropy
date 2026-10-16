@@ -28,10 +28,14 @@ sha256. Rebuilding a shard that has a manifest is skipped.
 
 --cleanup deletes work/<acc>/ for accessions that are `complete` and whose
 every chunk is recorded in its built shard's manifest, and only when none of
-those shards can still grow: a shard is closed when it holds all 1,000 chunk
-ids, or when --final says no further tranche will add chunks. A shard that
-can still receive chunks keeps its accessions' work directories, because a
-rebuild re-reads their prodigal_genes.tsv.zst. The same tables also travel,
+those shards can still change. A shard is closed when its manifest holds
+every allocated chunk id in its range and no further id can fall into it:
+ids are allocated in order from 1 and never reused (03_plan_chunks.py), so
+that is when the highest allocated id has reached the shard's last id
+(999 for shard 000, which has no id 0; 1999 for 001; ...), or when --final
+says no further tranche will allocate chunks. A shard that can still change
+keeps its accessions' work directories, because a rebuild re-reads their
+prodigal_genes.tsv.zst. The same tables also travel,
 verified, in the remote per-chunk bundles (and prodigal/v1/<acc>/ for the
 pilot).
 
@@ -343,8 +347,16 @@ def build_shard(shard: str, mans: list, procs: int) -> bool:
     return True
 
 
-def cleanup(built: dict, final: bool) -> None:
-    """built: shard -> set of chunk ids recorded in its analysis manifest."""
+def shard_closed(shard: str, built: dict, allocated: dict, max_id: int, final: bool) -> bool:
+    """Whether a shard's table can no longer change (see the module docstring)."""
+    if built.get(shard, set()) != allocated.get(shard, set()):
+        return False                    # allocated chunks not yet in the table
+    return final or max_id >= (int(shard) + 1) * 1000 - 1
+
+
+def cleanup(built: dict, allocated: dict, final: bool) -> None:
+    """built / allocated: shard -> chunk ids in its analysis manifest / on disk."""
+    max_id = max((lc.chunk_number(c) for ids in allocated.values() for c in ids), default=0)
     freed = 0
     for sp in sorted((lc.root() / "state").glob("*.json")):
         st = json.load(open(sp))
@@ -353,7 +365,7 @@ def cleanup(built: dict, final: bool) -> None:
         ids = st.get("info", {}).get("chunks", [])
         if not ids or any(c not in built.get(lc.chunk_shard(c), ()) for c in ids):
             continue
-        if not final and any(len(built[lc.chunk_shard(c)]) < 1000 for c in ids):
+        if not all(shard_closed(lc.chunk_shard(c), built, allocated, max_id, final) for c in ids):
             continue
         wd = lc.work_dir(st["accession"])
         if wd.exists():
@@ -371,8 +383,8 @@ def main() -> int:
     ap.add_argument("--procs", type=int, default=int(os.environ.get("SLURM_CPUS_PER_TASK", 4)))
     ap.add_argument("--cleanup", action="store_true")
     ap.add_argument("--final", action="store_true",
-                    help="no further tranche will add chunks: let --cleanup "
-                         "also clear accessions in partly filled shards")
+                    help="no further tranche will allocate chunks: let --cleanup "
+                         "also clear accessions in the last, partly filled shard")
     args = ap.parse_args()
     if args.selftest:
         return selftest()
@@ -383,7 +395,8 @@ def main() -> int:
     if args.cleanup:
         built = {p.stem: set(json.load(open(p)).get("chunks", []))
                  for p in OUT().glob("*.json")}
-        cleanup(built, args.final)
+        allocated = {s: {m["chunk_id"] for m in ms} for s, ms in by.items()}
+        cleanup(built, allocated, args.final)
     return 0
 
 
