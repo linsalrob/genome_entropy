@@ -21,6 +21,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 OUT = Path(__file__).resolve().parent.parent / "data"
@@ -110,7 +111,129 @@ def prep_g05(repo, gd):
     write(pd.DataFrame(rows), "figG05_prodigal_frame_class.tsv.gz")
 
 
-PREP = {"G04": prep_g04, "G05": prep_g05}
+DOMAINS = (("bacteria", "bac"), ("archaea", "arc"))
+# 3Di bins are (lo, hi], so an ORF exactly at a log2(k) ceiling lands in the bin
+# that ENDS on the ceiling and the edge stays sharp. Width 0.005 makes 1, log2(3)
+# (= 316.99 bins) and 2 fall on or within 0.0001 of a bin edge.
+TDI_W, TDI_MAX = 0.005, 4.4
+PROT_W, PROT_LO, PROT_HI = 0.01, 2.35, 4.35
+# Coarser 2-D grid for the landscape panels; 3Di edges offset so log2(3) is one.
+GRID_P = np.round(np.arange(2.35, 4.35 + 1e-9, 0.02), 4)
+GRID_T = np.round(np.arange(-0.015, 4.40 + 1e-9, 0.02), 4)
+
+
+def right_closed_bin(x, width):
+    """Index i such that x is in (i*width, (i+1)*width]; x == 0 goes to bin 0."""
+    return np.maximum(np.ceil(np.round(x / width, 9)).astype(np.int64) - 1, 0)
+
+
+def prep_g01(repo, gd):
+    """Entropy landscape: binned figure sample, plus full-population band shares."""
+    joint, marg = [], []
+    for dom, tag in DOMAINS:
+        p = gd / f"figure_samples/sample_{tag}.tsv.gz"
+        note(p)
+        d = pd.read_csv(p, sep="\t", dtype={"in_genbank": str, "genome_annotated": str},
+                        usecols=["in_genbank", "protein_entropy",
+                                 "three_di_entropy", "genome_annotated"])
+        # Same restriction as figstyle.load_sample(annotated_only=True).
+        n_all = len(d)
+        d = d[d.genome_annotated == "True"]
+        print(f"    {dom}: {n_all:,} sampled rows, {len(d):,} in CDS-bearing genomes")
+        for cls, sub in (("matched", d[d.in_genbank == "True"]),
+                         ("unmatched", d[d.in_genbank == "False"])):
+            h, _, _ = np.histogram2d(sub.protein_entropy, sub.three_di_entropy,
+                                     bins=[GRID_P, GRID_T])
+            ii, jj = np.nonzero(h)
+            joint.append(pd.DataFrame(dict(
+                domain=dom, cls=cls, protein_lo=GRID_P[ii], three_di_lo=GRID_T[jj],
+                n=h[ii, jj].astype(np.int64))))
+            outside = int(len(sub) - h.sum())
+            t = right_closed_bin(sub.three_di_entropy.to_numpy(), TDI_W)
+            tc = np.bincount(t, minlength=int(round(TDI_MAX / TDI_W)))
+            pr = sub.protein_entropy.to_numpy()
+            pin = pr[(pr > PROT_LO) & (pr <= PROT_HI)]
+            pc = np.bincount(right_closed_bin(pin - PROT_LO, PROT_W),
+                             minlength=int(round((PROT_HI - PROT_LO) / PROT_W)))
+            for alphabet, counts, lo0, w in (("three_di", tc, 0.0, TDI_W),
+                                             ("protein", pc, PROT_LO, PROT_W)):
+                marg.append(pd.DataFrame(dict(
+                    domain=dom, cls=cls, alphabet=alphabet,
+                    bin_lo=np.round(lo0 + np.arange(len(counts)) * w, 4),
+                    bin_hi=np.round(lo0 + (np.arange(len(counts)) + 1) * w, 4),
+                    n=counts, n_class=len(sub),
+                    n_outside_joint_grid=outside)))
+    write(pd.concat(joint, ignore_index=True), "figG01_joint_sample.tsv.gz")
+    write(pd.concat(marg, ignore_index=True), "figG01_marginals_sample.tsv.gz")
+
+    bands = []
+    for dom, tag in DOMAINS:
+        p = gd / f"population_summary/population_entropy_{tag}_bands.tsv"
+        note(p)
+        b = pd.read_csv(p, sep="\t")
+        b = b[b.group.str.startswith("CDS-bearing genomes: ")
+              & b.metric.isin(["three_di", "protein"])].copy()
+        b.insert(0, "domain_name", dom)
+        bands.append(b)
+    write(pd.concat(bands, ignore_index=True), "figG01_population_bands.tsv.gz")
+
+
+ALPHABETS = ("protein", "three_di", "twelve_state")
+MATCHED_STRATUM = 3
+
+
+def prep_g02(repo, gd):
+    """Estimator bias vs biology (mean curves) and calibration of the references."""
+    nd = gd / "entropy_null"
+    note(nd / "entropy_null_quantiles.tsv")
+    null = pd.read_csv(nd / "entropy_null_quantiles.tsv", sep="\t",
+                       usecols=["domain", "alphabet", "aa_length", "mean"])
+    curves = []
+    for dom, tag in DOMAINS:
+        p = nd / f"empirical/length_entropy_{tag}.tsv"
+        note(p)
+        e = pd.read_csv(p, sep="\t", usecols=["stratum", "alphabet", "length_lo",
+                                              "length_hi", "n", "mean"])
+        # As 38_bias_vs_biology.py: matched stratum, 1 aa bins only.
+        e = e[(e.stratum == MATCHED_STRATUM) & (e.length_lo == e.length_hi)]
+        for a in ALPHABETS:
+            ea = e[e.alphabet == a].sort_values("length_lo")
+            r = null[(null.domain == tag) & (null.alphabet == a)].sort_values("aa_length")
+            L = ea.length_lo.to_numpy()
+            curves.append(pd.DataFrame(dict(
+                domain=dom, alphabet=a, aa_length=L.astype(int), n=ea.n.to_numpy(),
+                observed_mean=ea["mean"].to_numpy(),
+                bias_mean=np.interp(L, r.aa_length.to_numpy(), r["mean"].to_numpy()))))
+    write(pd.concat(curves, ignore_index=True), "figG02_mean_curves.tsv.gz")
+
+    zedges = np.linspace(-15, 8, 231)
+    dedges = np.linspace(0, 1, 11)
+    zh, dec, summ = [], [], []
+    for dom, tag in DOMAINS:
+        for a in ("protein", "three_di"):
+            p = nd / f"calibration/scores_{tag}_{a}.tsv.gz"
+            note(p)
+            s = pd.read_csv(p, sep="\t", usecols=["z", "percentile", "emp_z",
+                                                  "emp_percentile"])
+            for ref, zc, pc in (("iid", "z", "percentile"),
+                                ("empirical", "emp_z", "emp_percentile")):
+                z = s[zc].to_numpy()
+                h = np.histogram(z, bins=zedges)[0]
+                zh.append(pd.DataFrame(dict(domain=dom, alphabet=a, reference=ref,
+                                            z_lo=np.round(zedges[:-1], 4),
+                                            z_hi=np.round(zedges[1:], 4), n=h)))
+                o = np.histogram(s[pc].clip(0, 1), bins=dedges)[0]
+                dec.append(pd.DataFrame(dict(domain=dom, alphabet=a, reference=ref,
+                                             decile=np.arange(1, 11), n=o)))
+                summ.append(dict(domain=dom, alphabet=a, reference=ref, n=len(z),
+                                 z_mean=z.mean(), z_sd=z.std(ddof=1),
+                                 n_off_axis=int(((z < zedges[0]) | (z > zedges[-1])).sum())))
+    write(pd.concat(zh, ignore_index=True), "figGS02_z_hist.tsv.gz")
+    write(pd.concat(dec, ignore_index=True), "figGS02_deciles.tsv.gz")
+    write(pd.DataFrame(summ), "figGS02_summary.tsv.gz")
+
+
+PREP = {"G01": prep_g01, "G02": prep_g02, "G04": prep_g04, "G05": prep_g05}
 
 
 def main():
