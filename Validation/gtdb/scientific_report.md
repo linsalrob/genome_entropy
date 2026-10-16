@@ -1207,9 +1207,10 @@ sensible to avoid artefacts. It is not justified by any claim about where the
 signal is concentrated.
 
 The stratified v7 analysis is listed in §11. It needs one design decision
-first: 13.5% of bacterial and 17.9% of archaeal comparator draws come from a
-different genome than their candidate, so the strata must be defined either by
-the candidate's genome or by each arm's own genome.
+first: only 36.7% of bacterial and 26.5% of archaeal comparator draws come from
+the candidate's own genome; the rest come from the same chunk or elsewhere in
+the domain (`matched_comparator.md`). The strata must therefore be defined
+either by the candidate's genome or by each arm's own genome.
 
 #### Examples
 
@@ -1462,10 +1463,10 @@ verification step exceeded the jobfs quota and the cleanup trap fired.
     implied shares per contig-N50 and CheckM2-completeness quartile, weighted
     by draw multiplicity as in `41_comparator_summary.py`. The pre-matching
     strata in `supplementary_analyses.md` §7 cannot stand in for this.
-    Decide first how a stratum is defined. Comparator draws from another
-    genome make up 13.5% (bac) and 17.9% (arc), so a stratum is either the
-    candidate's genome quartile (keeping matched pairs together) or each
-    ORF's own genome quartile (keeping arms internally consistent). This is
+    Decide first how a stratum is defined. Most comparator draws come from
+    another genome than their candidate's (63.3% bac, 73.5% arc), so a stratum
+    is either the candidate's genome quartile (keeping matched pairs together)
+    or each ORF's own genome quartile (keeping arms internally consistent). This is
     aggregation over existing tables (`wanted_v7.tsv`, `best_v7/`,
     `comparator.tsv.gz`, `candidate_burden_*.tsv`); no new search is needed.
 
