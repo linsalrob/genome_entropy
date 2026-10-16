@@ -1191,7 +1191,7 @@ the Prodigal shares below follow the report's larger-background rule.
 
 - **The excess is present at every assembly quality.** It holds in every
   quartile, in both domains and for every database, with every lower CI bound
-  ≥ 3.0%. The C3 and C7 excesses are positive in every stratum. The signal is
+  above 2.9% (smallest 2.97%). The C3 and C7 excesses are positive in every stratum. The signal is
   therefore not confined to fragmented or incomplete assemblies, and it is not
   concentrated in the best ones.
 - **Bacteria: higher shares in poorer assemblies.** On full-length hits in

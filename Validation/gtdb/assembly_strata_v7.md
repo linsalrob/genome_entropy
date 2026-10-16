@@ -68,7 +68,7 @@ The full sensitivity tables, scheme (ii), are in the TSVs.
 ## Reading
 
 1. **The excess is present in every stratum.**
-   - Every share is above zero in every quartile, in both domains, under both assignments and for every database. The smallest lower CI bound is 3.0% under (i) (bacteria, CATH50, completeness Q4) and 3.4% under (ii) (archaea, Swiss-Prot, completeness Q1).
+   - Every share is above zero in every quartile, in both domains, under both assignments and for every database. The smallest lower CI bound is 2.97% under (i) (bacteria, CATH50, completeness Q4) and 3.38% under (ii) (archaea, Swiss-Prot, completeness Q1).
    - The C3 and C7 excesses are positive in every stratum. The smallest C7 excess is 419 in bacteria and 44 in archaea under (i); in archaea it falls to 11 under (ii).
    - The candidate signal is therefore not confined to any range of assembly quality, and in particular it is not concentrated in the best assemblies.
 2. **Bacteria: on the combined readout the share is higher in poorer assemblies.**
