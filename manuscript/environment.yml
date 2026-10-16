@@ -1,0 +1,29 @@
+# Environment for every notebook under manuscript/notebooks/.
+# Notebooks redraw figures from the plotting-ready data in manuscript/data/
+# only; nothing here is needed to run genome_entropy itself.
+#
+#   mamba env create -f manuscript/environment.yml -p <prefix>
+#   jupyter nbconvert --to notebook --execute --inplace manuscript/notebooks/<nb>.ipynb
+#
+# JupyterLab is deliberately absent: install it alongside if you want to
+# edit interactively. Add a dependency only after raising it on agent-handoffs#24.
+name: genome_entropy_manuscript
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  # Exact pins: byte-for-byte figure checks only hold on identical
+  # matplotlib/freetype builds. These are the versions the first LOGAN (#117)
+  # and GTDB (#118) packages were rendered with.
+  - python=3.12.15
+  - numpy=2.5.4
+  - pandas=3.0.6
+  - matplotlib=3.11.2
+  - seaborn=0.13.2
+  - scipy
+  - pyarrow
+  - nbformat=5.11.1
+  - nbconvert=7.17.2
+  - nbclient
+  - ipykernel
+  - nbstripout
