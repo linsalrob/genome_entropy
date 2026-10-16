@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -N ge_strata7
+#PBS -q normal
+#PBS -P ob80
+#PBS -l ncpus=1
+#PBS -l mem=16GB
+#PBS -l walltime=00:30:00
+#PBS -l storage=gdata/ob80
+#PBS -l wd
+#PBS -j oe
+#
+# 43_assembly_strata_v7.py for both domains (report §11 item 12, decision D15).
+# 41_comparator_summary.py peaked at 6.7 GB on bacteria; 16 GB leaves headroom.
+#
+#   qsub -o <log> 43_assembly_strata_v7.pbs        (from Validation/gtdb/scripts)
+
+set -euo pipefail
+cd "${PBS_O_WORKDIR}"
+ENV_PREFIX="${ENV_PREFIX:-/g/data/ob80/re3494/conda/genome_entropy}"
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate "${ENV_PREFIX}"
+MG=/g/data/ob80/re3494/gtdb_entropy/missed_genes
+OUT=../matched_comparator
+for dom in arc bac; do
+  if [ "$dom" = bac ]; then RUN=full_bac; else RUN=pilot_arc; fi
+  python3 -u 43_assembly_strata_v7.py --domain "$dom" --mc "$MG/matched_clean/$dom" \
+      --v6-wanted "$MG/$RUN/wanted.tsv" \
+      --prodigal "$MG/$RUN/prodigal_v7_${dom}.coincidence.tsv.gz" \
+      --burden "$MG/candidate_burden_${dom}.tsv" \
+      --published "$OUT/${dom}_v7_matched.tsv" \
+      --out "$OUT/assembly_strata_v7_${dom}.tsv"
+done

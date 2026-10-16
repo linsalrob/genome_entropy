@@ -1162,19 +1162,60 @@ top ten covering 10.0%.
 
 #### Where the separation lives
 
-Stratifying the archaeal coverage contrast by assembly quality shows the
-candidate-versus-shadow separation is **not uniform across genomes**. In the top
-contig-N50 quartile candidates reach 43.5% against shadows at 32.6% — an
-11-point gap — while in the bottom quartile the two are indistinguishable
-(65.8% against 65.5%).
+**Corrected (2026-10-16); the earlier version of this paragraph is
+withdrawn.** It reported that in archaea the candidate-versus-shadow contrast
+appears only in the best assemblies: 43.5% against 32.6% in the top contig-N50
+quartile, and indistinguishable (65.8% against 65.5%) in the bottom quartile.
+From this it concluded that high-N50 genomes are "where the signal demonstrably
+is". Those numbers are reproduced exactly, but they use the **any-hit** readout
+against **all** shadows, both of which §6.1 rejects above.
 
-This argues *against* the separation being an assembly artefact: an artefact of
-fragmentation would appear most strongly in the worst assemblies, and it appears
-only in the best. It also gives a positive reason to draw manuscript examples
-from high-completeness, high-N50 genomes — not merely to avoid artefacts, but
-because that is where the signal demonstrably is. A candidate in a poorly
-assembled genome carries little evidential weight however good its structural
-hit.
+- Same-frame shadows hit at about 90%, and so do contig-truncated shadows.
+- Both are concentrated in fragmented assemblies, which inflates the shadow
+  rate in exactly the quartile where the contrast seemed to vanish.
+- On the same readout, bacteria show no top-quartile contrast at all (40.3%
+  against 41.8%).
+
+**What the matched comparator shows instead** (decision D15, details and
+full tables in [`assembly_strata_v7.md`](assembly_strata_v7.md)). The v7
+estimate was recomputed within contig-N50 and CheckM2-completeness quartiles,
+using exactly the `41_comparator_summary.py` computation, and an unstratified
+row reproduces all 51 published metrics. Strata follow the candidate's genome,
+so matched pairs stay together. Placing every ORF by its own genome instead
+changes individual cells by up to 3.3 points (bacteria) and changes no trend.
+
+- **The excess is present at every assembly quality.** It holds in every
+  quartile, in both domains and for every database, with every lower CI bound
+  ≥ 3.0%. The C3 and C7 excesses are positive in every stratum. The signal is
+  therefore not confined to fragmented or incomplete assemblies, and it is not
+  concentrated in the best ones.
+- **Bacteria: higher shares in poorer assemblies.** On full-length hits in
+  any of Swiss-Prot, PDB100 or CATH50, the share falls from 17.4% to 10.3%
+  across N50 quartiles and from 19.9% to 9.0% across completeness quartiles.
+  - Swiss-Prot alone shows no N50 trend (9.2–12.1%). The pre-matching decline
+    (28% to 20%) was the comparator imbalance.
+  - Swiss-Prot alone falls from 14.2% to 7.8% across completeness quartiles,
+    half the pre-matching magnitude.
+- **Archaea:** no monotonic trend; the confidence intervals are about ±5
+  points.
+- **The Prodigal share falls steeply with assembly quality in both domains:**
+  bacteria from 44.8% to 31.1% across N50 quartiles, archaea from 47.0% to
+  32.6%.
+
+So the pooled estimate is not an artefact of poor assemblies: the excess
+persists in the top N50 and completeness quartiles. Why bacterial shares and
+Prodigal agreement are higher in poorer assemblies is not resolved. Two
+explanations remain:
+
+- assembly-driven false signal that matching does not remove;
+- less complete GenBank annotation of lower-quality genomes, which leaves more
+  real genes to find.
+
+These data cannot separate them (§11 item 9 could).
+
+Drawing manuscript examples from high-completeness, high-N50 genomes remains
+sensible to avoid artefacts. It is not justified by any claim about where the
+signal is concentrated.
 
 #### Examples
 
@@ -1422,6 +1463,11 @@ verification step exceeded the jobfs quota and the cleanup trap fired.
 11. **modernprost-50M versus ProstT5** 3Di comparison. Framed in the first draft
     as the validation that decides everything; the shuffled-3Di null has since
     done that job directly, so this is characterisation rather than a gate.
+12. ~~**Stratify the v7 matched-comparator estimate by assembly quality**~~
+    **Done (2026-10-16)**: [`assembly_strata_v7.md`](assembly_strata_v7.md),
+    `scripts/43_assembly_strata_v7.py`, decision D15. Strata follow the
+    candidate's genome, with each ORF's own genome as a sensitivity check.
+    Findings are summarised in §6.1, "Where the separation lives".
 
 ### Upstream reports (not yet filed — both would post publicly)
 

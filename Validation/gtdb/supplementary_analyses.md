@@ -345,6 +345,8 @@ unaffected by this point (but see §8).
 
 ## 7. Item 6: assembly-quality stratification (N50, CheckM2), both domains
 
+> **Superseded for the clean-comparator readout (2026-10-16).** The shares below use the clean comparator *before* re-matching. The v7 matched-comparator strata, on the same quartile edges, are in [`assembly_strata_v7.md`](assembly_strata_v7.md). In particular, the bacterial Swiss-Prot decline with N50 shown here does not survive re-matching.
+
 ![Assembly-quality stratification by N50 and CheckM2 completeness](figures/supp_assembly_strata.png)
 
 The published table (`18_pilot_analysis.py`) uses quartiles over pooled query

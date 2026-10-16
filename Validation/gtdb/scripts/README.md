@@ -125,6 +125,7 @@ combined.
 | `40_match_clean_comparator.py/.pbs` | draws a clean (antisense + frameshift) comparator matched 1:1 to the candidates on truncation, length and 3Di; writes `wanted_v7.tsv` and the not-yet-searched `to_search.tsv` |
 | `42_merge_best.py` | best-hit tables for `wanted_v7.tsv` from the published search plus the new one |
 | `41_comparator_summary.py/.pbs` | mixture shares, ladder floors and Prodigal share against a comparator, weighted by draw multiplicity; reproduces v6/ranked5/prodigal_*4 with `--comparator context-clean` |
+| `43_assembly_strata_v7.py/.pbs` | the 41 summary within contig-N50 and CheckM2-completeness quartiles (§7 edges), strata by candidate genome or by own genome; an unstratified row must reproduce `<dom>_v7_matched.tsv`; see [`../assembly_strata_v7.md`](../assembly_strata_v7.md) |
 
 `17_pilot_search.pbs` takes `NULL=0` to skip the candidate-only shuffled null for
 a comparator-only query set.
