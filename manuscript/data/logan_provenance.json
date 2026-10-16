@@ -1,0 +1,222 @@
+{
+ "outputs": {
+  "figL01_feature_distributions.tsv.gz": {
+   "rows": 9391,
+   "sha256": "581972d4537555de9102f5bcc3338bb1f90a49d507f7abce31104f7e72d0e308",
+   "note": "complete ORFs; counts in 0.01-bit bins, summed over 90 shard histograms (all ORFs)",
+   "sources": {},
+   "histogram_files": 90
+  },
+  "figL02_models_overall.tsv.gz": {
+   "rows": 28,
+   "sha256": "4350f8ec90fd73b819f72accc70ddb2d2970f97562145416bc3c199e7c87741b",
+   "note": "AUC / AP \u00b1 fold SD, nested feature sets, 4 contrasts",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/models_overall.tsv": "fed049364951712116c12b23f1ceef311262696cba5fd3345fdac5bfbb906b36"
+   }
+  },
+  "figL03_models_by_length.tsv.gz": {
+   "rows": 217,
+   "sha256": "241f3c61a0a6fe8a8b4bded24daae9377ff5dc1a0658186226615e8317cababa",
+   "note": "within-bin AUC of out-of-fold scores; sampled_pos/neg counted from 90 sample shards",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/models_by_length.tsv": "b5a9e81a0b24f11b3e44797494c65913a3af460c324a5faeba0e91db7ab0fe32"
+   }
+  },
+  "figL04_fragments.tsv.gz": {
+   "rows": 4,
+   "sha256": "f2938973c38d39cedc32d128c57f539dd63b6ba523e3f6d83ec1d7af30870918",
+   "note": "complete-ORF model applied to contig-end fragments",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/models_truncated.tsv": "0642bd4e786efcf4730fc0115d3b1c72143f5252bfe5f8b2f3722a9daaf1bf68"
+   }
+  },
+  "figL05_six_frame_inheritance.tsv.gz": {
+   "rows": 25,
+   "sha256": "7bd4bfbe4dc27a654f1aee07578e6461da033a14fb62775ea598fe832a4b07a3",
+   "note": "Spearman rho, selected vs each alternative frame",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/six_frame_final/inheritance.tsv": "2d88a1746d5eff6452acf1ecc75e5cdbb23a736702948cc94438cfdc9300752f"
+   }
+  },
+  "figL05_six_frame_discrimination.tsv.gz": {
+   "rows": 10,
+   "sha256": "fdfaf51e8d067058310f61e3036c5f061e8f492c23d6ee9950cadb012f1a9397",
+   "note": "tie-aware top-k rates and chance",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/six_frame_final/discrimination.tsv": "23f82e12cd08efd4c80ffa4e01776534927fd6d89d1c2f72450a7488f3b83a65"
+   }
+  },
+  "figL05_six_frame_delta.tsv.gz": {
+   "rows": 600,
+   "sha256": "76589b3cfe6ebd1a63dba835a601956276a7336db02feb0b74a183e03e92f3aa",
+   "note": "histogram of \u0394 (selected \u2212 median of 5 alternatives), central 99%, 120 bins; genes with all 5",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/six_frame_final/delta_sample.parquet": "c0aad135fc386c77f769c31524a2809ac662e29079d7acb19053915398705349"
+   }
+  },
+  "figL06_evidence_rates.tsv.gz": {
+   "rows": 90,
+   "sha256": "d9c1154ad24fd841895c4a2a34444f59a9d9085bc153d98730f1cd776a69ed41",
+   "note": "hit and full-length (qcov,tcov>=0.8) rates by arm, mode and database (five DBs)",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/evidence_rates.tsv": "c8397e40575278b176549b9093cd3610df077f503bb13f1acdec851bed9c14c0",
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/evidence_rates.tsv": "1dae015208a07930ee4dd1948d2e20c429e41361db7a13e5f8a4a643bcca877c"
+   }
+  },
+  "figL07_evidence_by_length.tsv.gz": {
+   "rows": 16,
+   "sha256": "836d04fa3fd72ddba3abd37e735709e68f938bbbf61345b84231395ac88ea9bb",
+   "note": "full-length structural rate by arm and length bin",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/evidence_by_length.tsv": "85de6719de6a89a51e37d5a345641ac1199401db97891dcdd861fb061ddcba7a"
+   }
+  },
+  "figL07_evidence_classes.tsv.gz": {
+   "rows": 4,
+   "sha256": "0dc7efa493c8665e933415b366edaaadf5899360f36962daf2a59d5de2032a0a",
+   "note": "share of queries in each full-length evidence class",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/evidence_classes.tsv": "2fc854b0c75c059e865f8dce4c73f6669c8f022cd9458321b6820e0194f25d36"
+   }
+  },
+  "figL07_hit_biome.tsv.gz": {
+   "rows": 52,
+   "sha256": "50d6cab79ff747bb1a5100aa26959d65eeae525c4b9e8d806c3c73e29076fdba",
+   "note": "full-length structural hit rate and best-target superkingdom by arm and biome",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/hit_biome.tsv": "66cf8d5b4b5028162f4f084810f7d904627176554cf0246833158a08e9118436"
+   }
+  },
+  "figL08_contig_group_by_arm.tsv.gz": {
+   "rows": 4,
+   "sha256": "9b29a817b922606297c6b84fa73a4eb9cb423a42c1f206f686a345132e34b1fe",
+   "note": "Kraken2 (PlusPFP) class of each query's contig, share by arm",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/taxonomy/contig_group_by_arm.tsv": "32e67983fff6d4e0e63cbe4292064e98589c1635be12aedc26494fb691abb456"
+   }
+  },
+  "figL08_hit_vs_contig.tsv.gz": {
+   "rows": 103,
+   "sha256": "9f07f85355559a2bdabb1c9ea9e6ba435f1ec2b5995fa439df8fbdb66401fe45",
+   "note": "queries with a full-length hit: best-target group x contig group",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/taxonomy/hit_vs_contig.tsv": "bb4b249af4e89d26ebb23c11e4c4ec07f0376ab6daf5051d81df82b8c4e5290a"
+   }
+  },
+  "figL09_prodigal_skip.tsv.gz": {
+   "rows": 52834,
+   "sha256": "e096bf02c944f4e2b48d4a1bf3930763f5a612cbc1988097b203e3a07c71be01",
+   "note": "Prodigal -s best potential gene at each query stop; one row per query",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/skip/skip_features.parquet": "2c827225b90acb9fe580dc30e6ffb89753f5ad4cbbc272821f16817c18190c4d"
+   }
+  },
+  "figL10_lowscore_population.tsv.gz": {
+   "rows": 9,
+   "sha256": "3e42feb41e60300a25fb62af4e1b3ade33143bf458c0ad3cc36f7ab9e3fa473a",
+   "note": "share of complete Prodigal genes below t0.80, by length",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/lowscore_population.tsv": "a37438f59b533900e3ef44a6f15811f640464b103f1b1fcf81adfe12d37e11e0"
+   }
+  },
+  "figL10_lowscore_evidence_by_length.tsv.gz": {
+   "rows": 8,
+   "sha256": "162f36ea61fc7178c7631fc9e5b9e624094f348bf47b2db4b2eefd4467422312",
+   "note": "low- vs high-score Prodigal genes, length-matched",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/lowscore_evidence_by_length.tsv": "6356db19ba37ab837d6b0f164da6349813a7efb45e55fc164591394a6b9e22e2"
+   }
+  },
+  "figL10_all_arms_evidence.tsv.gz": {
+   "rows": 8,
+   "sha256": "85ec60c0bfb194f6a9f206d1cbe062cff9adb3bf4596f2c58f14d8df02b5f43f",
+   "note": "hit / full-length rates of every arm over all five databases",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/all_arms_evidence.tsv": "d51908ef35bab9b25ff8e4d4fd27803cfec314c58065960af79733b8bde7ac11"
+   }
+  },
+  "figLS1_biome_batch_separation.tsv.gz": {
+   "rows": 864,
+   "sha256": "f272a047da376f6bcdd1ae6ae443a0bbf96d55cf7e59a197b4fa3a8ee6d2a638",
+   "note": "exact AUC by biome / tranche and length bin (15b_biome_batch_figure.py)",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/biome_batch_separation.tsv": "1fe4cec496e26aefcb7be3f7f4aaa02b42f2990478bbf3606f2099be2533fc12"
+   }
+  },
+  "tabL01_orf_classes_by_truncation.tsv.gz": {
+   "rows": 8,
+   "sha256": "7ef5a814af014ba0eed12b1bb5160f5b26dfdf025ae2ae08d875043e689a4212",
+   "note": "ORF classes x truncation, all 89.99 B ORFs",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/class_by_truncation.tsv": "4d5fcd79fa3279fb1eebe24806b69002484229d47199ac05157da6a94a46c09b"
+   }
+  },
+  "tabL02_single_feature_overall.tsv.gz": {
+   "rows": 20,
+   "sha256": "2747b9e14034efa7a33075545567cb111715dbc7dd4b00a160b39f72802fc7e6",
+   "note": "exact single-feature AUC/AP",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/separation_overall.tsv": "06f0978880958553978f3d1a161d4cc014dac7ec38e53054540a54bd16635dc4"
+   }
+  },
+  "tabL03_single_feature_by_length.tsv.gz": {
+   "rows": 180,
+   "sha256": "75c1175c1bffbb5b38fe312def86e9e698ea13bd202cbdacd0cea9a55878b600",
+   "note": "within length bins",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_final/separation_by_length.tsv": "353bbd1d0dc075cefd9da6b033247457eee79109dfe28b31cf85972b57847f3f"
+   }
+  },
+  "tabL04_final_model_thresholds.tsv.gz": {
+   "rows": 4,
+   "sha256": "52099a1c4cbb547240ef7e1ebcb764415a0f0764393f2010ad60d3413dbb9199",
+   "note": "out-of-fold score thresholds by target precision",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/analysis_models_final/final_model_thresholds.json": "7410250c6e61a183001203f70a620c84cb426cb1fd0091cb842b2bf827e5e94f"
+   }
+  },
+  "tabL05_candidate_counts.tsv.gz": {
+   "rows": 48,
+   "sha256": "ce2be62a8275436919d6504b17e4de9317c2bdcb6e4a34c8f412c416019ee3e5",
+   "note": "intergenic ORFs >=100 aa above each threshold",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/candidate_counts.tsv": "c84c59905fe9a4fb403bd70cab6afd4ea96500ba10af37f5984b916a5ac07cff"
+   }
+  },
+  "tabL06_evidence_by_truncation.tsv.gz": {
+   "rows": 11,
+   "sha256": "e3edaf2dd3a55e5dd3f9811e8fe5a2e1b2ce9ca41a4b885f7c50ff182a1a9fd6",
+   "note": "full-length evidence by arm and truncation",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/evidence_by_truncation.tsv": "292a26418482aaa1908cb9a8941c2fd5515d67ffb7c2a9396288a3c4fb4e57ea"
+   }
+  },
+  "tabL07_lowscore_features.tsv.gz": {
+   "rows": 9,
+   "sha256": "951c9f47bfeedcf22afd324b6374675d07748cb74a9ee99d3a8171d75b7d60d0",
+   "note": "median features, low vs high score",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates_extra/lowscore/lowscore_features.tsv": "4ed34e5f11e3ed48937125f6ccab2699e40f069706ca81fa3e2782bde1b7927d"
+   }
+  },
+  "tabL08_skip_reasons.tsv.gz": {
+   "rows": 5,
+   "sha256": "daf5e85ea8c64136228567629f1dc8c552c7fb692a41c34e0f9c7709a3e18481",
+   "note": "why Prodigal did not call each group",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/skip/skip_reasons.tsv": "8bad923bcbd2e44838e87c036e78684ad8b4454a84377479461f483947a9f565"
+   }
+  },
+  "tabL09_euk_explained.tsv.gz": {
+   "rows": 2,
+   "sha256": "664356a4c30aeeb02c090a4c5e9dfe4b09d054329e0434fefdd311a0c0658194",
+   "note": "eukaryotic best hits by contig class",
+   "sources": {
+    "/scratch/pawsey1018/edwa0468/Logan/qc/candidates/taxonomy/euk_explained.tsv": "943efa2afa95dc41adabae0791fcf511d08eb1ed6e407889df7f699900d3b762"
+   }
+  }
+ },
+ "scripts_commit": "06080b4b6e085554eba3a513eae8a8c4e7ff412a",
+ "logan_root": "/scratch/pawsey1018/edwa0468/Logan"
+}

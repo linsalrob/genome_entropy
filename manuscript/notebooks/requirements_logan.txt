@@ -1,0 +1,7 @@
+# tested with Python 3.12.15 (conda-forge); notebooks executed with nbconvert in a clean env
+pandas==3.0.6
+numpy==2.5.4
+matplotlib==3.11.2
+seaborn==0.13.2
+nbformat==5.11.1
+nbconvert==7.17.2
