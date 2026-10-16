@@ -28,14 +28,14 @@ This file records, for each dataset in the paper, where the inputs and outputs l
 
   The matcher was fixed in 2cc0e1a (2026-07-31), in 0.2.0. Runs before that fix mislabel minus-strand genes. LOGAN does not use this matcher; its labels come from Prodigal (`Validation/logan/README.md`).
 - **Entropies.** Plug-in Shannon entropy (bits) of the amino-acid sequence, the 20-state 3Di string and the 12-state reduced alphabet, plus 3Di–12-state mutual information. DNA entropy is computed but carries no signal (GTDB §4.1). Plug-in entropy is biased with length (#101; `Validation/gtdb/scientific_report.md` §4.2).
-- **3Di encoder.** `gbouras13/modernprost-50M`, a sequence-only 3Di predictor. Its revision is recorded as `2d68d506` for LOGAN and smORFs, and was not recorded for GTDB or phage.
+- **3Di encoder.** `gbouras13/modernprost-50M`, a sequence-only 3Di predictor. Revision `2d68d506d4ce8d59025c985fd00243a8860363c6` for LOGAN (recorded in all 89,994 chunk manifests), smORFs, and GTDB (recovered: the only snapshot ever present in Gadi's offline `hf_cache`, used with `HF_HUB_OFFLINE=1`). Not recorded for the Setonix phage runs.
 
 ## 2. Configuration per dataset (Table 1 source; decision D9)
 
 | dataset | genomes / samples | ORFs | ORF floor | labels | package | encoding size | hardware |
 |---|---|---|---|---|---|---|---|
-| GTDB r232 | 189,715 bac encoded (of 189,801) + 10,122 arc | 2,568,244,984 + 54,858,398 | 90 aa | deposited GenBank CDS | 0.2.0 (exact build unknown), schema 2.2.0 | 10,000 | Gadi V100-SXM2-32GB (`gpuvolta`) |
-| LOGAN | 50,009 metagenomes | 89,991,549,208 | 30 aa | Prodigal 2.6.3 `-p meta` | 0.3.0 library + wrapper | 10,000 (default; unstated in the LOGAN draft) | Setonix MI250X, 8 GCD × 4 workers |
+| GTDB r232 | 189,715 bac encoded (of 189,801) + 10,122 arc | 2,568,244,984 + 54,858,398 | 90 aa | deposited GenBank CDS | v0.2.0 (`90c8c15`; inferred from install and clone times, not logged), schema 2.2.0; `entropy_rows/` re-tabulated with 0.3.0 (no re-encoding) | 10,000 | Gadi V100-SXM2-32GB (`gpuvolta`) |
+| LOGAN | 50,009 metagenomes | 89,991,549,208 | 30 aa | Prodigal 2.6.3 `-p meta` | 0.3.0 at `750e2b92` (clean tree) + wrapper; recorded in every chunk manifest | 10,000 (every chunk manifest) | Setonix MI250X, 8 GCD × 4 workers |
 | GMSC smORFs | — | 43,726,909 | n/a (10–99 aa) | GMSC curated pos/neg | 0.3.0 | **50,000** | Gadi V100 |
 | Phage MI (Setonix) | 36,025 | 6,754,361 | 90 aa | v2 relabel (#108) | ≈0.2.0, schema 2.2.0 | **20,000** | Setonix ROCm fp16 |
 | Phage ranking (Setonix) | 31,200 (49 of 361 parts lack JSON) | 5,887,690 | 90 aa | corrected relabel (#110) | ORFs from v0.1.15 | 20,000 | Setonix ROCm |
@@ -119,7 +119,8 @@ This file records, for each dataset in the paper, where the inputs and outputs l
 ## 4. Gaps to close before submission
 
 1. **Phage annotation tool versions:** Pharokka, phold and Pyrodigal-gv. Owner: Setonix.
-2. **GTDB exact package build and model revision:** recorded as unknown. State this as unrecoverable, or recover it from Gadi environment logs. Owner: Gadi.
-3. **LOGAN encoding size:** confirm the default (10,000) from the run configuration. Owner: LOGAN agent.
-4. **OM869708 BLASTP:** re-run and commit. Owner: Setonix.
+2. ~~GTDB package build and model revision~~ **Recovered** (Gadi, #24): model `2d68d506…` (certain); package v0.2.0 (`90c8c15`, strong inference). State the package version as inferred.
+3. ~~LOGAN encoding size~~ **Confirmed** (LOGAN agent, #24): 10,000; 0.3.0 at `750e2b92`; model `2d68d506…`, in all 89,994 chunk manifests.
+4. ~~OM869708 BLASTP~~ **Done** (#122, `figP01_om869708_blastp.tsv.gz`).
+6. **Archive checksums:** tarballs built with GNU tar ≥1.30 default to PAX headers, which carry atime and ctime, so checksums don't reproduce. Use `--format=gnu` and normalised modes (LOGAN agent, #24; applies to R1–R4). Owner: Gadi.
 5. **Teams copies:** the LOGAN 16 October results (owner: LOGAN agent), and #101/#107/#109/#110 outputs if they are to be archived (owners: Gadi, Setonix).

@@ -50,7 +50,7 @@ current text are in [`manuscript_audit.md`](manuscript_audit.md).
 | G-14 | Convergence | strict set Prodigal-confirmed: 91.8% (21,617 / 23,540) bac, 95.9% (1,509 / 1,574) arc | GR §6.1 | G05 | absent |
 | G-15 | What the missed genes are | strict set: metabolism 33.8% / 41.3%, mobile elements 13.6 / 11.8%; 8,065 distinct Swiss-Prot products | GR §6.1 | G06 | absent |
 | G-16 | Examples | Cas5 completing a type I CRISPR–cas operon; SusC completing a PUL; 8 others. "RecF" should read "RecF/Rad50-family ABC ATPase" and is not used in a figure | GR §6.1; dossiers on Gadi/Teams | G06 | absent |
-| G-17 | Assembly quality | **The candidate excess exists at every N50 quartile.** In bacteria the implied share *declines* with N50 and completeness (28% → 20%; 32% → 17%); in archaea it is roughly flat. Prodigal agreement shows the same pattern. Computed with the full-length readout and the clean (unmatched, #107) comparator; not re-run with the matched comparator. **GR §6.1 "Where the separation lives" (43.5% vs 32.6%) is an artefact of the any-hit / all-shadow readout and is withdrawn** (asked of Gadi on #24) | `Validation/gtdb/supplementary_analyses.md` §7 (l.380–404) | GS* | absent |
+| G-17 | Assembly quality | **Open.** The v7 pooled estimate (G-9, G-10) is unaffected. Whether the excess holds in every N50/completeness quartile, and whether it declines with assembly quality in bacteria, is **untested under the matched comparator**: the quartile tables in `supplementary_analyses.md` §7 (excess in every quartile; bacterial share 28% → 20% with N50) predate the v7 re-matching, which moved the pooled bacterial share from 23.3% to 10.4%, and nothing guarantees the correction is uniform across strata. A fragmentation contribution is not excluded. The 43.5% vs 32.6% high-N50 claim is withdrawn (#128). Re-stratifying v7 is report §11 item 12, pending the design choice in D15 | GR §6.1 as revised in #128; `supplementary_analyses.md` §7 | GS* | absent; do not claim either way |
 | G-18 | Encoding failures | 39 genomes (0.021%) OOM on pathological ORFs (48k–766k aa); fixed by `--max-aa` (#112, 0.4.0) | GR §7 | Methods | absent |
 
 ## 2. LOGAN metagenomes (LOGAN agent; packages L01–L10, LS1, tabL01–09)
@@ -61,7 +61,7 @@ current text are in [`manuscript_audit.md`](manuscript_audit.md).
 | L-2 | ORF classes | antisense 47.55%, frameshift 26.97%, intergenic 8.71%, complete Prodigal+ 0.98% (881,348,601), partial 14.54%; ~59% open at a contig end | LMS:306–316; S3 | Table 2 | ✓ text; **stale** Table 2 (partial-shard) |
 | L-3 | Length is a strong baseline | length AUC 0.964 / AP 0.58 overall | S1, S2 | L01 | ✓ (qualitative) |
 | L-4 | Structure beyond length | within 100–149 aa: 3Di 0.896, aa 0.805, MI 0.902; 150–199: 0.960; 200–299: 0.988 | LMS:332–336 | L03 | numbers dropped; restore |
-| L-5 | Nested models | AP 0.582 (length) → 0.860 (+3Di) → 0.880 (all), fold SD ≤0.002. Antisense negatives 0.632 → 0.877 / 0.899 (**check S4**: +3Di vs all features) | LMS:44–45, 396–410; S4 | L02 | absent (numbers) |
+| L-5 | Nested models | AP 0.582 (length) → 0.860 (+3Di) → 0.880 (all), fold SD ≤0.002. Antisense negatives: length 0.632 → length + 3Di **0.877** → all features 0.899 (S4; LOGAN agent, #24) | LMS:44–45, 396–410; S4 | L02 | absent (numbers) |
 | L-6 | Model sample | 11.7 M ORFs (9.5 M complete) from all 90 shards | LMS:264–265 | Methods | **stale** ("8.2 M, 61 shards") |
 | L-7 | Fragments | 5′-open AUC 0.791 / AP 0.559; 3′-open 0.854 / 0.751 | LMS:433–438 | L04 | ✓ |
 | L-8 | Six-frame specificity | 8.82 M genes, 5,722,417 loci; 3Di ranks the Prodigal frame first in **92.4%** (12-state 91.3, length 80.9, aa 81.8, chance 16.7); median Δ 1.99 bits | LMS:452–493; S8 | L05 | **stale** (92.5%; 7.74 M) |
@@ -86,7 +86,7 @@ current text are in [`manuscript_audit.md`](manuscript_audit.md).
 | P-4 | Candidates | 46,132 putative missing ORFs; 4,102 replacement pairs | IR:29–30 | P02, P05 | absent |
 | P-5 | Foldseek validation | full-length, 4 DB / non-viral: annotated 64.6 / 18.0%, candidates 33.8 / 6.1%, shuffled 0.015 / 0%; real-gene share ~51% (4 DB) / ~34% excluding BFVD | IR:34–41, 266–279 | P02 | absent |
 | P-6 | OM869708 (*Dipodfec virus* RodF1_38) | ORF3 (+, 335 aa, 3Di 2.98) p **0.889**; re-annotation CDS_0007 = ORF7 p **0.175**; replacement 179 / 4,102. The submitters annotated ORF3's gene as a replication initiator (UPW42009.1, 4753..5730), and Pharokka + phold dropped it. BLASTP: top hit is the genome's own record (not independent); next hits are microvirus replication initiators at 43–55% identity (E ≤ 2 × 10⁻¹²⁷); ORF7 has no hit (D7) | `work/phage_rank`, NCBI record, BLASTP job 50987603; #122 `figP01_om869708_*` | P01d | **stale** (0.91 / 0.27; "independent" BLAST hit is self) |
-| P-7 | Phage vs bacteria | matched phage CDS sit 0.20–0.34 bits below matched bacterial CDS in 3Di, in every length bin (cause untested, D11) | IG:112–117 | P04 | absent |
+| P-7 | Phage vs bacteria | matched phage CDS sit below matched bacterial CDS in 3Di in every length bin: 0.24, 0.34 and 0.20 bits in the bins below 600 aa, but only **0.09 bits at 600–999 aa**. The earlier "0.20–0.34 in every bin" used a "≥600 aa" bin that lumped in ORFs ≥1,000 aa (Gadi, #131). Cause untested (D11) | IG:112–117; #131 | P04 (#131) | absent |
 | P-8 | Determinism | Gadi repeat run bit-identical; 10k vs 20k encoding moves 0.3–0.7% of ORFs by <0.08 bits; Gadi vs Setonix p99 0.31 bits, r 0.997, class means ±0.01 | IG §5 | supp table | absent |
 | P-9 | Phage ORF floor | effective 90 aa: 28.8% of annotated phage genes invisible (D6) | IR:73–78; #103 | Methods | absent |
 
@@ -114,7 +114,9 @@ current text are in [`manuscript_audit.md`](manuscript_audit.md).
 | GTDB v6 real-gene shares 23–36%, ~128–149k, C3 ~65.8k, C7 ~20,350, Prodigal ~244k / 1.7× | G-9 to G-13 | clean comparator was unmatched after the frame filter (#109) |
 | GTDB first-draft 3,562,431 candidates, "candidates and shadows indistinguishable" | G-8 | coordinate defect; `in_genbank` used as an annotation proxy |
 | GTDB 20-chunk figures (`figures/superseded_20chunk/`) | G01 | sample |
-| "The signal is in high-N50 genomes" (archaea 43.5% vs 32.6%, GR §6.1) | G-17 | any-hit readout with all shadows; same-frame and truncated shadows concentrate in fragmented assemblies |
+| "The signal is in high-N50 genomes" (archaea 43.5% vs 32.6%, GR §6.1) | G-17 | any-hit readout with all shadows; same-frame and truncated shadows concentrate in fragmented assemblies (withdrawn, #128) |
+| "Excess in every N50 quartile, declining with N50" as an established result | G-17 (open) | strata predate the v7 re-matching (#128) |
+| Phage 3Di gap "0.20–0.34 bits in every length bin" | P-7 | top bin mixed 600–999 aa with ≥1,000 aa |
 | Bacterial Swiss-Prot share 10.3% | 10.4% | rounding (#114) |
 | Phage MI 0.383 bits; legacy in_genbank tables on Teams (`Validation/mutual_information/*`) | P-2 | minus-strand label bug |
 | Phage ranking 52,057 candidates / 1,797 replacements (`Validation/Inphared/rank_orfs/` on Teams) | P-3 to P-5 | strand shortcut |

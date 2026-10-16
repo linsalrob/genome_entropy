@@ -24,6 +24,7 @@ Status as of 2026-10-16 (integrator, Setonix).
 | D12 | Unsupported text claims (FLOPs, Phynteny, GenBank-vs-LOGAN agreement) | Results, Discussion | remove unless a source is supplied |
 | D13 | LOGAN follow-ups (MetaEuk, single-mode Prodigal, clustering) | Discussion | future work |
 | D14 | Data deposition (ROADS) | Data availability | Gadi drafts `roads_deposition_candidates.md`; Rob arranges DOIs |
+| D15 | How to stratify the v7 comparison by assembly quality | G-17, GTDB Results | (i) by the candidate's genome; (ii) as a sensitivity check |
 
 ---
 
@@ -248,6 +249,20 @@ Gadi owns checkpoint E: `roads_deposition_candidates.md`. The Teams inventory fl
 LOGAN raw outputs (5.95 + 3.32 TB) and the GTDB raw tars (1.5 TB) are too large to deposit; for those, deposit the manifests and summaries instead.
 
 **Decision.** _open_: Rob arranges any DOIs. Agents do not claim one.
+
+---
+
+## D15. Stratifying the v7 comparison by assembly quality
+
+**Context.** #128 withdrew the high-N50 claim. It also recorded that the quartile tables showing an excess in every quartile predate the v7 re-matching, so the role of assembly quality is open (G-17). Re-stratifying v7 needs only aggregation over existing tables, weighted by draw multiplicity: under 1 SU on Gadi, with no new search. Only **36.7% (bacteria) and 26.5% (archaea)** of matched comparator draws come from the candidate's own genome, so the strata can be defined in two ways.
+
+**Options.**
+- (i) **By the candidate's genome quartile.** Each candidate and its matched partner stay together, preserving the length × 3Di × truncation matching within every stratum.
+- (ii) **By each ORF's own genome quartile.** Each arm is internally consistent about assembly quality, but matched pairs split across strata, so the strata are no longer matched.
+
+**Recommendation.** (i) as the primary analysis, because the estimand is a matched contrast. Report (ii) as a sensitivity check. If they agree, assembly quality is not confounding the estimate. If they differ, that difference is the finding.
+
+**Decision.** _open_ (Gadi runs it once decided).
 
 ---
 
