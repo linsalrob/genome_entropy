@@ -3,6 +3,11 @@
 **Owner:** the LOGAN agent (agent-handoffs#24, checkpoint E). This file completes the R5 entry in `manuscript/roads_deposition_candidates.md` (#126). **No DOI is claimed.** Rob arranges any deposit.
 
 **Analysis:** genome_entropy #102, merged in #115.
+- **Code (immutable):**
+  - the LOGAN scripts that produced the reported results: `Validation/logan/scripts/` at genome_entropy commit [`b41d24d3517d930bd0b5986f1434e467a17ffd84`](https://github.com/linsalrob/genome_entropy/tree/b41d24d3517d930bd0b5986f1434e467a17ffd84/Validation/logan/scripts), the #115 merge on `main`;
+  - the current version, with #130's robustness fixes (reported run unaffected): commit [`3b7e6b1c05061315df67127448c8382192ae92b0`](https://github.com/linsalrob/genome_entropy/tree/3b7e6b1c05061315df67127448c8382192ae92b0/Validation/logan/scripts).
+
+  Script names below refer to that directory. On the `manuscript` branch they arrive with #127.
 - **Data:** 50,009 LOGAN v1.2 metagenomes, 89.99 B ORFs ≥30 aa, 4.90 Tbp.
 - **Encoding:** every one of the 89,994 cache chunks was encoded with ModernProst `gbouras13/modernprost-50M`, revision `2d68d506d4ce8d59025c985fd00243a8860363c6`, at encoding size 10,000. The encoder was `genome_entropy` 0.3.0 at commit `750e2b92283d9c008a9f4711d6c2a396112c8b50`, with a clean source tree. Each chunk manifest records these values.
 - **Hardware:** Setonix MI250X GCDs.
@@ -13,7 +18,7 @@
   - `qc/` as of 2026-10-15: uploaded;
   - `manifests/chunks/`: uploaded with the cache;
   - not yet on Teams: the 2026-10-16 `qc/` additions (`candidates_extra`, AFDB50), `roads/` and `meta/`. These are scheduled for the night of 2026-10-16 (Slurm 50981821, 50992389, 50992390). I will confirm on #24 when they are checked.
-- **Checksums:** per-file sha256 come from `prep/logan_roads_manifest.sh` (Slurm 50992052, 2026-10-16).
+- **Checksums:** per-file sha256 come from `prep/logan_roads_manifest.sh`, rerun on 2026-10-16 after the fixes from Codex review. Every requested input must exist, and the archive is deterministic.
 
 | ID | package | size | files | recommendation |
 |---|---|---:|---:|---|
@@ -31,7 +36,7 @@ The file lists, sizes and sha256 are in `R5{a,b,c}_*.{files,sizes,SHA256SUMS,tot
 - **Candidate pool:** `meta/logan_metagenomic_candidates.parquet` (490 MB). This is the metadata-filtered candidate pool the draws came from, built with `01_select_accessions.py candidates` from the public LOGAN/SRA metadata.
 - **Filter accounting:** `candidate_ledger.tsv`, `census_librarysource_assay.tsv` and `total_records.txt`. `meta/SHA256SUMS` holds the checksums of the public inputs.
 - **The analysed accessions:** `manifests/{pilot,phaseb1,phaseb2}_accessions.tsv`, plus `accession_status.tsv`, which gives each accession's final state or recorded exclusion (81 missing from LOGAN, 1 failed validation).
-- **Chunk manifests:** `roads/R5a_chunk_manifests.tar.zst` (27.5 MB, sha256 `b922477e…`). It packs all 89,994 chunk manifests into one deterministic archive: sorted names, fixed mtime and owner.
+- **Chunk manifests:** `roads/R5a_chunk_manifests.tar.zst` (26.5 MB, sha256 `b963f9ea…`). It packs all 89,994 chunk manifests into one deterministic archive: GNU tar format, sorted names, fixed mtime, owner and modes. The archive is rebuilt on every run; two consecutive runs gave identical bytes.
   - Each manifest gives the chunk's member accessions and row ranges, ORF and amino-acid counts.
   - It records the software versions and the model revision.
   - It gives the sha256 of the cache file and of each column, and the remote QuickXorHash verification.
@@ -40,7 +45,7 @@ The file lists, sizes and sha256 are in `R5{a,b,c}_*.{files,sizes,SHA256SUMS,tot
 
 ## R5b. Analysis summaries (2.41 GB)
 
-**Purpose:** everything needed to recompute every LOGAN statistic and figure in the paper, without the 7.6 TB of per-ORF data. With the notebooks in `manuscript/notebooks/figL*.ipynb` (#117), the results are reproducible from this package alone.
+**Purpose:** everything needed to recompute every LOGAN statistic and figure in the paper, without the 7.6 TB of per-ORF data. **Full reproduction needs R5b and R5c together.** R5b covers the dataset, single-feature, model, fragment, six-frame and biome results (figL01–L05, figLS1; tabL01–L04). The missed-gene figures and tables (figL06–L10, tabL05–L09) also read the `qc/candidates*` inputs in R5c. With both packages, `manuscript/prep/logan_prepare_data.py` and the notebooks in `manuscript/notebooks/figL*.ipynb` (#117) regenerate every LOGAN number and figure.
 
 **Contents:**
 
@@ -79,14 +84,14 @@ The file lists, sizes and sha256 are in `R5{a,b,c}_*.{files,sizes,SHA256SUMS,tot
 - **Analyses:** `taxonomy/` (the eukaryotic test), `skip/` (why Prodigal did not call each query) and `candidates_extra/lowscore/` (the Prodigal+ / low-score class).
 
 **Excluded**, because each is regenerable from deposited inputs:
-- **Raw Foldseek outputs,** `search/*.m8`, about 5.7 GB. They regenerate from `seqs/` plus the cited databases with `23_foldseek_search.slurm`.
+- **Raw Foldseek outputs,** `search/*.m8`, about 5.7 GB. They regenerate from `seqs/` plus the cited databases with `23a_build_queries.slurm` and `23_foldseek_search.slurm`, at the commits above.
 - **Prodigal `-s` start files,** `contigs/part_*.starts`, about 2 GB. They regenerate from `all_contigs.fa` with `prodigal -q -p meta -s`.
 - **The per-part FASTA,** `contigs/part_*.fa`, which duplicates `all_contigs.fa`.
 
 **Provenance:**
 - Foldseek 10.941cd33, `--alignment-type 2` for structure and `base:search` for sequence, `-e 0.001`;
 - databases: PDB100, AFDB/Swiss-Prot, CATH50, BFVD, and AFDB50 v6 2025_03;
-- scripts `Validation/logan/scripts/18`–`31`.
+- scripts `Validation/logan/scripts/18`–`31`, at the commits above.
 
 ## Not recommended for deposit
 
