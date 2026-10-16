@@ -27,12 +27,17 @@ chunk manifests; a manifest analysis/v1/<shard>.json records counts and
 sha256. Rebuilding a shard that has a manifest is skipped.
 
 --cleanup deletes work/<acc>/ for accessions that are `complete` and whose
-every chunk lies in a built shard: the same tables travel, verified, in the
-remote per-chunk bundles (and prodigal/v1/<acc>/ for the pilot).
+every chunk is recorded in its built shard's manifest, and only when none of
+those shards can still grow: a shard is closed when it holds all 1,000 chunk
+ids, or when --final says no further tranche will add chunks. A shard that
+can still receive chunks keeps its accessions' work directories, because a
+rebuild re-reads their prodigal_genes.tsv.zst. The same tables also travel,
+verified, in the remote per-chunk bundles (and prodigal/v1/<acc>/ for the
+pilot).
 
   09_build_analysis_tables.py --selftest
   09_build_analysis_tables.py --shards 000 001 --procs 16
-  09_build_analysis_tables.py --all --procs 16 [--cleanup]
+  09_build_analysis_tables.py --all --procs 16 [--cleanup [--final]]
 """
 
 from __future__ import annotations
@@ -338,14 +343,17 @@ def build_shard(shard: str, mans: list, procs: int) -> bool:
     return True
 
 
-def cleanup(built: set) -> None:
+def cleanup(built: dict, final: bool) -> None:
+    """built: shard -> set of chunk ids recorded in its analysis manifest."""
     freed = 0
     for sp in sorted((lc.root() / "state").glob("*.json")):
         st = json.load(open(sp))
         if st.get("state") != "complete":
             continue
         ids = st.get("info", {}).get("chunks", [])
-        if not ids or any(lc.chunk_shard(c) not in built for c in ids):
+        if not ids or any(c not in built.get(lc.chunk_shard(c), ()) for c in ids):
+            continue
+        if not final and any(len(built[lc.chunk_shard(c)]) < 1000 for c in ids):
             continue
         wd = lc.work_dir(st["accession"])
         if wd.exists():
@@ -362,6 +370,9 @@ def main() -> int:
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--procs", type=int, default=int(os.environ.get("SLURM_CPUS_PER_TASK", 4)))
     ap.add_argument("--cleanup", action="store_true")
+    ap.add_argument("--final", action="store_true",
+                    help="no further tranche will add chunks: let --cleanup "
+                         "also clear accessions in partly filled shards")
     args = ap.parse_args()
     if args.selftest:
         return selftest()
@@ -370,8 +381,9 @@ def main() -> int:
     for s in shards:
         build_shard(s, by[s], args.procs)
     if args.cleanup:
-        built = {p.stem for p in OUT().glob("*.json")}
-        cleanup(built)
+        built = {p.stem: set(json.load(open(p)).get("chunks", []))
+                 for p in OUT().glob("*.json")}
+        cleanup(built, args.final)
     return 0
 
 
