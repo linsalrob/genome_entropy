@@ -646,6 +646,8 @@ def main() -> int:
               f"Needs only pandas, numpy, matplotlib and seaborn; no HPC or remote paths.")
         nb.cells = [nbf.v4.new_markdown_cell(md), nbf.v4.new_code_cell(SETUP.strip()),
                     nbf.v4.new_code_cell(f["code"].strip())]
+        for i, cell in enumerate(nb.cells):   # stable ids: nbformat otherwise draws random ones on every build
+            cell.id = f"{name.split('_')[0]}-{i}"
         nbf.write(nb, NB_DIR / f"{name}.ipynb")
         print("wrote", NB_DIR / f"{name}.ipynb")
     return 0
