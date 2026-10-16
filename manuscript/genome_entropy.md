@@ -372,6 +372,8 @@ In genomes that carry any annotation, matched and unmatched ORFs separate on 3Di
 - **Mutual information:** 3Di–12-state MI differs threefold (0.960 against 0.321 bits in bacteria). <!-- src: GR §4.1 item 1; figG01 caption -->
 - **DNA entropy:** it does not separate the classes (1.930 against 1.909 bits). <!-- src: GR §4.1 item 3 -->
 
+![**Figure 1.** Unannotated six-frame ORFs separate from annotated genes in 3Di entropy, not protein entropy, and most of them sit under the log₂3 ceiling (GTDB r232).](images/figG01_entropy_landscape.png){#fig:1 width=100%}
+
 Matched ORFs are also about twice as long (376 against 178 aa), so part of the 3Di gap is length (next section). <!-- src: GR §4.1 item 2 -->
 
 Unmatched ORFs pile up against a sharp edge at 1.585 bits (Fig. 1b). This is log₂3, the maximum entropy of a string that uses only three distinct states. It is an arithmetic ceiling, not a biological threshold, and it falls at the same place in both domains. <!-- src: GR §5; figG01 caption --> Over the full population, ORFs below log₂3 are:
@@ -411,6 +413,8 @@ The 50,009 LOGAN metagenomes span 13 biomes and 4.895 Tbp of assembled contigs, 
 
 Length alone separates complete Prodigal genes from all complete Prodigal− ORFs with AUC 0.964 but AP only 0.580 (Table S2). <!-- src: manuscript/data/tabL02_single_feature_overall.tsv.gz (aa_len, vs all Prodigal−) --> 3Di entropy alone reaches AP 0.783 over all 36.6 billion complete ORFs. <!-- src: tabL02 (three_di_entropy, vs all Prodigal−) --> In cross-validated models nested on length, adding 3Di entropy raised AP from 0.582 to 0.860, against 0.727 for amino-acid entropy; all four features together reached 0.880 (fold SD ≤0.002; Fig. 2a). <!-- src: AH/manuscript/tables/S4_models_overall.tsv; LMS:396-410 --> 3Di entropy therefore carries most of the signal; the other features add 0.020 AP beyond it.
 
+![**Figure 2.** Structural entropy separates Prodigal genes from spurious ORFs beyond what ORF length explains (50,009 LOGAN metagenomes).](images/figL02_models_beyond_length.png){#fig:2 width=100%}
+
 The gain is largest where length is least informative. Against antisense shadows, AP rose from 0.632 (length) to 0.877 (length + 3Di) and 0.899 (all features); against frameshift shadows, from 0.793 to 0.918 and 0.942 (Fig. 2b,c). <!-- src: S4_models_overall.tsv; #24 LOGAN agent comment (0.877 = length+3Di, 0.899 = all) --> Against intergenic ORFs, length alone already gave AP 0.962, and features added little (0.972 with all; Fig. 2d). <!-- src: S4_models_overall.tsv -->
 
 Within fixed length bins the structural signal persists while length falls towards chance (Fig. S3, S4; Table S3). At 100–149 aa, within-bin AUC was 0.612 for length, 0.805 for amino-acid entropy, 0.896 for 3Di entropy and 0.902 for MI; at 150–199 aa, 3Di entropy reached 0.960 (amino acids 0.833), and at 200–299 aa 0.988. <!-- src: manuscript/data/tabL03_single_feature_by_length.tsv.gz; LMS:332-336 --> Against intergenic ORFs only, the corresponding values at 100–149 aa were 0.597 for amino-acid entropy, 0.852 for 3Di and 0.863 for MI. <!-- src: tabL03 (vs intergenic, 100-149) --> Cross-validated models gave the same picture: at 100–149 aa, AUC 0.612 for length, 0.898 with 3Di and 0.940 with all features (Fig. S4a). <!-- src: AH/manuscript/tables/S5_models_by_length.tsv --> At fixed length, shadows sit well below genes in 3Di and 12-state entropy (Fig. S3). Short ORFs remain the limit: within-bin 3Di AUC is 0.52 at 30–49 aa and 0.66 at 50–74 aa. <!-- src: tabL03 (three_di_entropy, 30-49, 50-74) -->
@@ -423,11 +427,15 @@ The length-controlled separation held in every biome and replicated across sampl
 
 If high 3Di entropy were a property of coding DNA, it would be shared by the other frames of a gene. We compared each of 8.82 million complete Prodigal genes with the best-overlapping Prodigal− ORF in each of its five alternative frames (Fig. 3). <!-- src: LMS:452-455; notebooks/figL05_six_frame.ipynb caption --> Length and amino-acid entropy are partly shared between frames (Spearman ρ 0.33–0.45 and 0.29–0.36), 12-state entropy weakly (ρ 0.06–0.13), while 3Di entropy (ρ −0.01 to 0.02) and MI (ρ −0.04 to 0.01) are not (Fig. 3a). <!-- src: AH/manuscript/tables/S7_six_frame_inheritance.tsv (spearman); LMS:457-465 -->
 
+![**Figure 3.** Structural entropy is specific to the reading frame: six-frame inheritance, discrimination and Δ for 8.82 million Prodigal genes.](images/figL05_six_frame.png){#fig:3 width=100%}
+
 Even so, among the 5,722,417 genes with all five alternatives, 3Di entropy ranked Prodigal's frame first in 92.4% of genes, 12-state entropy in 91.3%, MI in 85.2%, amino-acid entropy in 81.8% and length in 80.9%, against chance 16.7% (Fig. 3b). <!-- src: AH/manuscript/tables/S8_six_frame_discrimination.tsv; LMS:476-479 --> Among the same 5,722,417 genes, the selected frame exceeded the median of its alternatives by a median 1.99 bits of 3Di entropy, and did so in 97.0% (Fig. 3c–g, drawn from a 324,690-gene sample); over all 8.8 million genes with at least one alternative the values are 1.82 bits and 94.2%. <!-- src: S8_six_frame_discrimination.tsv; audit F (B, l.426) --> <!-- src: S8_six_frame_discrimination.tsv (median_delta, frac_delta_positive) --> Length still ranks the selected frame within the top three more often (98.8% against 97.0%), so the two kinds of signal are complementary. <!-- src: S8 (top3_rate) --> We read this as an observation that the 3Di signal belongs to the translation Prodigal selects rather than to the nucleotide sequence; it does not identify what ModernProst detects.
 
 ## Missed genes in GTDB
 
 **Candidates.** In annotated genomes we kept unmatched ORFs with 3Di ≥ 2.5 bits: 9,598,500 bacterial ORFs. Of these, 94.5% overlap a deposited CDS (shadows). That leaves 523,346 bacterial and 22,447 archaeal candidates (Fig. 4a). <!-- src: GR §6 table; figG04_funnel.tsv.gz --> Candidate burden per genome rises with genome size (Spearman ρ = 0.55 in bacteria) and is almost flat against contig N50 (ρ = 0.10) (Fig. S8). <!-- src: figGS03 caption; figGS03_burden_rho.tsv.gz -->
+
+![**Figure 4.** Six-frame ORF calls that GenBank misses carry real genes in excess over a matched non-coding comparator (GTDB r232).](images/figG04_missed_genes.png){#fig:4 width=100%}
 
 **Structural homology against a matched comparator.** High 3Di entropy alone is not evidence of a gene. In the top candidate 3Di quintile, 88–99% of every protein-like arm hits a structure database, antisense and frameshift shadows included, probably because a sequence-only encoder emits confident 3Di for any protein-like sequence. <!-- src: SA §2 (l.97–130); SA §12 item 5 --> We therefore compared candidates with antisense and frameshift shadows matched on length, 3Di entropy and truncation, counting only full-length hits (Methods).
 
@@ -513,6 +521,8 @@ The final model scored 49.95 million intergenic Prodigal− ORFs ≥100 aa. <!--
 
 Candidates carry full-length structural homologues; matched controls do not (Fig. 5a). Of 20,000 candidates, 41.9% had a full-length structural hit across five databases, against 72.6% of complete Prodigal genes, 0.21% of low-scoring intergenic ORFs (41 of 20,000), 0.45% of antisense shadows (89 of 20,000), 0.36% of frameshift shadows and 1 of 20,000 candidates with shuffled 3Di. <!-- src: AH/manuscript/tables/S33_all_arms_evidence.tsv; #24 LOGAN agent corrections --> Candidates thus reach 58% of the Prodigal-gene rate and about 200 times the low-score rate. <!-- src: S33 (0.41875/0.7259; 0.41875/0.00205) --> The shuffled null keeps each query's amino acids and 3Di composition, so the hits depend on the order of the predicted states. Any sequence hit at E ≤ 10⁻³ is not evidence: it reached 23–26% for the low-score and antisense controls (Fig. 5b). <!-- src: S33 (hit_rate_seq 0.2608, 0.2291) -->
 
+![**Figure 5.** Foldseek evidence for metagenomic missed-gene candidates and matched controls.](images/figL06_missed_gene_evidence.png){#fig:5 width=100%}
+
 The 0.90 target is a precision calibrated on complete ORFs of all lengths, not the precision of intergenic candidates; the hit rates above are the direct evidence for them. Complete candidates had full-length structural hits at 41.5% and the 1,123 5′-open candidates, admitted without a calibrated precision, at 47.5%; every control stayed at or below 0.5% in both states (Table S6). <!-- src: manuscript/data/tabL06_evidence_by_truncation.tsv.gz; #24 Setonix integrator comment -->
 
 AFDB50 alone gives full-length structural hits for 41.5% of candidates, against 7–12% for each other database, so a hit often means that a homologous protein is already annotated in another genome. <!-- src: AH/manuscript/tables/S16_evidence_rates.tsv; LMS:600-604 --> Among candidates, 20.7% had both full-length sequence and structural evidence, 21.2% structure only and 4.0% sequence only, against 62.7%, 9.9% and 7.9% for Prodigal genes (Fig. S10b). <!-- src: AH/manuscript/tables/S17_evidence_classes.tsv --> The rate rose with length from 38.1% at 100–149 aa to 70.6% at 300–499 aa, roughly parallel to Prodigal genes (57.7% to 96.9%; Fig. S10a). <!-- src: AH/manuscript/tables/S18_evidence_by_length.tsv --> Weighted by the candidates' length distribution, about 38% of the 3.07 million complete and 5′-open candidates, roughly 1.2 million ORFs, would have a full-length structural homologue. <!-- src: LMS:613-616; tabL05 (2,759,781 + 305,573) -->
@@ -534,6 +544,8 @@ Length-matched, 6.8% of 10,269 low-scoring genes had a full-length structural ho
 Phage genomes are densely coding: 39.8% of the 6,754,361 ORFs of at least 90 aa in 36,025 Inphared genomes match an annotated CDS. <!-- src: Validation/mutual_information/README.md TL;DR (2,685,382 / 6,754,361); IG:14 --> These labels are corrected ones. The matcher used before genome_entropy 0.2.0 labelled 3 of 3,311,070 minus-strand ORFs as genes, against 1,000,839 after correction (Fig. S15a). <!-- src: Validation/mutual_information/README.md §2.1 table; figPS01 caption -->
 
 3Di entropy alone carries 0.587 bits of information about the label (95% CI 0.584–0.589), out of 1 bit on a class-balanced sample (Fig. 6a). <!-- src: Validation/mutual_information/README.md §4.2 table; data/figP01_mutual_information.tsv.gz --> As a single score it gives a ROC AUC of 0.947. <!-- src: Validation/mutual_information/README.md §4.6 --> The best pair, protein plus 3Di entropy, reaches 0.644 bits, only 0.057 bits (95% CI 0.055–0.058) more than 3Di entropy alone. <!-- src: Validation/mutual_information/README.md TL;DR, §4.2 table --> Every other partner adds at most 0.026 bits to 3Di entropy. <!-- src: Validation/mutual_information/README.md TL;DR --> DNA entropy carries essentially nothing (0.003 bits). <!-- src: Validation/mutual_information/README.md §4.2 table --> Every estimate except DNA entropy is more than 100 times the permutation null, whose 99th percentile is at most 0.0009 bits at 20 bins. <!-- src: Validation/mutual_information/README.md TL;DR -->
+
+![**Figure 6.** Phage: structural entropy predicts annotation, ranks missing genes, and corrects an annotation.](images/figP01_phage.png){#fig:6 width=100%}
 
 The signal is not a length effect. Every ORF here is at least 90 aa, and length alone is weak (0.130 bits; AUC 0.733). <!-- src: Validation/mutual_information/README.md §4.2 table, §4.6 --> Conditioning on length keeps 82% of the information in 3Di entropy (0.472 of 0.572 bits, full population). <!-- src: Validation/mutual_information/README.md §4.3 conditional-MI table --> Within length bins, 3Di entropy gives AUC 0.874 at 90–99 aa, rising to 0.991 at 300 aa and above, against 0.53–0.63 for length. <!-- src: Validation/mutual_information/README.md §4.3 AUC table -->
 
@@ -697,3 +709,44 @@ A per-ORF score is cheap enough to run over every re-annotated genome, flagging 
 # References
 
 <!-- Rendered from references.bib by pandoc --citeproc. Entries marked "verify" in references.bib need checking before submission. -->
+
+::: {#refs}
+:::
+
+# Supplementary figures
+
+![**Figure S1.** The rise of 3Di entropy with ORF length is mostly biological; the rise of protein entropy is plug-in estimator bias.](images/figG02_estimator_bias.png){#fig:s1 width=100%}
+
+![**Figure S2.** Only the empirical length-conditioned reference is calibrated.](images/figGS02_reference_calibration.png){#fig:s2 width=100%}
+
+![**Figure S3.** LOGAN feature distributions at fixed ORF length.](images/figL01_feature_distributions.png){#fig:s3 width=100%}
+
+![**Figure S4.** LOGAN discrimination within ORF-length bins.](images/figL03_models_within_length.png){#fig:s4 width=100%}
+
+![**Figure S5.** The complete-ORF model applied to contig-end fragments.](images/figL04_fragments.png){#fig:s5 width=100%}
+
+![**Figure S6.** Length-controlled separation by biome and tranche.](images/figLS1_biome_batch_separation.png){#fig:s6 width=100%}
+
+![**Figure S7.** An independent gene caller agrees with the candidates more often than with their matched shadows.](images/figG05_prodigal.png){#fig:s7 width=100%}
+
+![**Figure S8.** Candidate burden per genome scales with genome size, not with assembly quality.](images/figGS03_candidate_burden.png){#fig:s8 width=100%}
+
+![**Figure S9.** What the structurally supported candidates are.](images/figG06_functions_examples.png){#fig:s9 width=100%}
+
+![**Figure S10.** Metagenomic candidate evidence by length, evidence class and biome.](images/figL07_candidate_evidence_detail.png){#fig:s10 width=100%}
+
+![**Figure S11.** Contig taxonomy of the Foldseek queries and the eukaryotic test.](images/figL08_contig_taxonomy.png){#fig:s11 width=100%}
+
+![**Figure S12.** Why Prodigal did not call the metagenomic candidates.](images/figL09_prodigal_skip.png){#fig:s12 width=100%}
+
+![**Figure S13.** Prodigal genes the model scores low.](images/figL10_prodigal_lowscore.png){#fig:s13 width=100%}
+
+![**Figure S14.** Phage ORFs show the same structural separation as cellular ORFs, with matched phage ORFs slightly lower in 3Di entropy at every length.](images/figP04_phage_vs_cellular.png){#fig:s14 width=100%}
+
+![**Figure S15.** Phage: the minus-strand label error and the shortcut it taught the model.](images/figPS01_phage_label_correction.png){#fig:s15 width=100%}
+
+![**Figure S16.** On curated small ORFs (10–99 aa), predicted-structure entropy separates real from spurious sequences only weakly, but adds more than composition.](images/figS01_smorf_separation.png){#fig:s16 width=100%}
+
+![**Figure S17.** Amino-acid against 3Di entropy for all 43,726,909 GMSC smORFs.](images/figSS01_smorf_density.png){#fig:s17 width=100%}
+
+![**Figure S18.** The sharp 3Di-entropy stripes in smORFs come from the log₂k ceiling on strings that use only k states, not from a biological threshold.](images/figSS02_smorf_stripes.png){#fig:s18 width=100%}
