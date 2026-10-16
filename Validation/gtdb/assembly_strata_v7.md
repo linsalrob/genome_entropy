@@ -4,7 +4,7 @@ This is report §11 item 12, carrying out decision D15 from agent-handoffs#24. I
 
 ## Method
 
-- **Script:** `scripts/43_assembly_strata_v7.py`, run by `43_assembly_strata_v7.pbs` (PBS 181378085, 0.33 SU, exit 0).
+- **Script:** `scripts/43_assembly_strata_v7.py`, run by `43_assembly_strata_v7.pbs`. The committed TSVs come from PBS 181387980 (0.28 SU, exit 0), the run with the per-stratum Prodigal background added in #136. The first run, PBS 181378085 (0.33 SU), is superseded; none of its values changed.
 - **Inputs:** only existing v7 tables, with no new search:
   - `matched_clean/<dom>/{wanted_v7.tsv, comparator.tsv.gz, best_v7/, context_v7/}`;
   - `prodigal_v7_<dom>.coincidence.tsv.gz`;
@@ -14,7 +14,7 @@ This is report §11 item 12, carrying out decision D15 from agent-handoffs#24. I
   - the first-order CI from its `share()`;
   - the #97 ladder from `22_rank_candidates.tiers()`;
   - the Prodigal share against the matched comparator.
-- **Reproduction check.** An unstratified "all" row must reproduce `matched_comparator/<dom>_v7_matched.tsv`, and the script exits otherwise. It reproduced **51 of 51 metrics in both domains**.
+- **Reproduction check.** An unstratified "all" row must reproduce `matched_comparator/<dom>_v7_matched.tsv`, and the script exits otherwise. It reproduced **54 of 54 metrics in both domains**: the original 51 plus the three Prodigal-background metrics added in #136.
 - **Quartile edges.** They are those of §7: `pd.qcut` over the pooled query rows of the v6 query set (`34_supplementary_arms.py`, `t_assembly`, scheme `pooled_query_rows`). Pre- and post-matching tables therefore share bins:
   - bacteria N50 at 17.2 kb, 59.1 kb and 262 kb; completeness at 89.81%, 96.75% and 99.99%;
   - archaea N50 at 13.7 kb, 39.0 kb and 222 kb; completeness at 83.22%, 92.28% and 99.17%.
@@ -68,7 +68,7 @@ The full sensitivity tables, scheme (ii), are in the TSVs.
 ## Reading
 
 1. **The excess is present in every stratum.**
-   - Every share is above zero in every quartile, in both domains, under both assignments and for every database. The smallest lower CI bound is 3.0% under (i) (bacteria, CATH50, completeness Q4) and 3.4% under (ii) (archaea, Swiss-Prot, completeness Q1).
+   - Every share is above zero in every quartile, in both domains, under both assignments and for every database. The smallest lower CI bound is 2.97% under (i) (bacteria, CATH50, completeness Q4) and 3.38% under (ii) (archaea, Swiss-Prot, completeness Q1).
    - The C3 and C7 excesses are positive in every stratum. The smallest C7 excess is 419 in bacteria and 44 in archaea under (i); in archaea it falls to 11 under (ii).
    - The candidate signal is therefore not confined to any range of assembly quality, and in particular it is not concentrated in the best assemblies.
 2. **Bacteria: on the combined readout the share is higher in poorer assemblies.**
@@ -92,7 +92,7 @@ The full sensitivity tables, scheme (ii), are in the TSVs.
    - Individual stratum values depend on how cross-genome draws are assigned, so quote scheme (i). The combined and Prodigal trends do not depend on it.
 7. **With-replacement draws are concentrated in poorer archaeal assemblies** (294 / 329 / 236 / 113 across N50 quartiles under (i)). Archaeal Q1–Q3 estimates lean more on reused comparator ORFs than Q4. In bacteria the count is at most 326 per stratum (under 0.3%).
 
-8. **The Prodigal shares are the larger-background shares in every stratum.** The report's rule (as in `41_comparator_summary.py`) takes the larger of two backgrounds: the matched comparator and `intergenic_lo`. In all 32 strata (2 domains × 2 covariates × 2 schemes × 4 quartiles) the matched comparator is the larger. Per-stratum `intergenic_lo` rates are 8.2–13.7% in bacteria and 13.0–18.9% in archaea, against comparator rates of 13.8–27.1% and 15.6–35.0%. So the Prodigal shares above are the report-rule values, and the trend stands. This was checked on Setonix from the `intergenic_lo` arm of `prodigal_{bac,arc}4.coincidence.tsv.gz`, which the v7 re-matching left unchanged: its pooled rate reproduces the published v7 values (9.8508% and 15.4408%). `43_assembly_strata_v7.py` now emits `prodigal_intergenic_lo`, `prodigal_share_intergenic_lo_bg` and `prodigal_share_larger_bg` per stratum. The committed TSVs predate that change and are regenerated on the next run.
+8. **The Prodigal shares are the larger-background shares in every stratum.** The report's rule (as in `41_comparator_summary.py`) takes the larger of two backgrounds: the matched comparator and `intergenic_lo`. In all 32 strata (2 domains × 2 covariates × 2 schemes × 4 quartiles) the matched comparator is the larger. Per-stratum `intergenic_lo` rates are 8.2–13.7% in bacteria and 13.0–18.9% in archaea, against comparator rates of 13.8–27.1% and 15.6–35.0%. So the Prodigal shares above are the report-rule values, and the trend stands. This was checked on Setonix from the `intergenic_lo` arm of `prodigal_{bac,arc}4.coincidence.tsv.gz`, which the v7 re-matching left unchanged: its pooled rate reproduces the published v7 values (9.8508% and 15.4408%). `43_assembly_strata_v7.py` now emits `prodigal_intergenic_lo`, `prodigal_share_intergenic_lo_bg` and `prodigal_share_larger_bg` per stratum. The TSVs were regenerated on Gadi from the v7 Prodigal table (PBS 181387980): the reproduction check covers 54 metrics in both domains, none of the 884 earlier values per domain changed, and the comparator is the larger background in all 32 strata, with the ranges given above.
 
 ## What it does and does not establish
 

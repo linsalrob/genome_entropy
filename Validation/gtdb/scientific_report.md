@@ -1180,7 +1180,7 @@ against **all** shadows, both of which §6.1 rejects above.
 full tables in [`assembly_strata_v7.md`](assembly_strata_v7.md)). The v7
 estimate was recomputed within contig-N50 and CheckM2-completeness quartiles,
 using exactly the `41_comparator_summary.py` computation, and an unstratified
-row reproduces all 51 published metrics. Strata follow the candidate's genome,
+row reproduces all 54 published metrics. Strata follow the candidate's genome,
 so matched pairs stay together. Placing every ORF by its own genome instead
 changes individual cells by up to 3.3 points (bacteria). It leaves the
 direction of the combined share and of the Prodigal share unchanged; two
@@ -1191,7 +1191,7 @@ the Prodigal shares below follow the report's larger-background rule.
 
 - **The excess is present at every assembly quality.** It holds in every
   quartile, in both domains and for every database, with every lower CI bound
-  ≥ 3.0%. The C3 and C7 excesses are positive in every stratum. The signal is
+  above 2.9% (smallest 2.97%). The C3 and C7 excesses are positive in every stratum. The signal is
   therefore not confined to fragmented or incomplete assemblies, and it is not
   concentrated in the best ones.
 - **Bacteria: higher shares in poorer assemblies.** On full-length hits in
