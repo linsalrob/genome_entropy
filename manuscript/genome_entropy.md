@@ -5,77 +5,44 @@ from spurious open reading frames in bacterial genomes and metagenomes.
 
 # Authors
 
-# 
+<!-- Author list, affiliations and contributions are built from Author_Information.xlsx (see README.md). -->
 
 # Abstract
 
-Accurate identification of protein-encoding genes (PEGs) from all
-potential open reading frames (ORFs) remains a fundamental challenge in
-microbial genomics. Most ORFs do not encode functional proteins. Gene
-callers use a variety of heuristics to identify candidate ORFs, but they
-do not directly assess whether those ORFs encode biologically meaningful
-proteins. Here, we introduce a complementary entropy-based framework
-that integrates DNA entropy, amino acid sequence entropy, and predicted
-structural entropy to distinguish bona fide protein-coding genes from
-non-coding ORFs.
+Most open reading frames (ORFs) in a microbial genome do not encode proteins. Gene callers choose among them from nucleotide statistics, without asking whether the translated sequence resembles a protein.
 
-Using a curated set of bacterial genomes annotated in GenBank, we
-calculated nucleotide, amino acid, and three-dimensional (3Di)
-structural entropy for all ORFs, separating those annotated as
-protein-coding genes from unannotated ORFs. We show that real proteins
-occupy a distinct region of joint sequence--structure entropy space,
-whereas non-coding ORFs exhibit characteristic signatures of low
-information content or structural incoherence. We then apply this
-framework to one million ORFs from the LOGAN dataset, which were
-predicted by Prodigal and represent putative protein-coding genes from a
-large-scale metagenomic resource.
+We asked whether the information content of predicted protein structure separates real genes from spurious ORFs. With genome_entropy we computed, for every ORF, the Shannon entropy of the amino-acid sequence and of the Foldseek 3Di structural alphabet. The 3Di string is predicted from sequence alone by a protein language model. The datasets are:
+- 2.62 billion ORFs from 199,837 GTDB species representatives;
+- 90 billion six-frame ORFs from 50,009 assembled metagenomes;
+- 6.75 million ORFs from 36,025 phage genomes;
+- 43.7 million small ORFs.
 
-Our results demonstrate that jointly considering sequence and structural
-entropy robustly separates real proteins from non-coding ORFs and
-provides a quantitative framework for assessing gene-calling confidence
-in metagenomic assemblies. We propose integrating this approach into
-metagenomic pipelines to improve functional annotation and reduce
-false-positive gene predictions.
+**Annotated genes and unannotated ORFs separate on 3Di entropy, not amino-acid entropy.** In bacteria the mean difference is 2.08 bits for 3Di against 0.39 bits for amino acids, and most spurious ORFs collapse onto two or three predicted structural states. The structural signal:
+- persists at fixed length;
+- is specific to the translated frame, ranking a gene's own frame first among six in 92.4% of genes;
+- carries most of the information about phage annotation (0.587 of 1 bit).
+
+**Missed genes.** Against length-, entropy- and truncation-matched shadow ORFs, about 51,000–59,000 ORFs in GTDB genomes behave like protein-coding genes missing from GenBank. About 5,400 of these have strict individual structural support, and an independent gene caller gives an upper bracket of about 200,000. In metagenomes, 41.9% of high-scoring intergenic ORFs that Prodigal did not call have full-length structural homologues, against at most 0.45% of matched controls. The approach also recovers a phage replication gene lost in re-annotation.
+
+**Limit.** Below about 100 amino acids the signal weakens, which marks the method's lower length limit.
 
 # Introduction
 
-Accurate identification of protein-coding genes underpins nearly all
-analyses in microbial genomics, from metabolic reconstruction to
-evolutionary inference. Gene prediction tools such as Prodigal,
-GeneMark, and Glimmer have achieved remarkable accuracy for complete
-bacterial genomes; however, their performance degrades with short open
-reading frames, and in fragmented assemblies and metagenomes, where
-spurious open reading frames (ORFs) are abundant. These ORFs arise from
-random nucleotide composition, short contigs, and assembly artifacts,
-yet are often indistinguishable from true genes based solely on coding
-statistics.
+Almost every analysis in microbial genomics starts from a list of protein-coding genes, from metabolic reconstruction to comparative and evolutionary studies. Gene callers such as Prodigal [@Hyatt2010], GeneMarkS [@Besemer2001] and Glimmer [@Delcher2007] build that list from nucleotide statistics: codon usage, coding potential, start codons and ribosome-binding sites. They are accurate for complete bacterial genomes. They are weaker where those statistics are weakest: short genes, fragmented contigs, unusual codon usage, and metagenomes in which a contig may come from an organism unlike any the model was trained on.
 
-Traditional gene callers primarily rely on nucleotide-level statistical
-features, such as codon usage, hexamer frequencies, and start/stop
-signals. They often include a minimum gene length, below which
-statistical models fail to discriminate PEGs from ORFs. The statistical
-models do not directly assess whether a predicted ORF encodes a folded,
-functional protein. As a result, datasets frequently contain large
-numbers of predicted "proteins" that lack detectable homology,
-structure, or biological function.
+None of these statistics asks directly whether the translated sequence looks like a protein. Most ORFs in a genome are not genes. In every six-frame translation, the ORFs of real genes are outnumbered by their own shadows in other frames and on the opposite strand, and by intergenic ORFs. A caller's decision is a judgement about nucleotide sequence, made on behalf of a protein that is never examined.
 
-Evolutionary and biophysical principles highly constrain protein
-sequences and structures. Functional proteins exhibit non-random amino
-acid distributions and form stable three-dimensional structures, whereas
-non-coding ORFs lack such constraints. Entropy provides a natural
-quantitative framework to capture these differences \[1\]. Sequence
-entropy measures the information content and compositional complexity of
-nucleotide or amino acid sequences, while structural entropy captures
-the diversity and coherence of predicted structural states.
+Information theory gives a way to examine it. Shannon entropy has long been used to describe the composition of genomes and metagenomes [@Akhter2013]. Real proteins are constrained by folding and function. We reasoned that the constraint should show less in amino-acid composition than in structure, because a translated non-coding ORF can have an unremarkable composition yet no coherent fold.
 
-Here, we introduce an entropy-based framework that jointly considers
-nucleotide and amino acid sequence entropy and predicted structural
-entropy derived from 3Di encodings. Using bacterial genomes annotated in
-GenBank as a ground-truth dataset, we demonstrate that real proteins and
-non-coding ORFs occupy distinct regions of entropy space. We then extend
-this analysis to nine billion ORFs from the LOGAN dataset \[2\],
-providing large-scale validation and demonstrating applicability to
-metagenomic gene prediction.
+Protein language models now make structure cheap to approximate. Foldseek's 3Di alphabet describes each residue's local tertiary interactions in 20 states [@vanKempen2024]. Models such as ProstT5 [@Heinzinger2024] and ModernProst [@modernprost] predict 3Di strings directly from amino-acid sequences, fast enough to encode every ORF of a genome, or of a metagenome.
+
+Here we test whether the entropy of predicted structure separates protein-coding genes from spurious ORFs, and whether it finds genes that annotations missed. We use genome_entropy [@genome_entropy] at four scales:
+1. **GTDB r232:** the species representatives [@Parks2022], to describe the entropy landscape of annotated and unannotated ORFs across bacteria and archaea, and to estimate how many genes GenBank annotation misses.
+2. **LOGAN:** 50,009 assembled metagenomes [@Chikhi2024logan], comprising 90 billion six-frame ORFs, to test the signal beyond ORF length, across reading frames and biomes, and against Prodigal's own calls.
+3. **Inphared:** 36,025 phage genomes [@Cook2021], a gene-dense case in which we rank candidate missing genes and examine an annotation error.
+4. **GMSC small ORFs** [@Duan2024], to find where the method stops working.
+
+Throughout, we compare structural evidence with matched controls rather than with raw rates. We treat annotations as labels to agree with, not as ground truth.
 
 # Methods
 
@@ -657,36 +624,76 @@ These results set the method's lower length limit. Gene-length ORFs separate wel
 
 # Discussion
 
-Our results demonstrate that protein-coding genes exhibit characteristic
-patterns of both sequence and structural entropy that distinguish them
-from spurious ORFs. While gene prediction algorithms are highly
-effective, they do not directly assess whether a predicted ORF encodes a
-foldable, functional protein. Entropy-based analysis fills this gap by
-explicitly evaluating biological information content.
+**3Di entropy carries most of the signal.** Across bacterial and archaeal genomes, metagenomes and phages, the entropy of a predicted structural alphabet separates annotated genes from other ORFs far better than amino-acid composition does.
+- **Phage:** 3Di entropy alone carries 0.587 bits of information about phage annotation, and adding amino-acid entropy contributes only 0.057 bits more.
+- **GTDB:** the 3Di gap between matched and unmatched ORFs is five times the protein gap.
+- **LOGAN:** within fixed length bins, 3Di separates genes from non-genes where length alone does not.
 
-The strong agreement between GenBank-annotated proteins and the majority
-of LOGAN ORFs supports the validity of large-scale metagenomic gene
-prediction and highlights a principled approach to identifying
-questionable predictions. Importantly, this method does not rely on
-homology or functional annotation, making it particularly well suited to
-novel proteins and deeply sampled metagenomes.
+The idea that sequence and structural entropy must be read jointly therefore needs refining. Predicted structure does most of the work, amino-acid entropy adds little, and much of protein entropy's apparent rise with length is estimator bias.
 
-We propose integrating joint sequence--structure entropy into
-metagenomic pipelines as a post-processing step, complementing existing
-gene callers and improving annotation quality. More broadly, this
-framework provides a quantitative lens for studying the boundary between
-coding and non-coding sequence space in microbial genomes.
+**Two observations explain why it works, without yet explaining it mechanistically.**
+1. **Spurious ORFs collapse onto two or three 3Di states.** Their entropy piles up against the log₂3 ceiling, which is arithmetic rather than biological.
+2. **The signal belongs to the translated frame.** Length and amino-acid entropy are partly shared between a gene's six frames; 3Di entropy is not. Yet the gene's own frame ranks first among six in 92.4% of genes.
+
+Together these suggest that the encoder responds to properties of real protein sequences that their shadow translations lack. We have not tested what those properties are. In particular, we have not tested whether the dominant low-entropy state D marks disorder.
+
+**Gene callers and structural entropy disagree in both directions, and the disagreements are informative.**
+- **Missed genes.** In GTDB genomes, about 51,000–59,000 unannotated ORFs behave like genes against a comparator matched on length, 3Di entropy and truncation. About 5,400 of them pass a strict individual test.
+- **The examples are biologically coherent.** They include a Cas5 that completes a type I CRISPR–*cas* operon and a SusC that completes a polysaccharide utilisation locus.
+- **The excess persists in the best assemblies.** In the poorer bacterial assemblies it is larger, which is consistent with either assembly artefacts or less complete annotation; we cannot yet separate the two.
+- **Metagenomes.** High-scoring intergenic ORFs that Prodigal skipped have full-length structural homologues 200 times as often as matched controls. For the bacterial ones, Prodigal's own scores fall just short of its decision boundary.
+- **Low-scoring Prodigal genes.** In the other direction, 17.4% of complete Prodigal genes in metagenomes score low. Outside the shortest lengths, these rarely have structural homologues.
+
+A structural score is therefore a complement to a gene caller, not a replacement. It is most useful where the two disagree.
+
+**The numbers depend on what is counted as evidence, so we report brackets, not a single figure.**
+- **Structural estimate (~51,000–59,000).** It assumes that candidates are a mixture of gene-like and shadow-like ORFs. It is conservative: structure databases contain full-length homologues for only 30–35% of known genes.
+- **Prodigal-based figure (~200,000).** It is 3.5–4 times higher in bacteria. Prodigal also calls 20.6% of the matched shadow ORFs, an upper bound on its false-positive rate on ORF-shaped non-genes, so this figure is likely to overestimate.
+- **Strict floor (~5,400).** It requires neither assumption.
+
+Structural homology shows that an ORF resembles a known protein. It does not show that the ORF is expressed or functional. The candidates are best read as a prioritised list for transcriptomic, proteomic or experimental confirmation.
+
+**The phage results show both the use and a danger of automated annotation.**
+- **The danger.** A labelling error that left almost every minus-strand gene unlabelled taught an earlier ranking model to equate the plus strand with genes. Correcting the labels raised the model's AUC from 0.740 to 0.976 using intrinsic features alone.
+- **The use.** In OM869708 the re-annotation pipeline dropped a replication initiator gene that the genome's submitters had annotated, and called a hypothetical protein in another frame instead. The structural score preferred the submitters' gene, and independent homologues support it.
+
+A per-ORF score is cheap enough to run over every re-annotated genome, flagging loci where the chosen gene model looks unlike a protein.
+
+**The method has limits we have measured and limits we have not.**
+- **Short ORFs.** Below about 100 amino acids the signal weakens: on curated small ORFs, all features together reach AUC 0.73, and 3Di entropy is uninformative below 30 amino acids.
+- **The 90-aa floor.** Several of our datasets have an effective 90-amino-acid floor from a package default, which hides 28.7% of annotated phage genes.
+- **Predictions, not structures.** 3Di strings are predictions, and per-ORF values differ between hardware platforms by more than 0.3 bits for 1% of ORFs (at most 0.92 bits). Population conclusions are unaffected, but per-ORF thresholds should be reported with the configuration that produced them.
+- **Labels.** Labels throughout are annotations or Prodigal calls, not ground truth.
+- **Eukaryotic sequence in metagenomes.** Part of what a prokaryotic caller misses there is probably eukaryotic coding sequence, which neither Prodigal nor our controls were designed for.
+
+**Next steps.**
+- Gene models for eukaryotic candidates.
+- Single-genome Prodigal on high-quality metagenome-assembled genomes.
+- Clustering the candidates into families.
+- Testing what the 3Di states represent.
+- Features that use the order of the 3Di string, not only its composition, which may extend the method below 100 amino acids.
 
 # Data availability
 
-All code used in this study is available at the *genome_entropy* GitHub
-repository. Processed entropy datasets and analysis notebooks are
-available upon request.
+**Code.** genome_entropy is available at https://github.com/linsalrob/genome_entropy (archived at Zenodo, doi:10.5281/zenodo.18312207). Each dataset's analysis code is in its directory under `Validation/` in that repository: `gtdb/`, `logan/`, `Inphared/`, `mutual_information/` and `smorfs/`.
 
-1\. **Akhter S, Bailey BA, Salamon P, Aziz RK, Edwards RA**. Applying
-Shannon's information theory to bacterial and phage genomes and
-metagenomes. *Sci Rep* 2013;3:1033.
+**Figures.** Every figure and table is regenerated from compact data committed in `manuscript/data/`, by the notebooks in `manuscript/notebooks/`, in the environment in `manuscript/environment.yml`.
 
-2\. **Chikhi R, Lemane T, Loll-Krippleber R, Montoliu-Nerin M, Raffestin
-B, *et al.*** Logan: Planetary-scale genome assembly surveys life's
-diversity. *bioRxivorg* 2025;2024.07.30.605881.
+**Large datasets.** These will be deposited, with checksums, as the packages listed in `manuscript/roads_deposition_candidates.md`:
+- per-ORF entropies for GTDB r232;
+- the missed-gene search results;
+- the length references;
+- small-ORF entropies;
+- LOGAN selection and analysis summaries.
+<!-- Rob arranges the ROADS/figshare deposition; insert DOIs when issued. Do not claim DOIs before then. -->
+
+**Public inputs.** These are available from their providers:
+- GTDB r232 and the NCBI GenBank assemblies;
+- LOGAN contigs (`s3://logan-pub`);
+- Inphared phage genomes;
+- the Global Microbial smORF Catalogue;
+- the Foldseek databases.
+
+# References
+
+<!-- Rendered from references.bib by pandoc --citeproc. Entries marked "verify" in references.bib need checking before submission. -->
