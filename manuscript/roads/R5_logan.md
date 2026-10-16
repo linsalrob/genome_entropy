@@ -7,7 +7,12 @@
 - **Encoding:** every one of the 89,994 cache chunks was encoded with ModernProst `gbouras13/modernprost-50M`, revision `2d68d506d4ce8d59025c985fd00243a8860363c6`, at encoding size 10,000. The encoder was `genome_entropy` 0.3.0 at commit `750e2b92283d9c008a9f4711d6c2a396112c8b50`, with a clean source tree. Each chunk manifest records these values.
 - **Hardware:** Setonix MI250X GCDs.
 - **Gene calling:** Prodigal 2.6.3 `-p meta` on contigs ≥120 nt; ORFs from `get_orfs` (translation table 11, ≥30 aa).
-- **Setonix root:** all locations below are relative to `/scratch/pawsey1018/edwa0468/Logan`. Every listed file is also on Teams under `genome_entropy:General/LOGAN/`, at the same relative path, checked with `rclone check`.
+- **Setonix root:** all locations below are relative to `/scratch/pawsey1018/edwa0468/Logan`.
+- **Teams copies:** under `genome_entropy:General/LOGAN/`, at the same relative paths, checked with `rclone check`:
+  - `analysis/v1/`: uploaded 2026-10-14;
+  - `qc/` as of 2026-10-15: uploaded;
+  - `manifests/chunks/`: uploaded with the cache;
+  - not yet on Teams: the 2026-10-16 `qc/` additions (`candidates_extra`, AFDB50), `roads/` and `meta/`. These are scheduled for the night of 2026-10-16 (Slurm 50981821, 50992389, 50992390). I will confirm on #24 when they are checked.
 - **Checksums:** per-file sha256 come from `prep/logan_roads_manifest.sh` (Slurm 50992052, 2026-10-16).
 
 | ID | package | size | files | recommendation |
