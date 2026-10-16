@@ -72,8 +72,11 @@ def prep_hist(res):
                     sys.exit(f"{c} exceeds {hi} bits in {cls}")
                 ent[(cls, c)] += np.bincount(i, minlength=nbins[c])
     print("  rows:", n)
+    # Every length from the shortest observed in either class to 99, zeros
+    # kept, so a stairs plot never stretches a bin across a gap.
+    lo = min(int(np.flatnonzero(length[c])[0]) for c in CLASSES)
     write(pd.DataFrame([dict(dataset=cls, aa_length=L, n=int(length[cls][L]))
-                        for cls in CLASSES for L in range(100) if length[cls][L]]),
+                        for cls in CLASSES for L in range(lo, 100)]),
           "figS01_length_hist.tsv.gz")
     rows = []
     for (cls, c), h in ent.items():
@@ -100,7 +103,13 @@ def prep_copy(res):
     for src, dst in copies.items():
         p = res / src
         note(p)
-        write(pd.read_csv(p, sep="\t"), dst)
+        d = pd.read_csv(p, sep="\t")
+        if src == "smorf_entropy_summary.tsv":
+            # pandas describe() output: two unnamed index columns.
+            d = d.rename(columns={"Unnamed: 0": "feature", "Unnamed: 1": "statistic"})
+        elif src == "manuscript/table1b_length_bins.tsv":
+            d = d.rename(columns={"aa_length": "aa_length_bin"})
+        write(d, dst)
 
     p = res / "density_aa_vs_3di_counts.npz"
     note(p)
