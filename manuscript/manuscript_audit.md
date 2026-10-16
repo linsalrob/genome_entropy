@@ -119,7 +119,7 @@ Status codes:
 **Checked 2026-10-16 against the corrected phage model (Setonix `work/phage_rank/`). The example stands; its numbers are stale.**
 
 - **The strand bug cannot affect it.** All 16 ORFs ≥90 aa and all 7 CDS of OM869708 are on the plus strand.
-- **ORF3** (+, frame 1, 4722–5730, 335 aa, 3Di 2.98 bits) scores p = **0.889** with the corrected intrinsic model, against 0.947 legacy.
+- **ORF3** (+, frame 1, 4723..5730, 335 aa, 3Di 2.98 bits) scores p = **0.889** with the corrected intrinsic model, against 0.947 legacy.
 - **The annotated ORF7** (`OM869708_CDS_0007`, 5053–5650, 198 aa, 3Di 1.20 bits) scores p = **0.175**, against 0.199 legacy.
 - **ORF3 → ORF7 is still a replacement candidate:** rank 179 of 4,102 corrected, against 121 of 1,797 legacy.
 - **The MS values 0.91 and 0.27 match neither model** (probably the July notebook model, #70). Update the text.
