@@ -37,7 +37,42 @@ merged. Merge #119 before this PR.
    disagreement, and hardware non-determinism. These go in the
    supplementary material and Discussion.
 
-## Main figures
+## Implemented numbering (D4, 2026-10-16)
+
+D4 was accepted, then implemented with **one main figure per package** rather than multi-package composites: the LOGAN packages have up to eight panels each, so composing them would make very large figures. Composites can still be assembled later. `figures_manifest.tsv` carries the final numbers.
+
+| final | package | content |
+|---|---|---|
+| Fig. 1 | G01 | GTDB entropy landscape and log₂k ceiling |
+| Fig. 2 | L02 | what structural features add beyond length (LOGAN) |
+| Fig. 3 | L05 | six-frame specificity (LOGAN) |
+| Fig. 4 | G04 | GTDB missed genes against the matched comparator |
+| Fig. 5 | L06 | LOGAN candidates: Foldseek evidence with controls |
+| Fig. 6 | P01 | phage: MI, ranking, Foldseek, OM869708 |
+| Fig. S1 | G02 | estimator bias vs biology |
+| Fig. S2 | GS02 | length-reference calibration |
+| Fig. S3 | L01 | feature distributions at fixed length |
+| Fig. S4 | L03 | within-length-bin AUC |
+| Fig. S5 | L04 | contig-end fragments |
+| Fig. S6 | LS1 | biome and tranche replication |
+| Fig. S7 | G05 | GTDB Prodigal agreement |
+| Fig. S8 | GS03 | candidate burden vs genome covariates |
+| Fig. S9 | G06 | functional classes and worked examples |
+| Fig. S10 | L07 | LOGAN candidate evidence detail |
+| Fig. S11 | L08 | LOGAN contig taxonomy |
+| Fig. S12 | L09 | why Prodigal skipped candidates |
+| Fig. S13 | L10 | low-scoring Prodigal genes |
+| Fig. S14 | P04 | phage vs cellular 3Di entropy |
+| Fig. S15 | PS01 | phage label correction |
+| Fig. S16–S18 | S01, SS01, SS02 | GMSC smORFs |
+| Table 1 | — | datasets and encoding configurations (in the text) |
+| Table 2 | tabL01 | LOGAN ORF classes |
+| Table 3 | G04 data | GTDB direct-evidence ladder |
+| Tables S1–S13 | tabG01, tabL02–09, tabS01–04 | supplementary tables |
+
+The proposal below is kept for reference.
+
+## Main figures (original proposal)
 
 | fig | title (working) | panels → package | owner | status |
 |---|---|---|---|---|

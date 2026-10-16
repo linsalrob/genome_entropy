@@ -9,7 +9,7 @@ These are the figures for the LOGAN metagenome validation (genome_entropy #102, 
 | `data/logan_provenance.json` | For every data file: its source path on Setonix and the sha256 of both source and output, plus the commit of the LOGAN scripts. |
 | `prep/logan_prepare_data.py` | Reduces the final LOGAN outputs on Setonix to the files in `data/`. Not needed to redraw the figures. |
 | `prep/build_logan_notebooks.py` | Writes the notebooks. They share one style. |
-| `figures_manifest_logan.tsv` | One row per figure or table. Columns: notebook, data, upstream source, producing scripts, outputs, caption, status. |
+| `figures_manifest.tsv` | LOGAN rows (package `L…`, `LS1`, `tabL…`) are merged into the single manuscript manifest, with final figure and table numbers. |
 | `notebooks/requirements_logan.txt` | The tested versions. |
 
 **Redraw everything:**
