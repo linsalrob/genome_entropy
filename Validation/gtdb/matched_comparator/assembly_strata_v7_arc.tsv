@@ -51,6 +51,9 @@ arc	all	all	all			prodigal_candidate	0.5536151824297233
 arc	all	all	all			prodigal_annotated_cds	0.9613311355637725		
 arc	all	all	all			prodigal_comparator	0.2562035015815031		
 arc	all	all	all			prodigal_share_clean_bg	0.4217841799342935	0.41116496202913855	0.4324033978394485
+arc	all	all	all			prodigal_intergenic_lo	0.15440816144696395		
+arc	all	all	all			prodigal_share_intergenic_lo_bg	0.49472754375310546	0.4860036130065114	0.5034514744996995
+arc	all	all	all			prodigal_share_larger_bg	0.4217841799342935		
 arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_candidate	5863.0		
 arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_draws	5863.0		
 arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_distinct	5739.0		
@@ -103,6 +106,9 @@ arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_candidate	0.5993518676
 arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_annotated_cds	0.9527067221891731		
 arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_comparator	0.2865427255671158		
 arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_clean_bg	0.4695677695936854	0.4481891469654423	0.4909463922219285
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_intergenic_lo	0.18491484184914841		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_intergenic_lo_bg	0.5397778179314223	0.5216052968606524	0.5579503390021923
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_larger_bg	0.4695677695936854		
 arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_candidate	5610.0		
 arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_draws	5610.0		
 arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_distinct	5433.0		
@@ -155,6 +161,9 @@ arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_candidate	0.6253119
 arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_annotated_cds	0.963513123738102		
 arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_comparator	0.3067736185383244		
 arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_clean_bg	0.48502994246368547	0.46311435765947145	0.5069455272678995
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_intergenic_lo	0.15629947975571137		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_intergenic_lo_bg	0.5810264317255791	0.564079760080196	0.5979731033709622
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_larger_bg	0.48502994246368547		
 arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_candidate	5451.0		
 arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_draws	5451.0		
 arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_distinct	5353.0		
@@ -207,6 +216,9 @@ arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_candidate	0.563382
 arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_annotated_cds	0.9661194551170101		
 arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_comparator	0.26967528893780957		
 arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_clean_bg	0.42172451268100336	0.4001528483578469	0.4432961770041598
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_intergenic_lo	0.16338826865142655		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_intergenic_lo_bg	0.49829208534803016	0.4805765017676241	0.5160076689284362
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_larger_bg	0.42172451268100336		
 arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_candidate	5523.0		
 arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_comparator_draws	5523.0		
 arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_comparator_distinct	5504.0		
@@ -259,6 +271,9 @@ arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_candidate	0.4225964149
 arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_annotated_cds	0.9663728370878224		
 arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_comparator	0.15933369545536846		
 arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_clean_bg	0.3262081179903667	0.30796916973667093	0.34444706624406246
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_intergenic_lo	0.13211652363108908		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_intergenic_lo_bg	0.34819022244753817	0.33135385679595464	0.3650265880991217
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_larger_bg	0.3262081179903667		
 arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_candidate	5863.0		
 arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_draws	5310.0		
 arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_distinct	5064.0		
@@ -311,6 +326,9 @@ arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_candidate	0.5993518676445506
 arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_annotated_cds	0.9527067221891731		
 arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_comparator	0.28041431261770244		
 arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_clean_bg	0.47440302833426873	0.4528849319962549	0.49592112467228255
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_intergenic_lo	0.18491484184914841		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_intergenic_lo_bg	0.5397778179314223	0.5216052968606524	0.5579503390021923
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_larger_bg	0.47440302833426873		
 arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_candidate	5610.0		
 arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_draws	5177.0		
 arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_distinct	4910.0		
@@ -363,6 +381,9 @@ arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_candidate	0.6253119429590
 arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_annotated_cds	0.963513123738102		
 arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_comparator	0.29109522889704464		
 arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_clean_bg	0.49703720948853924	0.47546502545654984	0.5186093935205286
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_intergenic_lo	0.15629947975571137		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_intergenic_lo_bg	0.5810264317255791	0.564079760080196	0.5979731033709622
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_larger_bg	0.49703720948853924		
 arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_candidate	5451.0		
 arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_draws	5567.0		
 arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_distinct	5302.0		
@@ -415,6 +436,9 @@ arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_candidate	0.563382865529
 arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_annotated_cds	0.9661194551170101		
 arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_comparator	0.2947727680977187		
 arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_clean_bg	0.4001063870950827	0.37712182150180557	0.4230909526883599
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_intergenic_lo	0.16338826865142655		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_intergenic_lo_bg	0.49829208534803016	0.4805765017676241	0.5160076689284362
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_larger_bg	0.4001063870950827		
 arc	own_genome	n50_contigs	Q4	221751.0	inf	n_candidate	5523.0		
 arc	own_genome	n50_contigs	Q4	221751.0	inf	n_comparator_draws	6393.0		
 arc	own_genome	n50_contigs	Q4	221751.0	inf	n_comparator_distinct	6199.0		
@@ -467,6 +491,9 @@ arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_candidate	0.4225964149918522
 arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_annotated_cds	0.9663728370878224		
 arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_comparator	0.17425308931643985		
 arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_clean_bg	0.3135174023550388	0.2947774373796775	0.33225736733040007
+arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_intergenic_lo	0.13211652363108908		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_intergenic_lo_bg	0.34819022244753817	0.33135385679595464	0.3650265880991217
+arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_larger_bg	0.3135174023550388		
 arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_candidate	4962.0		
 arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_draws	4962.0		
 arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_distinct	4875.0		
@@ -519,6 +546,9 @@ arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_candidate	0.602
 arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_annotated_cds	0.955748552522746		
 arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_comparator	0.29907295445384924		
 arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_clean_bg	0.4618796857925059	0.4383322525585115	0.48542711902650026
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_intergenic_lo	0.15232307390707706		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_intergenic_lo_bg	0.5601701855732794	0.5420784803406671	0.5782618908058916
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_larger_bg	0.4618796857925059		
 arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_candidate	5782.0		
 arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_draws	5782.0		
 arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_distinct	5634.0		
@@ -571,6 +601,9 @@ arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_candidate	0.62
 arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_annotated_cds	0.9628140703517588		
 arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_comparator	0.3028363887928053		
 arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_clean_bg	0.4947600826039905	0.4734412010861275	0.5160789641218535
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_intergenic_lo	0.1893084845512506		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_intergenic_lo_bg	0.5689144649563609	0.5511769258604724	0.5866520040522494
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_larger_bg	0.4947600826039905		
 arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_candidate	6056.0		
 arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_draws	6056.0		
 arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_distinct	5918.0		
@@ -623,6 +656,9 @@ arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_candidate	0.55
 arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_annotated_cds	0.9675865901092795		
 arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_comparator	0.26354029062087186		
 arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_clean_bg	0.4202918017319049	0.3999996124143552	0.44058399104945456
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_intergenic_lo	0.16899696048632218		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_intergenic_lo_bg	0.48892222408843117	0.4716510944454446	0.5061933537314177
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_larger_bg	0.4202918017319049		
 arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_candidate	5647.0		
 arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_draws	5647.0		
 arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_distinct	5625.0		
@@ -675,6 +711,9 @@ arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_candidate	0.4269
 arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_annotated_cds	0.96005655708731		
 arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_comparator	0.16291836373295554		
 arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_clean_bg	0.33122738636210153	0.31287506398009785	0.3495797087441052
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_intergenic_lo	0.1299651986079443		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_intergenic_lo_bg	0.3577764814022745	0.3409708341045656	0.3745821286999835
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_larger_bg	0.33122738636210153		
 arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_candidate	4962.0		
 arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_draws	5324.0		
 arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_distinct	4980.0		
@@ -727,6 +766,9 @@ arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_candidate	0.602378073
 arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_annotated_cds	0.955748552522746		
 arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_comparator	0.3495492111194591		
 arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_clean_bg	0.4170721493243232	0.39060858198727794	0.44353571666136843
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_intergenic_lo	0.15232307390707706		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_intergenic_lo_bg	0.5601701855732794	0.5420784803406671	0.5782618908058916
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_larger_bg	0.4170721493243232		
 arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_candidate	5782.0		
 arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_draws	4938.0		
 arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_distinct	4704.0		
@@ -779,6 +821,9 @@ arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_candidate	0.62936700
 arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_annotated_cds	0.9628140703517588		
 arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_comparator	0.29222357229647633		
 arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_clean_bg	0.5027560481679139	0.4812889254910057	0.524223170844822
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_intergenic_lo	0.1893084845512506		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_intergenic_lo_bg	0.5689144649563609	0.5511769258604724	0.5866520040522494
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_larger_bg	0.5027560481679139		
 arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_candidate	6056.0		
 arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_draws	5870.0		
 arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_distinct	5618.0		
@@ -831,6 +876,9 @@ arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_candidate	0.55944517
 arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_annotated_cds	0.9675865901092795		
 arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_comparator	0.2485519591141397		
 arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_clean_bg	0.43237586316408827	0.41242493000121033	0.4523267963269662
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_intergenic_lo	0.16899696048632218		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_intergenic_lo_bg	0.48892222408843117	0.4716510944454446	0.5061933537314177
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_larger_bg	0.43237586316408827		
 arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_candidate	5647.0		
 arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_draws	6315.0		
 arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_distinct	6173.0		
@@ -883,3 +931,6 @@ arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_candidate	0.4269523640
 arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_annotated_cds	0.96005655708731		
 arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_comparator	0.1564528899445764		
 arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_clean_bg	0.33660806340559446	0.31852985284918806	0.35468627396200086
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_intergenic_lo	0.1299651986079443		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_intergenic_lo_bg	0.3577764814022745	0.3409708341045656	0.3745821286999835
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_larger_bg	0.33660806340559446		
