@@ -123,12 +123,8 @@ Status codes:
 - **The annotated ORF7** (`OM869708_CDS_0007`, 5053–5650, 198 aa, 3Di 1.20 bits) scores p = **0.175**, against 0.199 legacy.
 - **ORF3 → ORF7 is still a replacement candidate:** rank 179 of 4,102 corrected, against 121 of 1,797 legacy.
 - **The MS values 0.91 and 0.27 match neither model** (probably the July notebook model, #70). Update the text.
-- **Still unsupported (D7, D12):**
-  - the BLASTP hit to the *Dipodfec virus* RodF1 38 replication initiator;
-  - the genbank_viewer figure;
-  - "Phynteny".
-
-  Re-run BLASTP, and build the P03 notebook package (Setonix).
+- **BLASTP re-run (2026-10-16):** the *Dipodfec virus* RodF1 38 hit is the genome's own submitted Rep (UPW42009.1), which the re-annotation dropped. Independent homologues are at 43–55% identity. ORF7 has no hit. Reframe as in D7.
+- **Still unsupported (D12):** the genbank_viewer figure (replaced by Fig. P01d) and "Phynteny".
 
 ### 2.6 Figures: images ↔ legends
 

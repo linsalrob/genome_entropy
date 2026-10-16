@@ -139,14 +139,20 @@ The alternative, re-running ranking on the full Gadi set, is new compute.
 
 The manuscript's 0.91 and 0.27 match neither model. They likely come from the July notebook model.
 
-**Not found in any repo:**
-- the BLASTP result (best hit *Dipodfec virus* RodF1 38 replication initiator);
-- the genbank_viewer figure;
-- the "Phynteny" annotation step.
+**BLASTP re-run and the original record (2026-10-16; #122, `figP01_om869708_*`).** These change the story:
+- **OM869708 is *Dipodfec virus* RodF1_38.** The submitters' GenBank record annotates CDS 4753..5730 as a replication initiator protein (UPW42009.1). That is ORF3, from its first methionine, with the same stop codon.
+- **The Pharokka + phold re-annotation dropped that gene.** It called a hypothetical protein in another frame instead (CDS_0007, which is ORF7).
+- **The manuscript's "best hit to the *Dipodfec virus* RodF1 38 replication initiator" is the genome's own record** (100% identity), so it is not independent support.
+- **Independent support exists:** the next hits are other microvirus replication initiators, at 43–55% identity (E down to 2 × 10⁻¹²⁷).
+- **ORF7 has no hit in nr at E < 10⁻⁵.**
+
+**Still not found in any repo:**
+- the genbank_viewer figure (now replaced by Fig. P01d);
+- the "Phynteny" step.
 
 **Recommendation.**
-- Keep the example and update it to the corrected-model probabilities.
-- Re-run BLASTP for ORF3/ORF7 and commit the hit table with a notebook (Setonix integrator, phage package P03).
+- Keep the example, reframed: genome_entropy recovers a replication gene that the submitters annotated and that the re-annotation pipeline lost.
+- Use the corrected-model probabilities, and cite only the non-self homologues as independent evidence.
 - Drop "Phynteny" unless Rob confirms it was run.
 
 **Decision.** _open_
