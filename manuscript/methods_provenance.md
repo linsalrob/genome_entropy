@@ -18,14 +18,15 @@ This file records, for each dataset in the paper, where the inputs and outputs l
   - `get_orfs -l` took the minimum in amino acids until #103/#104, so the effective floor was **90 aa** for GTDB, phage and mutual information.
   - LOGAN passed `-l 29` through a wrapper, giving a true **30 aa** floor.
   - smORFs are the GMSC 10–99 aa set; no floor applies.
-- **`in_genbank` label.** An ORF matches a deposited CDS when all of these hold:
-  - same strand;
-  - same stop codon;
-  - same phase;
-  - ≥90% reciprocal overlap;
-  - ≥98% amino-acid identity.
+- **`in_genbank` label** (`src/genome_entropy/io/genbank.py`, `evaluate_orf_genbank_cds_match`). An ORF matches a deposited CDS when all of these hold:
+  - same parent record and strand;
+  - compatible codon phase: the biological starts differ by a multiple of 3, measured from the start on the plus strand and from the end on the minus strand;
+  - genomic overlap ≥90% **of the shorter interval** (`MIN_CDS_OVERLAP_FRACTION`), not reciprocal overlap;
+  - ≥98% identity of the coordinate-aligned, ungapped translations over the shared codons (`MIN_SHARED_AA_IDENTITY`), with `X` as a wildcard.
 
-  The matcher was fixed in 2cc0e1a (2026-07-31), in 0.2.0. Runs before that fix mislabel minus-strand genes.
+  There is **no stop-codon check**. A short CDS wholly inside a much longer stop-to-stop ORF can therefore match: 77,799 phage positives have a CDS covering less than half the ORF (`Validation/mutual_information/README.md` §2.1).
+
+  The matcher was fixed in 2cc0e1a (2026-07-31), in 0.2.0. Runs before that fix mislabel minus-strand genes. LOGAN does not use this matcher; its labels come from Prodigal (`Validation/logan/README.md`).
 - **Entropies.** Plug-in Shannon entropy (bits) of the amino-acid sequence, the 20-state 3Di string and the 12-state reduced alphabet, plus 3Di–12-state mutual information. DNA entropy is computed but carries no signal (GTDB §4.1). Plug-in entropy is biased with length (#101; `Validation/gtdb/scientific_report.md` §4.2).
 - **3Di encoder.** `gbouras13/modernprost-50M`, a sequence-only 3Di predictor. Its revision is recorded as `2d68d506` for LOGAN and smORFs, and was not recorded for GTDB or phage.
 

@@ -50,7 +50,7 @@ current text are in [`manuscript_audit.md`](manuscript_audit.md).
 | G-14 | Convergence | strict set Prodigal-confirmed: 91.8% (21,617 / 23,540) bac, 95.9% (1,509 / 1,574) arc | GR §6.1 | G05 | absent |
 | G-15 | What the missed genes are | strict set: metabolism 33.8% / 41.3%, mobile elements 13.6 / 11.8%; 8,065 distinct Swiss-Prot products | GR §6.1 | G06 | absent |
 | G-16 | Examples | Cas5 completing a type I CRISPR–cas operon; SusC completing a PUL; 8 others. "RecF" should read "RecF/Rad50-family ABC ATPase" and is not used in a figure | GR §6.1; dossiers on Gadi/Teams | G06 | absent |
-| G-17 | Signal is strongest in good assemblies | archaea, top N50 quartile 43.5% vs 32.6%; bottom quartile indistinguishable | GR §6.1 | GS* | absent |
+| G-17 | Assembly quality | **The candidate excess exists at every N50 quartile.** In bacteria the implied share *declines* with N50 and completeness (28% → 20%; 32% → 17%); in archaea it is roughly flat. Prodigal agreement shows the same pattern. Computed with the full-length readout and the clean (unmatched, #107) comparator; not re-run with the matched comparator. **GR §6.1 "Where the separation lives" (43.5% vs 32.6%) is an artefact of the any-hit / all-shadow readout and is withdrawn** (asked of Gadi on #24) | `Validation/gtdb/supplementary_analyses.md` §7 (l.380–404) | GS* | absent |
 | G-18 | Encoding failures | 39 genomes (0.021%) OOM on pathological ORFs (48k–766k aa); fixed by `--max-aa` (#112, 0.4.0) | GR §7 | Methods | absent |
 
 ## 2. LOGAN metagenomes (LOGAN agent; packages L01–L10, LS1, tabL01–09)
@@ -103,7 +103,7 @@ current text are in [`manuscript_audit.md`](manuscript_audit.md).
 | item | value | source |
 |---|---|---|
 | ORF floor | effective 90 aa for GTDB, phage and MI (`-l` was amino acids, #103/#104); 30 aa for LOGAN (`-l 29`) | GR:135–141; #103 |
-| `in_genbank` rule | same strand and stop codon, same phase, ≥90% overlap, ≥98% amino-acid identity, not "overlaps a CDS" | `Validation/logan/README.md`:126–127 |
+| `in_genbank` rule | same record and strand; compatible codon phase; overlap ≥90% of the *shorter* interval; ≥98% identity of coordinate-aligned translations (`X` wildcard); **no stop-codon check**, so a short CDS inside a long ORF can match. Not "overlaps a CDS". LOGAN uses Prodigal labels instead | `src/genome_entropy/io/genbank.py` (`evaluate_orf_genbank_cds_match`); see `methods_provenance.md` §1 |
 | Model | `gbouras13/modernprost-50M`; revision 2d68d506 recorded for LOGAN and smORFs only | LMS:222; methods_provenance.md |
 | Per-dataset configuration | see `methods_provenance.md` §2 (D9) | |
 
@@ -114,6 +114,7 @@ current text are in [`manuscript_audit.md`](manuscript_audit.md).
 | GTDB v6 real-gene shares 23–36%, ~128–149k, C3 ~65.8k, C7 ~20,350, Prodigal ~244k / 1.7× | G-9 to G-13 | clean comparator was unmatched after the frame filter (#109) |
 | GTDB first-draft 3,562,431 candidates, "candidates and shadows indistinguishable" | G-8 | coordinate defect; `in_genbank` used as an annotation proxy |
 | GTDB 20-chunk figures (`figures/superseded_20chunk/`) | G01 | sample |
+| "The signal is in high-N50 genomes" (archaea 43.5% vs 32.6%, GR §6.1) | G-17 | any-hit readout with all shadows; same-frame and truncated shadows concentrate in fragmented assemblies |
 | Bacterial Swiss-Prot share 10.3% | 10.4% | rounding (#114) |
 | Phage MI 0.383 bits; legacy in_genbank tables on Teams (`Validation/mutual_information/*`) | P-2 | minus-strand label bug |
 | Phage ranking 52,057 candidates / 1,797 replacements (`Validation/Inphared/rank_orfs/` on Teams) | P-3 to P-5 | strand shortcut |

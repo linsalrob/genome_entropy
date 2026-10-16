@@ -11,7 +11,9 @@ Package IDs are the owners' provisional ones:
 Final figure numbers are assigned here, and the IDs are renamed once the plan
 is agreed. Every panel must have a notebook and committed plotting data (see
 [`notebooks/README.md`](notebooks/README.md)). Status is tracked in
-[`figures_manifest.tsv`](figures_manifest.tsv).
+[`figures_manifest.tsv`](figures_manifest.tsv). Both files are added by the
+scaffold PR, linsalrob/genome_entropy#119, so these links resolve once it is
+merged. Merge #119 before this PR.
 
 ## Storyline
 
