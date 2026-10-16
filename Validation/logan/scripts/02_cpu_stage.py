@@ -306,11 +306,13 @@ def call_orfs(acc: str, wd: Path) -> Tuple[pd.DataFrame, Dict[str, int]]:
     TWO get_orfs BEHAVIOURS ARE CORRECTED HERE, both verified on LOGAN contigs.
 
     1. MINIMUM LENGTH (issue #103). get_orfs -l is in amino acids and keeps an
-       ORF when strlen(aa, including any '*') > l. find_orfs passes its
-       nucleotide argument straight through, and `genome_entropy run` passes
-       min_aa * 3, so the package default is an effective ~90 aa floor. We
-       want the documented 30 aa: pass 29 so both stop-terminated (29 aa + '*')
-       and contig-open (30 aa) ORFs survive, then keep aa_len >= 30 exactly.
+       ORF when strlen(aa, including any '*') > l. We want the documented
+       30 aa: get_orfs -l 29, so both stop-terminated (29 aa + '*') and
+       contig-open (30 aa) ORFs survive, then keep aa_len >= 30 exactly.
+       In genome_entropy 0.3.0, which the LOGAN run used, find_orfs passed its
+       min_nt_length straight through as -l, so the run passed 29. Since #104
+       find_orfs takes nucleotides and converts with ceil(n / 3); passing 29
+       would now give -l 10, so we pass 3 * 29 = 87 nt, which gives -l 29.
 
     2. OPEN 3' ENDS. For an ORF that runs off the contig without a stop,
        get_orfs reports end = contig_len + 1 whatever the frame, so the span
@@ -325,7 +327,7 @@ def call_orfs(acc: str, wd: Path) -> Tuple[pd.DataFrame, Dict[str, int]]:
     for batch in iter_contig_batches(wd / "contigs.ge120.fa", ORF_BATCH_BP):
         lens = {k: len(v) for k, v in batch.items()}
         orfs = find_orfs(batch, table_id=lc.GENETIC_CODE,
-                         min_nt_length=lc.MIN_ORF_AA - 1)   # read as aa, see (1)
+                         min_nt_length=3 * (lc.MIN_ORF_AA - 1))   # -> get_orfs -l 29, see (1)
         for o in orfs:
             codon_end = o.start + 3 * len(o.aa_sequence) - 1
             if o.has_stop_codon:

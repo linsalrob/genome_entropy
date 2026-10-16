@@ -15,7 +15,13 @@ Summary (to --out):
 
 Foldseek query set (selection.parquet, arm column), following #92's design:
   candidate       high-score intergenic ORFs (score >= t0.90), complete or
-                  5'-open, sampled stratified by length bin
+                  5'-open, sampled stratified by length bin. The thresholds
+                  are calibrated on complete ORFs only, so the 0.90
+                  precision target holds for the complete candidates; 5'-open
+                  fragments are admitted at the same score without a
+                  calibrated precision, and every arm carries `trunc` so
+                  results are reported per truncation state (in the run
+                  reported, 1,123 of 20,000 candidates were 5'-open).
   intergenic_lo   intergenic ORFs with score < t0.80, nearest-length matched
                   without replacement, same truncation state
   antisense       antisense shadows, nearest-length matched (structured-
@@ -117,7 +123,11 @@ def main() -> int:
     print(q.round(4).to_string())
 
     rng = np.random.default_rng(args.seed)
+    # t90 is calibrated on complete ORFs only (13_models.py); 5'-open rows are
+    # kept but must be reported separately, not under the precision target.
     hi = cand[(cand.score >= t90) & cand.trunc.isin(["complete", "open5"])]
+    print(f"candidate pool >= t0.90: {hi.trunc.value_counts().to_dict()} "
+          f"(precision target calibrated on complete ORFs only)")
     # Stratify by length bin: up to n / bins from each, rest filled from the remainder.
     per = max(1, args.n // hi.length_bin.nunique()) if len(hi) else 0
     arm = (hi.groupby("length_bin", group_keys=False)

@@ -32,6 +32,7 @@ per-class histograms (ties at 0.01 bits are counted as half).
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -103,9 +104,17 @@ def main() -> int:
     args = ap.parse_args()
     src = lc.root() / "analysis" / lc.CACHE_VERSION / "orfs" / f"{args.shard}.parquet"
     out = out_dir() / f"{args.shard}.npz"
+    # Tie the histogram to the exact shard table it was computed from: a later
+    # tranche can add chunks to a shard, 09_build_analysis_tables.py then
+    # rebuilds the parquet and records a new orfs_sha256 in its manifest, and
+    # a histogram of the old table must not survive that.
+    shard_sha = json.load(open(src.parent.parent / f"{args.shard}.json"))["orfs_sha256"]
     if out.exists():
-        print(f"{out} exists")
-        return 0
+        with np.load(out) as old:
+            if "orfs_sha256" in old.files and str(old["orfs_sha256"]) == shard_sha:
+                print(f"{out} is current")
+                return 0
+        print(f"{out} predates the current shard table; rebuilding")
     out.parent.mkdir(parents=True, exist_ok=True)
     n_strata = int(np.prod(SHAPE))
     hist = {f: np.zeros((n_strata, (len(LEN_BINS) if f == "aa_len" else ENT_BINS)), np.int64)
@@ -129,7 +138,7 @@ def main() -> int:
     if rows != pf.metadata.num_rows:
         raise RuntimeError("row count mismatch")
     tmp = out.with_name(out.name + ".partial.npz")
-    np.savez_compressed(tmp, rows=rows, **hist)
+    np.savez_compressed(tmp, rows=rows, orfs_sha256=shard_sha, **hist)
     tmp.rename(out)
     print(f"shard {args.shard}: {rows:,} rows histogrammed")
     return 0
