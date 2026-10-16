@@ -79,652 +79,584 @@ metagenomic gene prediction.
 
 # Methods
 
-## Overview of the genome entropy framework
+## Overview of the genome_entropy framework
 
-All analyses were performed using the *genome_entropy* software package
-(https://github.com/linsalrob/genome_entropy). The pipeline accepts
-nucleotide sequences (GenBank or FASTA), extracts ORFs, translates them
-into amino acid sequences, predicts structural representations, and
-computes entropy measures at multiple biological levels. The same
-codebase was used to generate both the GenBank-derived and LOGAN
-datasets.
+All entropy features were computed with genome_entropy (https://github.com/linsalrob/genome_entropy) [@genome_entropy]. The pipeline takes nucleotide sequences (GenBank or FASTA) and:
+1. calls every open reading frame (ORF) in all six frames;
+2. translates each ORF with the bacterial genetic code (NCBI table 11);
+3. predicts a structural-alphabet representation of each translated ORF;
+4. reports per-ORF entropy features.
 
-## ORF extraction and classification
+When an input record carries CDS annotations, each ORF is also labelled by whether it matches one of them. Different datasets were processed with different package releases, encoding settings and hardware. The configuration for each is given in Table 1, and its effect on the values is quantified under *Reproducibility of the structural encoding*.
 
-For GenBank genomes, we extracted ORFs directly from annotated records.
-To discriminate real proteins and ORFs that are unlikely to encode
-functional proteins, each ORF was labelled according to whether it
-overlapped a curated protein-coding gene annotation (*in_genbank=True*)
-or represented an unannotated ORF (*in_genbank=False*).
+## ORF calling
 
-For the LOGAN dataset, ORFs were predicted using Prodigal and treated as
-putative protein-coding genes, consistent with standard metagenomic
-workflows.
+ORFs are maximal stop-to-stop open reading frames reported by `get_orfs` [@get_orfs], so an ORF extends upstream of any start codon to the preceding in-frame stop. Each ORF records whether it is complete or runs off a contig end.
 
-DNA sequence entropy
+The minimum-length argument behaves differently by release. Before genome_entropy 0.4.0 it was passed to `get_orfs` in amino acids, although it was documented as nucleotides (genome_entropy #103, #104). The GTDB, phage and mutual-information datasets therefore have an effective floor of **90 amino acids**. The LOGAN analysis set the floor explicitly to 30 amino acids. The GMSC small ORFs are a curated 10–99 amino-acid set and were not ORF-called. <!-- src: methods_provenance.md §1; Validation/gtdb/scientific_report.md l.135–141; #103 -->
 
-For each ORF, Shannon entropy was computed over the nucleotide alphabet
-{*A. C, G, T}*:
+## Annotation labels
 
-where (p~i~) is the observed frequency of the i^th^ nucleotide in the
-sequence.
+For datasets with deposited annotations (GTDB, phage), an ORF was labelled as matching a CDS when all of the following held:
+- it lies on the same record and strand as the CDS;
+- its biological start is in compatible codon phase with the CDS's, differing by a multiple of three, measured from the start on the plus strand and from the end on the minus strand;
+- the two genomic intervals overlap by at least 90% of the shorter one;
+- the coordinate-aligned, ungapped translations over the shared codons are at least 98% identical, with `X` treated as a wildcard.
 
-## Amino acid sequence entropy
+The rule has no stop-codon requirement. A short CDS that lies wholly inside a longer stop-to-stop ORF can therefore match it. <!-- src: src/genome_entropy/io/genbank.py evaluate_orf_genbank_cds_match; MIN_CDS_OVERLAP_FRACTION=0.90, MIN_SHARED_AA_IDENTITY=0.98 -->
 
-For each ORF translated into an amino acid sequence, Shannon entropy was
-computed over the amino acid alphabet:
+Earlier releases contained a matcher that compared reverse-complement ORF coordinates with genomic CDS coordinates. Under it, almost no minus-strand ORF could match. It was fixed in genome_entropy 0.2.0 (commit 2cc0e1a), and every label used here comes from the corrected matcher (Fig. S15). LOGAN has no deposited annotation, so its ORFs were labelled against Prodigal gene calls instead (*LOGAN metagenomes*).
 
-where (p~i~) is the observed frequency of amino acid (i) in the
-sequence.
+A label records agreement with an annotation, not proof that an ORF is expressed or functional, nor that an unmatched ORF is not.
 
-This measure captures the compositional complexity of the sequences.
-True proteins are expected to exhibit characteristic entropy ranges
-reflecting evolutionary constraints, whereas non-coding ORFs often show
-reduced entropy or pathological amino acid biases.
+## Structural encoding
 
-## Structural encoding and 3Di entropy
+Translated ORFs were encoded with ModernProst (`gbouras13/modernprost-50M`) [@modernprost]. This multitask protein language model predicts two per-residue structural alphabets directly from the amino-acid sequence, with no structure or alignment as input:
+- the 20-state Foldseek 3Di alphabet [@vanKempen2024];
+- a 12-state alphabet.
 
-To assess structural information content, amino acid sequences were
-converted into discrete 3Di representations using pretrained protein
-structure models. The 3Di alphabet encodes local backbone conformations
-and tertiary interaction patterns, providing a compact, sequence-like
-representation of predicted structure.
+The model revision is `2d68d506d4ce8d59025c985fd00243a8860363c6` for every dataset where it was recorded (Table 1). Sequences were encoded in batches of up to a fixed number of residues, the *encoding size*. Because ModernProst predicts structural states from sequence alone, it assigns confident 3Di states to any protein-like sequence. A 3Di string is therefore a prediction, not an observation of structure.
 
-Shannon entropy was then computed over the 3Di alphabet for each ORF:
+## Entropy features
 
-where ( q~j~ ) is the frequency of the 3Di state ( j ) within the
-sequence.
+For each ORF, Shannon entropy was computed in bits from the observed symbol frequencies of the sequence in a given alphabet:
 
-This measure reflects the diversity and coherence of predicted
-structural states. Functional proteins tend to form structured,
-repetitive, and modular architectures, whereas non-coding ORFs produce
-structurally incoherent or low-complexity predictions.
+$$H(X) = -\sum_{i} p_i \log_2 p_i ,$$
 
-## Joint entropy space and statistical analysis
+where $p_i$ is the fraction of positions in the ORF that carry symbol $i$. This was done separately for the nucleotide sequence (4 symbols), the amino-acid sequence (20 standard residues; the GTDB analyses also counted `X` as a symbol), the 3Di string (20) and the 12-state string (12). The maxima are therefore 2, $\log_2 20 \approx 4.32$, $\log_2 20$ and $\log_2 12 \approx 3.58$ bits.
 
-Amino acid entropy and 3Di entropy were analysed jointly to assess their
-combined discriminatory power. ORFs were visualised in two-dimensional
-entropy space, and distributions were compared between annotated
-proteins and unannotated ORFs.
+The per-ORF mutual information between the aligned 3Di and 12-state strings was computed from their joint frequencies:
 
-All analyses were conducted using Python-based scientific libraries, and
-figures were generated directly from the output of the *genome_entropy*
-pipeline.
+$$I(\mathrm{3Di};\,\mathrm{12st}) = \sum_{a,b} p(a,b)\,\log_2 \frac{p(a,b)}{p(a)\,p(b)} .$$
+<!-- src: src/genome_entropy/entropy/shannon.py shannon_entropy, mutual_information -->
 
-## Genome reannotation and ORF-level entropy analysis
+Two properties of these estimators shape the analyses below.
+- **Length bias.** The plug-in estimator is biased downwards by an amount that shrinks with sequence length. Part of any rise of entropy with ORF length is therefore estimation bias, not biology. We quantify this against an i.i.d. reference and an empirical length-conditioned reference (Fig. S1, S2), and control for length in every comparison.
+- **The log₂k ceiling.** A string that uses only $k$ symbols has entropy of at most $\log_2 k$ bits. An ORF whose predicted 3Di uses two or three states therefore has 3Di entropy of at most 1 or $\log_2 3 \approx 1.585$ bits, whatever its length.
 
-We obtained complete bacteriophage genomes from the INPHARED database
-and reannotated them using a combined workflow incorporating Pharokka,
-Phold, and Phynteny. We used Pharokka to identify protein-coding genes
-and generate an initial genome annotation, while Phold and Phynteny
-improved functional annotation through protein-structure similarity and
-conserved genomic-context information, respectively.
+## Statistics
 
-In parallel with the annotation workflow, all possible open reading
-frames (ORFs) identified within each genome were analysed using the
-genome entropy pipeline. For each ORF, we calculated sequence-derived
-features from the nucleotide sequence, translated amino-acid sequence,
-and predicted 3Di structural-alphabet sequence. These features included
-nucleotide, protein, and 3Di entropy, together with ORF length, genomic
-position, strand, reading frame, and the presence or absence of
-canonical start and stop codons.
+The statistics shared across datasets are:
+- **Discrimination:** ROC AUC and average precision (AP).
+- **Proportions:** reported with Wilson or first-order (delta-method) 95% confidence intervals.
+- **Correlations:** Spearman's ρ.
 
-We used an XGBoost-based classification model to estimate the
-probability that each ORF represented a genuine protein-coding gene. The
-classifier was trained using ORFs corresponding to protein-encoding
-genes in the reference annotations as positive examples and alternative,
-unannotated ORFs as negative examples. The model therefore assigned each
-ORF a probability between 0 and 1 representing its predicted likelihood
-of encoding a protein. Higher values indicated stronger support for a
-coding ORF.
+Dataset-specific estimands are described under each dataset:
+- the mixture estimate of real-gene share and its comparator (GTDB);
+- grouped cross-validation (LOGAN, phage);
+- binned mutual information with permutation nulls (phage).
 
-## Examination of alternative overlapping ORFs in genome OM869708
+Analyses used Python 3.12 with NumPy, pandas, SciPy, scikit-learn and XGBoost. The exact versions for each dataset are recorded in its analysis directory.
 
-Genome OM869708 was selected as a representative example in which the
-genome entropy model identified a plausible protein-coding ORF that
-differed from the ORF selected by the conventional annotation workflow.
-Genome annotations and overlapping ORFs were visualised using
-genbank_viewer. The region contained the annotated protein-encoding gene
-CDS007, which corresponded to ORF7 in the genome entropy output. ORF7
-overlapped an alternative reading frame designated ORF3.
+## GTDB r232 reference genomes
 
-The coding probabilities and entropy features of ORF7 and ORF3 were
-compared. We then searched the translated protein sequences against the
-NCBI non-redundant database using BLASTP and manually evaluated them.
+### Genomes, ORFs and labels
 
-## Analysis of LOGAN metagenomes
+We analysed the species representatives of GTDB release 232 (R11-RS232) [@Parks2022]: 189,801 bacterial and 10,122 archaeal genomes. <!-- src: GR:3; GR §2 --> GenBank records were downloaded with NCBI `datasets` 18.36.0 [@OLeary2024]. Forty-seven bacterial assemblies were no longer served and 39 failed to encode (below). That left 189,715 bacterial genomes with 2,568,244,984 ORFs and 10,122 archaeal genomes with 54,858,398 ORFs. <!-- src: GR §2, §3 -->
 
-From the LOGAN v1.2 SRA metadata (38,072,291 runs)\[2\], we kept runs
-meeting all of the following criteria: - librarysource = METAGENOMIC
-(7,754,394 runs); - assay_type = WGS (1,122,461); - random-shotgun
-library selection (RANDOM, RANDOM PCR or unspecified; 863,841); -
-short-read platforms; - an NCBI "... metagenome" organism name,
-excluding synthetic, mock and mixed-culture (761,663).
-Human-*associated* microbiomes were retained. Librarysource excluded
-human and isolate WGS.
+Counted directly from the GenBank records, 92,840 bacterial (48.9%) and 4,630 archaeal (45.7%) genomes carry no deposited CDS. <!-- src: GR §2; GR §6 table --> Every ORF in such a genome is unmatched by construction, whatever it encodes. We therefore excluded these genomes from every matched-versus-unmatched comparison, every figure and the candidate analysis. That left 96,875 bacterial and 5,492 archaeal genomes. <!-- src: GR §4; figGS03 caption -->
 
-Each run was assigned to one of 13 biomes from the organism name, with
-BioSample host and isolation source as fallback; generic names with a
-human host were mapped to human gut or other human. Assembly statistics
-came from the LOGAN seqstats tables. We used the v1.1 statistics where
-present, as the v1.2 table still carries v1.0 statistics for accessions
-assembled before 2024, which disagreed with the published objects by up
-to 30%.
+`genome_entropy` enumerated ORFs stop to stop in all six frames. The intended 30-aa minimum was passed to `get_orfs -l` as 90, which reads it in amino acids (genome_entropy #103). The effective floor was therefore 90 aa, and every GTDB statistic is over ORFs of at least 90 aa. <!-- src: GR §3 (GR:135–141); MP §1 -->
 
-Accessions were drawn with contig sums of 5--300 Mbp and N50 ≥ 150 bp.
+ORFs were labelled *matched* or *unmatched* against the deposited CDS with the corrected matcher (*Annotation labels*). The matcher has no stop-codon check, so "unmatched" is not ground truth for non-coding. The six-frame caller recovers only about 90% of deposited CDS. <!-- src: MP §1; GR §6 "Sensitivity of the ORF caller"; GR §10 -->
 
-### LOGAN analysis pipeline
+### Encoding and entropies
 
-Each accession's LOGAN contig object was downloaded, its byte count
-checked against the S3 source and its zstd stream verified, and its
-contig count and total length compared with seqstats. 81 runs could not
-be found, and a single run did not agree with the recorded seqstats and
-was discarded. Contigs ≥120 nt were retained. We ran MetaProdigal with
-GFF output so that partial flags, start type and per-contig genetic code
-are recorded. ORFs were enumerated with genome_entropy's own find_orfs
-and translate_orfs (using genetic code 11). An ORF is labelled Prodigal+
-when a Prodigal gene on the same contig and strand ends at the same
-stop, the pair have the same codon phase, and the shorter ORF has≥90%
-overlap and≥98% shared amino-acid identity. Prodigal writes M for
-GTG/TTG initiators, so the first residue is aligned to the ORF's before
-the identity test. We developed five Prodigal classes from the
-largest-overlapping Prodigal gene, *antisense shadow ORF* (opposite
-strand); *frameshift shadow* *ORF* (same strand, different frame);
-*marginal overlap* (\<30 bp); *same-frame-unmatched* (almost all
-genetic-code-4 Prodigal models reading through TGA); and *intergenic*
-(no overlap).
+ORFs were encoded with `genome_entropy` 0.2.0 (commit `90c8c15`, output schema 2.2.0). The version is inferred from installation and clone times, not logged. <!-- src: MP §2, §4 item 2 --> The encoder was ModernProst (`gbouras13/modernprost-50M`, revision 2d68d506) [@modernprost]. It predicts 20-state 3Di [@vanKempen2024] and a 12-state alphabet from sequence alone. <!-- src: MP §1; GR:4 --> Encoding ran on NVIDIA V100-SXM2-32GB GPUs (NCI Gadi), with an encoding size of 10,000 and four processes per GPU (Table 1). <!-- src: GR §3; MP §2 --> Thirty-nine genomes (0.021%) failed with out-of-memory errors on pathological ORF calls of roughly 48,000–766,000 aa. They are absent from the dataset; the `--max-aa` option added in 0.4.0 prevents this failure. <!-- src: GR §7; RI G-18 -->
 
-ORF translations were encoded with modernprost-50M (revision 2d68d506)
-at the package's default encoding size using Pawsey's MI250X nodes: 8
-GCDs × 4 persistent encoder workers, at 215--220 k aa s⁻¹ per GCD. We
-wrote the amino acids, 3Di, and 12-state strings to one row per ORF in
-chunked zstd TSV (1 M ORFs per chunk), then re-read them in full with
-per-column SHA-256 checks.
+Entropies and MI are as defined under *Entropy features*, except that protein entropy counted `X` as a 21st symbol. <!-- src: figG01 caption "Definitions"; GR §4.2 ("The protein alphabet is 21 symbols") --> Population statistics were streamed over every ORF row. Counts and means are exact. Medians and quartiles come from histograms with 10⁻⁴-bit bins. <!-- src: GR §4.1 --> Fig. 1a–c and Fig. S2 use a systematic sample of every 300th bacterial and every 30th archaeal row (4,893,192 and 1,138,714 ORFs after exclusion). <!-- src: GR §4 "Figures" -->
 
-### Analysis and Statistics
+**Length references (genome_entropy #101).** To separate estimator bias from biology, we built two references: <!-- src: GR §4.2 -->
+- **i.i.d.:** the plug-in entropy of 400,000 multinomial draws at each of 671 lengths, using each domain's pooled residue composition (351 genomes);
+- **empirical:** the length × entropy distribution of every ORF, in 1-aa length bins up to 999 aa and coarser bins above. <!-- src: GR §4.2 -->
 
-Per-shard Parquet tables were generated to support large-scale analysis,
-with each shard containing no more than 1,000 cache chunks,
-corresponding to approximately one billion ORFs. These tables retained
-each ORF's classification labels, genomic coordinates, truncation status
-and derived features, while excluding amino-acid and structural-state
-sequences to minimise storage requirements. The resulting tables
-required approximately 16.5 GB per billion ORFs. As a validation, values
-from the first shard were compared with the underlying per-ORF library
-outputs for 2.7 million ORFs. Entropy measurements agreed to within 5 x
-10^-5^ bits, and ORF classifications showed 100% concordance.
+Percentiles and z-scores are read against ORFs of the same length. We assessed calibration on the matched ORFs of the figure sample. The estimator bias is the rise of the i.i.d. mean curve from 100 aa. We compared it with the observed rise in all matched ORFs shorter than 1,000 aa. <!-- src: GR §4.2; figG02 and figGS02 captions -->
 
-Single-feature discrimination was evaluated using stratified
-distributions and ranking-based metrics. We generated histograms
-separately by ORF class, truncation status, length bin, biome, and
-processing tranche, using 0.01-bit bins for entropy measures and
-logarithmically spaced bins for ORF length. For each feature, we
-calculated the exact receiver-operating-characteristic area under the
-curve (ROC AUC), with ties contributing one-half, and average precision
-(AP), both overall and within nine ORF-length bins. To minimise
-confounding by ORF length, we additionally calculated a
-length-stratified AUC, defined as the probability that a randomly
-selected positive and negative ORF drawn from the same length bin were
-ordered correctly. Multivariable discrimination was assessed using a
-class-stratified sample of 8.2 million complete ORFs drawn from 61
-shards. Population weights were calculated as the inverse of each
-class-specific sampling rate. We trained HistGradientBoostingClassifier
-models on nested feature sets using five-fold cross-validation grouped
-by SRA accession; we fitted the models without sample weights but
-evaluated them using the population weights. We also applied models
-trained on complete ORFs unchanged to contig-end fragments to assess
-generalisation to truncated sequences.
+### Candidates and the matched comparator
 
-Reading-frame specificity was investigated using a deterministic 1%
-hash-based sample of complete Prodigal-positive genes, comprising 7.74
-million genes from 77 shards. For each Prodigal-selected coding frame,
-we identified the best-overlapping Prodigal-negative ORF in each of the
-five alternative reading frames: the two alternative frames on the same
-strand (+1 and +2) and the three frames on the opposite strand (a0--a2).
-Cross-frame inheritance of each feature was quantified using Spearman
-rank correlation between the selected coding frame and each alternative
-frame across genes. Discriminatory ability was evaluated using tie-aware
-top-(k) rates, asking how often the Prodigal-selected frame ranked among
-the highest-scoring frames for each feature, with performance compared
-against the corresponding chance expectation of (1/(k+1)).
+Within annotated genomes, unmatched ORFs with 3Di entropy of at least 2.5 bits were split by overlap with deposited CDS coordinates on either strand, both placed on the forward genomic axis:
+- a **shadow** overlaps a CDS;
+- a **candidate** overlaps none. <!-- src: GR §6; scripts/10_missed_genes.py overlaps_annotated() -->
+
+The 2.5-bit threshold was set by eye, well above the 1.585-bit ceiling (Results), and the candidate count depends on it. <!-- src: GR §10 --> ORFs running off a contig end, which have no stop codon, were flagged as contig-truncated. <!-- src: GR §6 -->
+
+We classed shadows by frame relative to the overlapped CDS: same frame, same-strand frameshift, antisense, or frame undefined. Frame was read from the start on the plus strand and from the end on the minus strand. Frame is undefined when the CDS is partial. <!-- src: GR §6.1 "The comparator had to be fixed first" --> Same-frame shadows are largely the annotated protein, so the comparator was drawn only from antisense and frameshift shadows. That pool held 3,925,368 bacterial and 133,748 archaeal ORFs. <!-- src: MC item 1 -->
+
+Each candidate received one partner without replacement (genome_entropy #109; seed 0). The partner had the same truncation status, 3Di entropy within ±0.025 bits and length within ±10%. <!-- src: MC item 2 --> Partners were sought first in the same genome, then the same 250-genome chunk, then the whole domain. Candidates left without a partner were retried with wider calipers and finally matched with replacement. In bacteria, 36.7% of partners came from the same genome and 0.16% of draws were with replacement; in archaea the figures were 26.5% and 4.3%. <!-- src: MC item 2 --> The total variation distance from the candidates on a 5 × 5 length × 3Di grid was 0.003 (bacteria) and 0.010 (archaea). <!-- src: MC "Why" table --> Comparator rates are weighted by draw multiplicity.
+
+There were three further arms:
+- annotated CDS, length-matched, as the positive control;
+- `intergenic_lo`, low-3Di non-shadow ORFs, length-matched;
+- the candidates' 3Di strings shuffled, as a technical null.
+
+The bacterial control arms were capped at 200 per chunk, giving 151,927 ORFs each. <!-- src: GR §6.1 "Design"; figG04 caption -->
+
+### Structural search and estimation
+
+Query databases were built from amino-acid and predicted 3Di sequences. They were searched with Foldseek 10 (`10.941cd33`) [@vanKempen2024] against AlphaFold DB/Swiss-Prot [@Varadi2024], PDB100 [@Berman2000], CATH50 [@Sillitoe2021] and BFVD [@Kim2025bfvd]. <!-- src: MC item 3; scripts/17_pilot_search.pbs --> <!-- TODO integrator: database release/download dates not found in GR or MC. --> We ran a structural search (`--alignment-type 2`) and a sequence-only search (`base:search`), both at E ≤ 10⁻³, and kept the best hit by bit score. <!-- src: MC item 3; 17_pilot_search.pbs --> A hit was **full-length** when it covered at least 80% of both query and target. We did not use raw hit rate, because above 3.38 bits nearly every ORF hits. <!-- src: GR §6.1 -->
+
+For each of Swiss-Prot, PDB100 and CATH50, the real-gene share is f = (c − s)/(a − s). Here c, s and a are the full-length hit rates of candidates, comparator and annotated CDS. <!-- src: MC "Result" --> The 95% confidence interval (CI) is first-order (delta method). It covers binomial noise only, not the two-component mixture assumption. <!-- src: scripts/41_comparator_summary.py share(); MC "Caveats" --> The implied number of missed genes is f times the number of candidates, reported as the range across the three databases. BFVD was excluded from estimation, because annotated CDS reach only about 11% there. <!-- src: GR §6.1; {bac,arc}_v7_matched.tsv --> We tested three variants of the comparator weighting:
+- 5 × 5 standardisation;
+- unweighted;
+- excluding draws made with replacement. <!-- src: GR §6.1 -->
+
+**Direct evidence (Table 3).** These criteria need no mixture model (genome_entropy #97): <!-- src: GR §6.1; scripts/22_rank_candidates.py tiers() -->
+- **C1:** all candidates;
+- **C2:** not truncated;
+- **C3:** C2 and a full-length structural hit in any database;
+- **C4:** C2 and full-length hits in at least two databases;
+- **C5:** C2 and a full-length hit in Swiss-Prot, PDB100 or CATH50;
+- **C6:** C2, a full-length structural hit and no full-length sequence-mode hit;
+- **C7:** the strict rule, which is C4 and C5 together, plus an interpretable Swiss-Prot or PDB100 product name, at least 100 aa and best E < 10⁻¹⁰. <!-- src: GR §6.1; 22_rank_candidates.py -->
+
+The excess is the number of candidates minus the weighted comparator count. It is a floor on the number of real genes.
+
+**Prodigal coincidence.** GTDB's own Prodigal calls [@Hyatt2010] (618,638,921 genes) use neither GenBank nor structure. <!-- src: GR §6.1 "An independent test" --> <!-- TODO integrator: Prodigal version used by GTDB r232 not stated in GR/MC. --> An ORF coincides with a call when the two share contig, strand and 3′ end. The 3′ offset was calibrated rather than assumed; it peaked at 0 bp. <!-- src: GR §6.1; matched_comparator/prodigal_v7_{bac,arc}.txt --> The Prodigal share applies the same mixture to coincidence rates. Its background is the larger of the comparator and `intergenic_lo` rates; the comparator was the larger in both domains. <!-- src: GR §6.1; MC "Result" -->
+
+**Assembly-quality strata.** We recomputed the estimate within quartiles of contig N50 and of CheckM2 completeness [@Chklovski2023] (GTDB r232 metadata). <!-- src: AS "Method" --> An unstratified run reproduced all 51 published metrics. <!-- src: AS "Method" --> We used two ways of assigning comparator ORFs to strata:
+- **(i) the primary analysis:** comparator draws follow their candidate's genome, so matched pairs stay together;
+- **(ii) a sensitivity analysis:** every ORF follows its own genome. <!-- src: AS "Method"; decisions.md D15 -->
+
+## LOGAN metagenomes
+
+### Accession selection
+
+We drew shotgun metagenomes from the assembled contigs of LOGAN v1.2 [@Chikhi2024logan]. Of 38,072,291 runs in the LOGAN SRA metadata, we kept those with `librarysource = METAGENOMIC` (7,754,394), `assay_type = WGS` (1,122,461), random-shotgun library selection (863,841), a short-read platform and an NCBI "… metagenome" organism name other than synthetic, mock or mixed-culture (761,663). <!-- src: LMS:125-133 (AH/manuscript/manuscript.md) --> Each run was assigned to one of 13 biomes from its organism name, with BioSample host and isolation source as fallback. <!-- src: LMS:138-141 --> We required a contig sum of 5–300 Mbp and N50 ≥150 bp (from LOGAN seqstats, preferring v1.1 values because v1.2 carries stale v1.0 statistics for pre-2024 assemblies), sampled stratified by biome and four log-spaced assembly-size bins, and capped each BioProject at 25 runs. <!-- src: LMS:141-148 --> A pilot and two tranches of 25,000 runs (seed 102) gave 50,091 runs; 81 had no contig object in LOGAN and one failed contig-count validation, leaving 50,009 metagenomes. <!-- src: LMS Table 1 (l.150-161); Validation/logan/README.md:34,59; AH/manuscript/tables/S10,S11 -->
+
+### Contigs, ORFs and Prodigal labels
+
+Contig files were validated against S3 and seqstats (tolerance 0.1%), and contigs ≥120 nt were kept, as LOGAN does before its own gene calling. <!-- src: LMS:188-192 --> ORFs were enumerated in all six frames with genome_entropy 0.3.0 (`find_orfs`, genetic code 11). <!-- src: methods_provenance.md §2 (LOGAN row) --> Because `get_orfs -l` counts amino acids (genome_entropy #103), the wrapper passed `-l 29` and kept ORFs ≥30 aa, a true 30-aa floor, unlike the effective 90-aa floor of the GTDB and phage runs. <!-- src: Validation/logan/README.md:139-141; results_inventory.md §5 --> ORFs running off a contig's 3′ end were trimmed to the last complete codon.
+
+Prodigal 2.6.3 [@Hyatt2010] was run on the same contigs (`prodigal -q -p meta`, GFF output); its output was byte-identical on repeated runs. <!-- src: LMS:193-196 --> Prodigal supplied labels only, not the ORFs. An ORF was **Prodigal+** when a Prodigal gene on the same contig and strand ended at the same stop and the package's matcher accepted the pair (same codon phase, ≥90% overlap of the shorter interval, ≥98% amino-acid identity, with Prodigal's initiator M aligned to the ORF's own residue). <!-- src: LMS:208-212; Validation/logan/README.md:124-127 --> Every other ORF was **Prodigal−** and was classed by its largest-overlapping Prodigal gene as an antisense shadow (opposite strand), frameshift shadow (same strand, other frame), frame-undefined overlap, marginal overlap (1–29 bp), same-frame unmatched (almost all genetic-code-4 models reading through TGA) or intergenic (no overlap); no ORF fell in the frame-undefined class. <!-- src: Validation/logan/README.md:128-130; LMS:213-220; manuscript/data/tabL01_orf_classes_by_truncation.tsv.gz --> A Prodigal+ ORF was *complete* when its gene was `partial=00` and the ORF ended in a stop; a Prodigal− ORF was complete when it ended in a stop and had an in-frame stop upstream.
+
+### Encoding and features
+
+Translations were encoded with ModernProst (`gbouras13/modernprost-50M`, revision 2d68d506) [@modernprost] at encoding size 10,000 with genome_entropy 0.3.0 (commit 750e2b92), as recorded in all 89,994 chunk manifests, on Pawsey Setonix AMD MI250X nodes (8 GCDs × 4 encoder workers). <!-- src: #24 LOGAN agent comment ("your three requests"); methods_provenance.md §1-2; LMS:223-225 --> Amino-acid, 3Di and 12-state strings were stored one row per ORF in zstd chunks of 1 million ORFs and re-read with per-column SHA-256 checks. <!-- src: LMS:226-229 --> Per-ORF values are not bit-comparable with the V100-encoded datasets (Table S1).
+
+Features were length (aa), the Shannon entropy (bits) of the amino-acid, 3Di and 12-state strings, and 3Di–12-state mutual information (MI), computed to match `genome_entropy.entropy.shannon` (maximum difference 2.7 × 10⁻¹⁵). <!-- src: LMS:241-247 --> Per-shard tables matched the library values on 2.7 million ORFs to within 5 × 10⁻⁵ bits, with 100% class agreement. <!-- src: LMS:251-255 -->
+
+### Statistics and models
+
+Single-feature separation was computed exactly from histograms over all ORFs, stratified by class, truncation, length bin, biome and tranche (0.01-bit entropy bins). <!-- src: LMS:257-260 --> We report exact ROC AUC (ties counted ½) and average precision (AP), overall and within nine length bins, and a length-stratified AUC: the probability that a positive and a negative from the same length bin are ordered correctly. <!-- src: LMS:260-262 -->
+
+Multivariable models used a class-stratified sample of 11.7 million ORFs (9.5 million complete) from all 90 shards, weighted by the inverse of each class's sampling rate. <!-- src: LMS:264-265; AH/manuscript/tables/S4_models_overall.tsv (1,760,915 + 7,751,712 complete) --> `HistGradientBoostingClassifier` (scikit-learn [@Pedregosa2011]; 300 iterations, learning rate 0.1, 63 leaves, early stopping) was fitted on feature sets nested on length, with five-fold cross-validation grouped by accession, trained unweighted and evaluated population-weighted on out-of-fold scores. <!-- src: Validation/logan/scripts/13_models.py:78-85; LMS:266-268 --> The complete-ORF model was also applied unchanged to contig-end fragments.
+
+### Six-frame experiment
+
+A deterministic 1% hash sample of complete Prodigal+ genes gave 8.82 million genes. <!-- src: LMS:271-272; Validation/logan/scripts/14_six_frame.py:19-24 --> For each gene we took the best-overlapping Prodigal− ORF in each of the five alternative frames (same strand +1, +2; opposite strand a0–a2). Inheritance was the Spearman correlation across genes between the selected and each alternative frame; discrimination was the tie-aware top-k rate against chance 1/(k+1), and Δ, the selected-frame value minus the median of the five alternatives. <!-- src: LMS:273-276 -->
+
+### Candidate scan and Foldseek validation
+
+The final complete-ORF model (length plus four features) scored all 49.95 million intergenic Prodigal− ORFs ≥100 aa and 4.58 million sampled controls. <!-- src: LMS:532-534 --> Thresholds are the out-of-fold scores at which population-weighted precision of Prodigal+ among complete ORFs reaches 0.80, 0.90, 0.95 and 0.99 (scores 0.633, 0.784, 0.874, 0.963; Table S4). <!-- src: manuscript/data/tabL04_final_model_thresholds.tsv.gz --> Because they were calibrated on complete ORFs of all lengths against all Prodigal− ORFs, they rank intergenic ORFs without giving their precision, and 5′-open ORFs are admitted at the same score without calibration. <!-- src: LMS:535-539; #24 Setonix integrator comment on 21_candidates_select.py -->
+
+We sampled 20,000 complete or 5′-open candidates (score ≥ the 0.90 threshold), stratified by length, and four arms of 20,000 matched to them by nearest length within truncation state: low-scoring intergenic ORFs (below the 0.80 threshold), antisense shadows, frameshift shadows and complete Prodigal genes (positive control). <!-- src: Validation/logan/scripts/21_candidates_select.py:12-33; LMS:556-561, 592-596 --> A null arm held the candidates with each 3Di string shuffled and amino acids unchanged. <!-- src: Validation/logan/scripts/23a_build_queries.slurm:16,46 --> All arms were searched with Foldseek 10 [@vanKempen2024] in structure (3Di+AA, `--alignment-type 2`) and sequence (`base:search`) modes, E ≤ 10⁻³, against PDB100, AFDB/Swiss-Prot, CATH50, BFVD and AFDB50 (v6, 2025_03; 66.7 million entries) [@Berman2000; @Varadi2024; @Sillitoe2021; @Kim2025bfvd]. <!-- src: LMS:561-566; Validation/logan/scripts/23_foldseek_search.slurm:31,48-52 --> The primary readout was a hit with full-length mutual coverage (query and target coverage ≥0.8), because shadows with structured 3Di also give partial hits. <!-- src: LMS:564-566 --> Population estimates weight each length bin by its share of candidates.
+
+### Contig taxonomy and Prodigal diagnostics
+
+The 79,774 contigs carrying the 80,000 queries of the candidate, low-score, antisense and Prodigal arms were re-streamed from LOGAN (24,824 accessions) and classified with Kraken2 2.17.2 [@Wood2019] against PlusPFP (2023-06-05; default confidence). <!-- src: LMS:657-660; Validation/logan/scripts/28_kraken_contigs.slurm:12-22 --> We reran Prodigal 2.6.3 `-p meta -s` on these contigs, which reproduced every original call, and took the best-scoring potential gene ending at each query's stop (Table S8). <!-- src: LMS:680-688 --> For the reverse discordance, from the scan's 1-in-1,000 sample of complete Prodigal genes (880,405) we searched 10,269 genes below the 0.80 threshold (up to 1,500 per length bin) and 8,769 length-matched genes at or above the 0.90 threshold against the same databases. <!-- src: LMS:725-740; notebooks/figL10_prodigal_lowscore.ipynb caption -->
+
+### Compute
+
+Encoding 5.28 trillion amino acids gave a 5.95 TB compressed cache at 215–220 thousand amino acids s⁻¹ per GCD, and the run was billed about 1.06 million GPU and 264,000 CPU service units (SU). <!-- src: LMS:783-788; AH/manuscript/tables/S10,S11 (su_gpu_encoding 433,061 + 624,174; su_cpu_stage 143,684 + 120,369) --> About 167,000 GPU SU were repeat encoding after an inode-quota failure on the scratch filesystem; on encoding time alone the cost was about 176,000 GPU SU per Tbp of assembled sequence. <!-- src: LMS:788-791; S10/S11 gcd_hours_encoding_only --> Code is in `Validation/logan/scripts/` (genome_entropy #115).
+
+## Phage genomes
+
+### Genomes, annotation and ORFs
+
+We used 36,025 complete phage genomes from Inphared [@Cook2021] (2.316 Gb in total; 1,761–735,411 bp). <!-- src: AH inphared_gadi/README.md §1 table; Validation/mutual_information/README.md §2 table --> The release is most likely that of 7 April 2026, which we inferred from file dates; record-level identity with that release was not checked. <!-- src: Validation/mutual_information/README.md §2 table ("Phage release", UNCONFIRMED) --> Each genome had been annotated with Pharokka [@Bouras2023pharokka] and then phold [@Bouras2025phold], whose versions were not recorded. Gene calls in these annotations came from Pyrodigal-gv 0.3.2 [@Larralde2022], which gave 3,336,744 CDS. <!-- src: Validation/mutual_information/README.md §2 table ("Gene calls in the reference"); methods_provenance.md §4 item 1 --> The re-annotated CDS were the labels for every phage analysis. The submitters' own annotations were used only for the OM869708 example.
+
+genome_entropy found six-frame stop-to-stop ORFs. The minimum length was passed to `get_orfs` in amino acids, not nucleotides, so the effective floor was 90 aa rather than the intended 30 aa (issue #103). <!-- src: Validation/mutual_information/README.md §2 table ("ORF calling"); results_inventory.md §5 --> That gave 6,754,361 ORFs, of which 17,322 run off a contig end. <!-- src: Validation/mutual_information/README.md §2 table ("ORFs") --> 957,269 of the 3,336,744 annotated CDS (28.7%) are shorter than 90 aa and cannot appear as an ORF of their own. <!-- src: Validation/mutual_information/README.md §2.1 ("Unrepresentable CDS"); IR:75 gives 28.8% for the 31,200-genome ranking subset -->
+
+### Gene labels
+
+An ORF was labelled a gene when it matched an annotated CDS under all of the following conditions:
+
+- the CDS is on the same record and strand;
+- the codon phase is compatible;
+- the genomic overlap covers at least 90% of the shorter interval;
+- at least 98% of the coordinate-aligned amino acids are identical, with `X` as a wildcard.
+
+<!-- src: methods_provenance.md §1 (`in_genbank` label); src/genome_entropy/io/genbank.py -->
+
+There is no stop-codon check, so a short CDS inside a longer stop-to-stop ORF labels that ORF. In 77,799 positives the CDS covers less than half of the ORF. <!-- src: Validation/mutual_information/README.md §2.1 ("Short CDS inside long ORFs") -->
+
+The matcher used before genome_entropy commit 2cc0e1a compared reverse-complement ORF coordinates with genomic CDS coordinates. It therefore labelled almost no minus-strand ORF as a gene. We relabelled every ORF with the corrected matcher (Fig. S15a). All phage results use these corrected labels.
+
+### Two ORF sets
+
+Two Setonix encodings of the phage ORFs were used.
+
+- **Mutual-information set.** All 36,025 genomes and 6,754,361 ORFs were encoded with `gbouras13/modernprost-50M` [@modernprost] at an encoding size of 20,000 residues, on AMD GPUs (ROCm, fp16). <!-- src: Validation/mutual_information/README.md §2 table ("Re-encoding") --> The package version is genome_entropy 0.2.0, inferred from the JSON schema version, and the model revision was not recorded. <!-- src: Validation/mutual_information/README.md §2 table ("Package version"); methods_provenance.md §1 --> The corrected labels give 2,685,382 genes (39.8%). <!-- src: Validation/mutual_information/README.md TL;DR; IG:14 (39.76%) -->
+- **Ranking set.** The ranking used an earlier encoding (ORFs from genome_entropy 0.1.15; same model and encoding size). <!-- src: Validation/Inphared/README.md §2 table (lines 74, 76) --> 49 of the 361 annotation parts had no encoder output, every fifth part from 121 to 361, which points to a failed worker rather than to biology. <!-- src: Validation/Inphared/README.md:71 --> The set therefore covers 31,200 genomes and 5,887,690 ORFs. <!-- src: Validation/Inphared/README.md:72, :74 --> With corrected labels it has 2,338,039 genes (39.7%). <!-- src: Validation/Inphared/README.md:102 --> The two independent relabellings agree on 5,887,451 of these 5,887,690 ORFs. <!-- src: Validation/Inphared/README.md:104 -->
+
+A third encoding of all 36,025 genomes on Gadi was used only for the comparison with cellular genomes and for the determinism test (see below).
+
+### Mutual information
+
+For ORF length, the four entropies and the 3Di–12-state mutual information, we estimated binned plug-in mutual information with the label, with 20 empirical-quantile bins per axis and the 2-D product grid for pairs. <!-- src: Validation/mutual_information/README.md §3 item 4 --> Estimates were made on a class-balanced sample of 200,000 ORFs per class, where H(label) = 1 bit, and on the full population. <!-- src: Validation/mutual_information/README.md §3 item 4 -->
+
+- **Uncertainty:** 100 bootstrap resamples, giving basic 95% intervals. <!-- src: Validation/mutual_information/README.md §3 item 4 -->
+- **Null:** 200 label permutations, at 10, 20 and 40 bins. <!-- src: Validation/mutual_information/README.md §3 item 4 -->
+- **Length control:** I(X; label | L), with L in 20 length-quantile strata and X re-binned within each stratum, plus single-feature ROC AUC within length bins. <!-- src: Validation/mutual_information/README.md §3 item 4 -->
+
+The random seed was 20261014 throughout. <!-- src: Validation/mutual_information/README.md §3 item 4 -->
+
+### Ranking candidate genes
+
+Coding probabilities came from an XGBoost random forest (`XGBRFClassifier`; 500 trees, depth 8, row and per-node column subsampling 0.8) [@Chen2016]. <!-- src: Validation/Inphared/README.md:78; scripts/rank_missing_orfs.py make_model --> We used out-of-fold predictions from five-fold cross-validation grouped by genome. <!-- src: Validation/Inphared/README.md:78 --> The features were intrinsic to each ORF: its four entropies and the lengths of the corresponding sequences, eight in all. <!-- src: Validation/Inphared/README.md:17, Table 1 line 130 --> Position, strand, frame and codon flags were excluded (Fig. S15b; Results).
+
+Candidate missed genes were unannotated ORFs with p ≥ 0.8. <!-- src: Validation/Inphared/README.md:210; scripts/rank_missing_orfs.py defaults --> The forest's probabilities span about 0.11–0.89, so this threshold lies near the top of the scale and is not a calibrated 80%. <!-- src: Validation/Inphared/README.md:140 --> Replacement candidates were unannotated ORFs with p ≥ 0.8 that overlap an annotated ORF with p ≤ 0.5, by a margin of at least 0.4. <!-- src: scripts/rank_missing_orfs.py defaults (--minimum-probability 0.80, --maximum-annotated-probability 0.50, --minimum-probability-difference 0.40) --> The competitor was the overlapping annotated ORF with the greatest overlap. Pairs were ranked by 0.50 p + 0.35 Δp + 0.15 × the overlap fraction of the shorter ORF. <!-- src: scripts/rank_missing_orfs.py replacement_rank_score -->
+
+### Structural validation
+
+We searched 20,000 ORFs per arm with Foldseek 10 (10.941cd33) [@vanKempen2024]: <!-- src: Validation/Inphared/README.md §5.1 -->
+
+- candidates: a random sample of the intergenic, antisense and other-frame candidates;
+- annotated genes, as the positive control;
+- low-scoring (p < 0.5) antisense, other-frame and intergenic ORFs, as negative controls;
+- the candidate arm with each 3Di string shuffled, as a null.
+
+Controls were matched to the candidate arm on length without replacement. <!-- src: Validation/Inphared/README.md:226 --> The replacement pairs were searched in full.
+
+Queries combined the amino-acid sequence with the predicted 3Di string. We ran structure search with `--alignment-type 2 -e 1e-3` and sequence-only search at the same E-value. <!-- src: Validation/Inphared/README.md:240–243 --> The databases were PDB100 (2025-01-01) [@Berman2000], AFDB-SwissProt (v6, 2025_03) [@Varadi2024], CATH50 (v4.3.0) [@Sillitoe2021] and the viral BFVD (2025_03_v3) [@Kim2025bfvd]. <!-- src: Validation/Inphared/README.md:247–252 --> A hit was full-length when query and target coverage were both ≥0.8. <!-- src: Validation/Inphared/README.md:254 --> We give Wilson 95% intervals. The share of candidates that behave like annotated genes was estimated as (candidate − control) / (annotated − control). <!-- src: Validation/Inphared/README.md:254; scripts/07_evidence.py header -->
+
+### Comparison with cellular genomes
+
+For Fig. S14 we used the Gadi encoding of all 36,025 genomes: genome_entropy 0.3.0, encoding size 10,000, NVIDIA V100. <!-- src: AH inphared_gadi/README.md §1 table --> Its labels equal the corrected labels ORF for ORF. <!-- src: AH inphared_gadi/README.md TL;DR, §4 --> Bacterial and archaeal ORFs came from GTDB r232 genomes that carry annotation, encoded with genome_entropy 0.2.0 at the same encoding size and summarised by length (#101). <!-- src: notebooks/figP04_phage_vs_cellular.ipynb provenance cell --> Mean 3Di entropy of matched and unmatched ORFs was compared by length from 90 to 999 aa.
+
+### OM869708
+
+We took the submitters' GenBank record of OM869708 from NCBI (retrieved 2026-10-16). <!-- src: notebooks/figP01_phage.ipynb provenance, upstream (d) --> We used BLASTP 2.12.0+ [@Camacho2009] to search the stop-to-stop translations of ORF3 and ORF7 against a local copy of NCBI nr (snapshot of 1 August 2026), with E ≤ 10⁻⁵ and up to 50 target sequences. <!-- src: work/om869708/blastp_nr.slurm (Setonix job 50987603); methods_provenance.md §3 Phage -->
+
+## Small ORFs from the Global Microbial smORF Catalogue
+
+To find the method's lower length limit, we used the curated benchmark sets of the Global Microbial smORF Catalogue (GMSC) [@Duan2024], as supplied by its authors.
+
+- **Positives:** 33,647,794 high-quality smORFs supported by RNAcode coding potential [@Washietl2011] together with metatranscriptomic or metaproteomic evidence, or by homology to known small proteins. <!-- src: Validation/smorfs/README.md:4, :23; AH smorfs/manuscript.md §2.1 -->
+- **Negatives:** 10,079,115 conserved, in-frame GMSC sequences from clusters that RNAcode called non-coding. Sequences with conserved-domain hits or homology to the positives were removed. <!-- src: Validation/smorfs/README.md:4, :23; AH smorfs/manuscript.md §2.1 -->
+
+The negatives are therefore not random ORFs. They are assembled, conserved, in-frame sequences that failed tests for coding, and they look protein-like by construction.
+
+Proteins are 10–99 aa long: medians 80 aa (positives) and 70 aa (negatives). No 90-aa floor applies (Table S13). <!-- src: Validation/smorfs/README.md:24–28; data/tabS04_dataset_summary.tsv.gz -->
+
+ORFs were translated with genetic code 11, the terminal stop was removed, and internal stops were kept. 1.71% of positives and 1.58% of negatives contain an internal stop. <!-- src: AH smorfs/manuscript.md §2.2 ("Translation") -->
+
+Encoding used genome_entropy 0.3.0 and `gbouras13/modernprost-50M` (revision 2d68d506) at an encoding size of 50,000 residues, on NVIDIA V100 GPUs (Gadi). <!-- src: Validation/smorfs/README.md:34–40; notebooks/figS01_smorf_separation.ipynb provenance --> We computed the nucleotide, amino-acid, 3Di and 12-state entropies of each sequence.
+
+We measured separation by ROC AUC, over all sequences and within seven length bins (10–29, 30–49, then 10-aa bins to 99 aa; Table S10). <!-- src: AH smorfs/manuscript.md §2.3; data/tabS01_length_bins.tsv.gz --> Gradient-boosted classifiers (scikit-learn `HistGradientBoostingClassifier`, early stopping, seed 42) [@Pedregosa2011] were trained on nine nested feature sets. <!-- src: AH smorfs/manuscript.md §2.3 ("Models") --> Each was trained on 2 million sequences and tested on a disjoint 2 million. <!-- src: Validation/smorfs/README.md:83 -->
+
+To control for homology, all 43,726,909 proteins were clustered together with MMseqs2 14.7e284 [@Steinegger2017], at 50% identity (`linclust`) and at 30% identity (`cluster`), both at 80% coverage (Table S11). <!-- src: AH smorfs/manuscript.md §2.3 ("Homology clusters"); data/tabS02_cluster_stats.tsv.gz --> We repeated the models with train and test sets drawn from disjoint halves of the clusters. We also report a cluster-weighted AUC in which each test sequence has weight 1/(size of its 50%-identity cluster).
+
+To explain sharp stripes in the 3Di-entropy distribution, we took the 3Di strings within ±0.0055 bits of log₂k (k = 2, 3, 7). <!-- src: notebooks/figSS02_smorf_stripes.ipynb provenance ("Bands") --> We compared them with control bands of the same width 0.03 bits below and above. <!-- src: notebooks/figSS02_smorf_stripes.ipynb provenance ("Bands") -->
+
+## Reproducibility of the structural encoding
+
+The datasets in this paper were encoded with different package versions, encoding sizes and hardware (Table 1). To separate run-to-run variation from the effects of configuration, we re-encoded the first 50 genomes of the Gadi phage encoding (6,284 ORFs). <!-- src: AH inphared_gadi/README.md §5; data/tabG01_encoding_determinism.tsv.gz (n_orfs) --> We used genome_entropy 0.3.0 and `gbouras13/modernprost-50M` on one NVIDIA V100, at encoding sizes of 10,000 and 20,000 residues (PBS job 181181761). <!-- src: AH inphared_gadi/README.md §5; sections/reproducibility_methods.md -->
+
+We compared these re-encodings with two earlier encodings (Table S1):
+
+- the production run they repeat (V100, encoding size 10,000);
+- an independent encoding of the same ORFs on AMD GPUs on Pawsey Setonix (ROCm, fp16, genome_entropy 0.2.0, encoding size 20,000). <!-- src: data/tabG01_encoding_determinism.tsv.gz (run_a, run_b) -->
+
+The comparisons gave three results.
+
+- **Repeat run.** Repeating the production configuration reproduced every 3Di entropy, 12-state entropy and 3Di–12-state mutual information value bit for bit. <!-- src: data/tabG01_encoding_determinism.tsv.gz rows "det es10k vs production" (100%) -->
+- **Encoding size.** Changing the encoding size changed 0.3–0.7% of ORFs, by at most 0.076 bits. <!-- src: data/tabG01_encoding_determinism.tsv.gz rows "det es20k vs production" (99.68/99.60/99.35% identical; max 0.0758) -->
+- **Hardware, precision and package version.** Between the two systems only 37.8% of 3Di entropies were bit-identical. <!-- src: data/tabG01_encoding_determinism.tsv.gz row "det es10k vs Setonix", three_di_entropy --> The median absolute difference was 0.007 bits, the 99th percentile 0.31 bits and the maximum 0.92 bits (Pearson r = 0.997). <!-- src: data/tabG01_encoding_determinism.tsv.gz (0.0066, 0.310, 0.920, 0.99719) --> Matching the encoding size left this spread unchanged. <!-- src: data/tabG01_encoding_determinism.tsv.gz row "det es20k vs Setonix" (37.7%, 0.310, 0.920) -->
+
+We could not re-run the Setonix side in the same configuration. The design therefore cannot apportion the residual between hardware, numerical precision and package version. The 50 genomes reproduce the whole-population agreement between the two systems (99th percentile 0.310 against 0.317 bits; r = 0.99719 against 0.99698). <!-- src: AH inphared_gadi/README.md §5 point 3 -->
+
+Population-level quantities are unaffected: class means move by about 0.01 bits, against a 1.46-bit difference between classes. <!-- src: AH inphared_gadi/README.md §5 ("Consequences") --> Per-ORF entropies are not reproducible bit for bit across platforms. For 99% of ORFs they agree to within 0.31 bits (3Di) and 0.35 bits (12-state), but single ORFs differ by up to 0.92 and 1.05 bits. <!-- src: data/tabG01_encoding_determinism.tsv.gz (p99 0.310 / 0.348; max 0.920 / 1.050) --> An ORF near a decision threshold can therefore change class between platforms. We report per-ORF thresholds and candidate rankings with the hardware, numerical precision, encoding size and software version that produced them.
+
+## Figures and data availability
+
+Every figure and supplementary figure is drawn by a Jupyter notebook in `manuscript/notebooks/`, from compact plotting data committed in `manuscript/data/`. `manuscript/figures_manifest.tsv` maps every panel to:
+- its notebook;
+- its plotting data;
+- its upstream source;
+- its producing code.
+
+Running `manuscript/tools/run_notebooks.py` in the pinned environment (`manuscript/environment.yml`, `environment.lock.txt`) regenerates every committed image byte for byte. Datasets too large for the repository are listed, with checksums, in `manuscript/roads_deposition_candidates.md` and `manuscript/roads/`.
+
+**Table 1. Datasets and encoding configurations.**
+
+| dataset | genomes / samples | ORFs analysed | ORF floor | labels | genome_entropy | encoding size | hardware |
+|---|---|---:|---|---|---|---:|---|
+| GTDB r232 bacteria | 189,715 species representatives (of 189,801) | 2,568,244,984 | 90 aa | deposited GenBank CDS | 0.2.0 (inferred; commit 90c8c15) | 10,000 | NVIDIA V100, NCI Gadi |
+| GTDB r232 archaea | 10,122 species representatives | 54,858,398 | 90 aa | deposited GenBank CDS | 0.2.0 (inferred) | 10,000 | NVIDIA V100, NCI Gadi |
+| LOGAN metagenomes | 50,009 assembled metagenomes, 13 biomes | 89,991,549,208 | 30 aa | Prodigal 2.6.3 `-p meta` | 0.3.0 (commit 750e2b92) | 10,000 | AMD MI250X, Pawsey Setonix |
+| Inphared phage, mutual information | 36,025 genomes | 6,754,361 | 90 aa | Pharokka + phold CDS (corrected matcher) | ≈0.2.0 | 20,000 | AMD MI250X (ROCm, fp16), Setonix |
+| Inphared phage, ORF ranking | 31,200 genomes | 5,887,690 | 90 aa | as above | ORFs from 0.1.15, relabelled | 20,000 | Setonix |
+| Inphared phage, comparison with bacteria | 36,025 genomes | 6,754,361 | 90 aa | as above | 0.3.0 (commit 45dd283) | 10,000 | NVIDIA V100, Gadi |
+| GMSC small ORFs | — | 43,726,909 (10–99 aa) | — | GMSC curated positive/negative | 0.3.0 | 50,000 | NVIDIA V100, Gadi |
+
+ModernProst revision `2d68d506…` is recorded for GTDB (recovered from the offline model cache), LOGAN (every chunk manifest) and the small ORFs. It is not recorded for the Setonix phage runs. <!-- src: methods_provenance.md §2; agent-handoffs#24 (LOGAN agent, Gadi provenance comments); Validation/mutual_information/README.md §2; Validation/Inphared/README.md -->
 
 # Results
 
-## Real proteins and non-coding ORFs occupy distinct entropy regimes
-
-Analysis of ORFs from several hundred bacterial genomes revealed a clear
-separation between annotated protein-coding genes and unannotated ORFs
-when considering amino acid entropy and 3Di entropy jointly.
-
-Annotated proteins (in_genbank=True) clustered within a well-defined
-region characterised by moderate to high amino acid entropy and
-structured, non-random 3Di entropy values. In contrast, unannotated ORFs
-(in_genbank=False) exhibited broader and often bimodal distributions,
-including regions of abnormally low amino acid entropy, low structural
-entropy, or discordant combinations of the two.
-
-Importantly, neither amino acid entropy nor 3Di entropy alone was
-sufficient to separate the two classes. The strongest discrimination
-emerged from their combination, demonstrating that sequence and
-structural information capture complementary biological constraints.
-
-![](./images/media/image1.png){width="7.268055555555556in"
-height="4.699305555555555in"}
-
-**Fig. 1.** Differentiation between protein-encoding ORFs (green) and
-all other ORFs (blue).
-
-## Structural entropy reveals non-coding ORFs with protein-like composition
-
-A subset of unannotated ORFs exhibited amino acid entropy values
-overlapping those of real proteins, suggesting superficially
-protein-like composition. However, these ORFs showed markedly different
-3Di entropy profiles, indicating structurally implausible or incoherent
-predictions.
-
-This observation highlights the value of incorporating structural
-information: sequence-based metrics alone can misclassify chance ORFs
-that mimic amino acid composition, whereas structural entropy reveals
-their lack of foldable architecture.
-
-## The six-frame ORF space of 50,000 assembled metagenomes
-
-We analysed 50,009 shotgun metagenomes from LOGAN v1.2, comprising 4.90
-Tbp of assembled contigs distributed across 13 environmental and
-host-associated biomes. Enumeration of all stop-to-stop ORFs of at least
-30 amino acids in all six reading frames yielded 89.99 billion ORFs,
-representing 5.28 trillion translated amino acids. Every ORF was encoded
-by ModernProst-50M into paired 3Di and 12-state structural-alphabet
-sequences and compared with Prodigal calls generated independently from
-the same contigs.
-
-The six-frame ORF space was dominated by alternative translations of
-regions containing Prodigal-predicted genes. Across all 89.99 billion
-ORFs, 47.6% were antisense shadows of Prodigal genes and a further 27.0%
-were same-strand, alternative-frame shadows. Only 8.7% were intergenic,
-whereas 15.5% matched a Prodigal call. Thus, nearly three quarters of
-all ORFs were alternative translations overlapping a conventional gene
-call rather than independent intergenic ORFs. Assembly fragmentation was
-also pervasive: approximately 59% of ORFs were open at a contig
-boundary, including 18.1% at the 5′ end and 41.2% at the 3′ end.
-
-Most Prodigal-matched ORFs were themselves fragments. Complete Prodigal
-genes accounted for only 1.0% of all ORFs, corresponding to
-approximately 881 million ORFs, whereas partial Prodigal genes accounted
-for a further 14.5% of all ORFs. The LOGAN metagenomes therefore provide
-an unusually challenging gene-recognition problem in which the
-overwhelming majority of candidate translations are either alternative
-reading frames of known coding regions or fragments created by contig
-boundaries.
-
-**Table 2. Classification of ORFs in the analysed LOGAN metagenomes.**
-
-  ------------------------------------------------------------------------
-  Class                    Fraction of all   Complete   Open 5′  Open 3′
-                           ORFs                                  
-  ------------------------ ----------------- ---------- -------- ---------
-  Prodigal+, complete gene 1.02%             620 M      ---      ---
-
-  Prodigal+, partial gene  14.43%            5.4 M      1.34 B   7.46 B
-
-  Antisense shadow         47.56%            13.39 B    5.42 B   10.20 B
-
-  Frameshift shadow        26.81%            8.16 B     2.84 B   5.36 B
-
-  Intergenic               8.91%             2.76 B     1.19 B   1.49 B
-
-  Marginal overlap         1.20%             478 M      129 M    124 M
-
-  Same frame, unmatched    0.07%             22 M       20 M     ---
-  ------------------------------------------------------------------------
-
-### The structural-alphabet entropy distinguishes coding ORFs from the alternative ORF spaceThe structural-alphabet entropy distinguishes coding ORFs from the alternative ORF space
-
-ORF length was strongly associated with whether an ORF was selected by
-Prodigal. This is expected because Prodigal explicitly imposes minimum
-gene-length constraints and favours longer uninterrupted coding regions,
-while our six-frame enumeration includes all ORFs of at least 30 amino
-acids. A pooled comparison of Prodigal-positive and Prodigal-negative
-ORFs would therefore partly recover a property of Prodigal's decision
-rule. To remove this tautological length effect, we evaluated all
-sequence- and structure-derived features within 50-amino-acid length
-strata (the 30--49 aa interval was retained separately at the lower
-boundary).
-
-Within these length-controlled comparisons, the predicted structural
-alphabets strongly distinguished complete Prodigal-positive ORFs from
-complete Prodigal-negative ORFs (Figure 2). Thus, the structural signal
-strengthened with increasing ORF length even though length itself was
-held approximately constant within each comparison.
-
-Shadow ORFs provided an especially stringent comparison because they
-overlap called genes and are therefore generated from the same
-coding-rich genomic regions. Within matched length strata, antisense and
-frameshift shadows remained systematically lower in 3Di and 12-state
-entropy than Prodigal-selected ORFs. This indicates that high
-structural-alphabet entropy is associated with the selected translation
-itself rather than simply with the presence of coding DNA at the locus.
-
-![Figure 2](./images/media/image2.png){width="5.833333333333333in"
-height="2.4881069553805775in"}
-
-*Figure 2. Feature distributions for complete Prodigal-positive and
-Prodigal-negative ORFs within fixed ORF-length ranges. Complete coding
-ORFs retain substantially higher predicted structural-alphabet entropy
-than alternative ORFs after controlling for length.*
-
-To explore whether the structural-alphabet features remained informative
-when several sequence-derived features were considered together, we
-evaluated gradient-boosted classifiers by five-fold cross-validation
-grouped by SRA accession, but interpretation focused on performance
-within ORF-length strata rather than pooled performance across the
-entire length distribution.
-
-Within the 100--149 aa and 150--199 aa intervals, adding 3Di entropy,
-12-state entropy and 3Di--12-state mutual information consistently
-improved discrimination of Prodigal-positive ORFs from Prodigal-negative
-ORFs over amino-acid entropy alone. The gain was particularly pronounced
-against antisense and frameshift shadows, where ORF length is
-intrinsically less informative because the alternative ORFs overlap bona
-fide coding regions and have similar length distributions. Across these
-comparisons, models incorporating the structural features separated the
-Prodigal-selected frame substantially better than models using
-sequence-composition features alone.
-
-The same conclusion was evident from the out-of-fold model scores
-evaluated within individual length bins. For ORFs of 100--149 aa, models
-incorporating 3Di features reached approximately 0.90 AUC against all
-Prodigal-negative ORFs; at 150--199 aa this increased to approximately
-0.96. In this LOGAN dataset, the short-ORF regime remained the principal
-limitation: below approximately 75 aa, all features showed much weaker
-discrimination.
-
-![Figure 4](./images/media/image4.png){width="5.833333333333333in"
-height="2.289425853018373in"}
-
-*Figure 3. Performance of cross-validated models evaluated within
-ORF-length bins. Structural-alphabet features retain strong
-discriminatory power where length itself provides little or no
-information.*
-
-### Structural features also identify coding fragments at contig boundaries
-
-A defining feature of the LOGAN metagenome assemblies is the large
-number of ORFs truncated by contig boundaries. We therefore tested the
-hypothesis that a classifier trained exclusively on complete ORFs could
-recognise partial Prodigal genes among truncated alternative ORFs
-without retraining. Structural features substantially improved
-classification in both directions of truncation.
-
-The complete-ORF model retained substantial discriminatory power when
-applied unchanged to truncated ORFs. For 5′-open fragments, the full
-feature set achieved an AUC of 0.791 and average precision of 0.559; for
-3′-open fragments, the corresponding values were 0.854 and 0.751. Thus,
-the coding signal captured by the predicted structural alphabets
-generalises from complete genes to protein fragments despite the absence
-of one of the normal ORF boundaries.
-
-### Structural entropy is specific to the selected reading frame
-
-The large separation between coding ORFs and shadow ORFs raised an
-important mechanistic question: does high structural entropy simply
-arise from properties of the underlying DNA that are inherited by
-multiple reading frames, or is it specific to the biologically selected
-translation? We addressed this directly in a six-frame analysis of 8.82
-million complete Prodigal genes. For each gene, we identified the
-best-overlapping Prodigal-negative ORF in each of the five alternative
-reading frames. A total of 5,722,417 loci contained suitable ORFs in all
-five alternative frames.
-
-ORF length and amino-acid entropy showed clear cross-frame inheritance.
-Across the five alternative reading frames, Spearman correlations with
-the Prodigal-selected frame ranged from 0.33 to 0.45 for ORF length and
-from 0.29 to 0.36 for amino-acid entropy. This is consistent with the
-different translations sharing the same underlying nucleotide
-composition and local stop-codon environment. In contrast, neither 3Di
-nor 12-state entropy was correlated between frames, supporting our
-prediction that high structural entropy in one reading frame does not
-necessarily produce high structural entropy in an alternative
-translation of the same DNA.
-
-![Figure 6](./images/media/image6.png){width="5.833333333333333in"
-height="3.1737587489063865in"}
-
-*Figure 6. Cross-frame inheritance of ORF features. Length and
-amino-acid entropy are partially correlated between translations of the
-same genomic locus, whereas 3Di and 12-state entropy and 3Di--12-state
-mutual information are effectively frame-specific.*
-
-Among genes for which all five alternative ORFs were present, 3Di
-entropy ranked the Prodigal frame highest in 92.5% of loci. Thus, the
-structural-alphabet measures do not merely reflect sequence properties
-inherited across frames: they preferentially assign high information
-content to the translation selected independently by Prodigal.
-
-The distributions of the within-locus contrasts further showed that the
-Prodigal-selected frame was usually substantially higher than the median
-of its alternatives. The improvement was strongest for ORFs longer than
-approximately 75--100 aa; shorter ORFs (\<75 aa) remained difficult for
-all features.
-
-![Figure 8](./images/media/image8.png){width="5.833333333333333in"
-height="1.3501574803149605in"}
-
-*Figure 8. Within-locus difference between the Prodigal-selected frame
-and the median of the five alternative reading frames.*
-
-### A large population of Prodigal-negative ORFs remains for candidate gene discovery**3.6 A large population of Prodigal-negative ORFs remains for candidate gene discovery**
-
-The discrimination analyses also define a biologically interesting
-discordant population: ORFs not called by Prodigal but assigned high
-coding probability by genome entropy. Most Prodigal-negative ORFs are
-readily explained as short intergenic ORFs or alternative-frame shadows
-of called genes, but the combined LOGAN dataset contains sufficient
-diversity and scale to identify the much smaller subset of complete,
-non-shadow ORFs with gene-like structural-alphabet signatures.
-
-These discordant ORFs are particularly useful because Prodigal and
-genome entropy use fundamentally different information. Prodigal models
-nucleotide-level coding statistics, translation initiation and gene
-architecture, whereas genome entropy evaluates the information content
-of the resulting amino-acid and predicted structural-alphabet sequences.
-High-scoring Prodigal-negative ORFs therefore provide candidates for
-genes that are missed by a conventional sequence-based caller but
-supported independently by protein-level features. These candidates can
-subsequently be tested by sequence homology, Foldseek
-structural-alphabet searches, and comparative genomic conservation.
-
-### Biome specific analyses
-
-The final complete-ORF model, incorporating ORF length and all four
-entropy-derived features, was applied to all 49.95 million intergenic
-Prodigal-negative ORFs of at least 100 aa, together with 4.58 million
-sampled controls. Candidate thresholds were defined from out-of-fold
-model scores corresponding to specified population-weighted precision
-among complete Prodigal-positive and Prodigal-negative ORFs (Table S12).
-These thresholds therefore provide a relative ranking of intergenic ORFs
-rather than an estimate of their absolute precision. At the 0.90
-threshold, high-scoring candidates occurred in nearly every accession
-and at broadly similar frequencies across biomes, ranging from 5.5% of
-scanned ORFs in soil metagenomes to 8.7% in human gut metagenomes (Table
-S14). The proportion above threshold increased with ORF length, from
-approximately 7% at 100--149 aa to 20% at 200--299 aa.
-
-To test whether these high-scoring ORFs showed independent evidence of
-protein-coding potential, we selected 20,000 complete or 5′-open
-candidates above the 0.90 threshold and compared them with three
-length-matched control groups of 20,000 ORFs each: low-scoring
-intergenic ORFs, antisense shadows and complete Prodigal genes. A fourth
-control consisted of the same candidate proteins with their 3Di strings
-shuffled, preserving amino-acid sequence and 3Di composition while
-destroying structural-state order. All groups were searched with
-Foldseek against PDB100, AFDB/Swiss-Prot, CATH50 and BFVD, using both
-3Di+AA and amino-acid-only searches at E ≤ 10⁻³. We considered a hit
-convincing only when both query and target coverage were at least 0.8,
-because partial alignments can also arise from high-entropy shadow ORFs.
-By this criterion, 19.3% of candidates had a full-length structural
-homologue, compared with 0.03% of low-scoring intergenic ORFs, 0.13% of
-antisense shadows and none of the shuffled-3Di controls; the
-positive-control Prodigal genes reached 56.1% (Table 7; Figure 9). Thus,
-high-scoring candidates showed full-length structural support at several
-hundred times the rate of matched low-scoring intergenic ORFs, and the
-shuffled control indicates that this signal depends on the order of
-predicted structural states rather than their composition alone.
-
-**Table 7. Foldseek evidence by arm, four databases (Table S16).**
-
-  -------------- -------------- -------------- -------------- --------------
-  Arm            Full-length,   Full-length,   Any hit,       Any hit,
-                 structure      sequence       structure      sequence
-
-  Complete       56.1%          26.6%          64.9%          67.8%
-  Prodigal genes                                              
-
-  High-score     **19.3%**      2.9%           37.7%          38.4%
-  intergenic                                                  
-  (candidates)                                                
-
-  Candidates,    0.0%           ---            0.04%          ---
-  shuffled 3Di                                                
-
-  Low-score      0.03%          0.08%          0.14%          9.7%
-  intergenic                                                  
-
-  Antisense      0.13%          0.04%          0.44%          9.1%
-  shadows                                                     
-  -------------- -------------- -------------- -------------- --------------
-
-Most of the similarity between candidate sequences and databases only
-derives from the structure. 16.6% of candidates had a full-length
-structural hit without a full-length sequence hit, and only 2.7% had
-both (Figure 11). We previously showed that bacterial proteins often
-only exhibit structural similarity \[Baktfold paper\], and here we
-extend that observation to metagenomic sequences. Weighted by the
-population's length distribution, about 16% of the 3.07 million complete
-and 5′-open candidates above the 0.90 threshold, roughly 0.5 million
-ORFs, would have a full-length structural homologue in these four
-databases and not be identified as a gene by Prodigal.
-
-### Many candidates match eukaryotic or viral proteins. 
-
-We assigned each best full-length hit to the superkingdom of its target
-(Table S19). Among candidates with a hit, 29.8% of best targets were
-eukaryotic, against 7.4% for Prodigal genes; 29.0% were bacterial
-against 54.0%; and 38.4% viral against 35.1%. The viral share is similar
-in both arms and largely reflects BFVD's size; the eukaryotic excess is
-not. It is strongest in food (60% of candidate hits eukaryotic), plant
-(62%) and built-environment (49%) metagenomes. These biomes also have
-the lowest candidate hit rates (13--17%), and the lowest hit rates for
-Prodigal genes (36--51%) (Table S20; Figure 12). In human gut,
-freshwater and marine metagenomes, candidates hit at 24--26% and their
-best targets are mostly bacterial or viral (12--21% eukaryotic). A
-substantial part of the missed-gene population is therefore probably
-eukaryotic coding sequence (exons and intronless genes) that Prodigal's
-prokaryotic model does not call. The rest look like prokaryotic and
-phage genes that it misses.
-
-![](./images/223ec3eb9092712dc549d7c6cd5e8a7fce069816.png "Figure 8"){width="5.833333333333333in"
-height="2.0520833333333335in"}
-
-*Figure 8. Foldseek evidence by query (20,000 length-matched queries
-each; PDB100, AFDB/Swiss-Prot, CATH50, BFVD). Solid bars: 3Di+AA
-structural search; hatched bars: amino-acid-only search. Left: hits with
-full-length mutual coverage; right: any hit at E ≤ 10⁻³.*
-
-![](./images/4ca389a03a0fc54778272ab20f920e3d70ff575d.png "Figure 10"){width="5.833333333333333in"
-height="2.2291666666666665in"}
-
-*Figure 10. Full-length evidence classes over all four databases.*
-
-![](./images/2c9587edbff77f9bbaa136131d9729189a2824c6.png "Figure 11"){width="5.833333333333333in"
-height="2.65625in"}
-
-*Figure 11. Left: full-length structural hit rate by biome for
-candidates and complete Prodigal genes. Right: superkingdom of the best
-target for candidates with a hit.*
-
-### LOGAN Computational scale**3.7 Computational scale**
-
-Processing the combined dataset required encoding 5.28 trillion amino
-acids from 89.99 billion ORFs and generated approximately 5.95 TB of
-compressed AA/3Di/12-state cache. ModernProst-50M sustained
-approximately 215--220 thousand amino acids s⁻¹ per MI250X GCD. Encoding
-the 5.28 trillion amino acids therefore required approximately 5.7 ×
-10²⁰ floating-point operations, consuming approximately 1.06 million GPU
-service units, and 264,000 CPU service units were billed. The observed
-ModernProst encoding cost was approximately 176,000 GPU service units
-per Tbp of assembled metagenomic sequence.
-
-The resulting cached representation allows downstream entropy,
-mutual-information, gene-calling and structural-homology analyses to be
-repeated without rerunning ModernProst. At the scale of 50,009
-metagenomes, the biological analyses are therefore limited primarily by
-statistical design and interpretation rather than by the size of the
-available ORF population.
-
-## Genome entropy identifies an alternative replication-associated ORF in OM869708.
-
-The genome entropy analysis identified a likely annotation error in
-bacteriophage genome OM869708. In the Pharokka, Phold, and Phynteny
-annotation, CDS007 was assigned to ORF7. However, the XGBoost-based
-classifier provided relatively weak support for ORF7 as a genuine
-protein-coding sequence, assigning it a coding probability of 0.27. ORF7
-also had low 3Di entropy, indicating limited complexity in its predicted
-structural-alphabet sequence and providing additional evidence that it
-might not encode a conventional, structured protein.
-
-An alternative ORF, ORF3, overlapped ORF7 but occupied a different
-reading frame. In contrast to ORF7, ORF3 received a coding probability
-of 0.91, providing strong model support for ORF3 as the more likely
-protein-coding gene. Visualisation of the locus using genbank_viewer
-clearly showed the mutually incompatible, overlapping gene models
-represented by ORF7 and ORF3 (Figure 1).
-
-The database-search results provided independent functional support for
-the genome entropy prediction. The protein encoded by ORF7 did not
-produce detectable matches to proteins in the searched database. By
-contrast, the protein encoded by ORF3 produced multiple matches to viral
-replication initiator proteins. Its highest-scoring match was to a
-replication initiator protein from *Dipodfec virus* RodF1 38. The
-recovery of several concordant replication-associated matches indicates
-that ORF3 encodes a conserved viral protein rather than a spurious
-translation product.
-
-Together, these observations strongly support ORF3 as the correct
-protein-coding gene at this locus. ORF3 had a substantially higher
-predicted coding probability than the annotated ORF, encoded a protein
-with identifiable homologues, and was consistently associated with a
-biologically plausible viral replication function. Conversely, the
-annotated ORF7 had low model support, low 3Di entropy, and no detectable
-database matches.
-
-The reason that ORF3 was not selected by the Pharokka, Phold, and
-Phynteny workflow is not immediately apparent. Because Phold and
-Phynteny primarily assign functions to proteins supplied by the upstream
-annotation and gene-calling stages, one likely explanation is that the
-initial gene caller selected ORF7 and did not report ORF3 as a candidate
-protein-encoding gene. Downstream annotation methods would consequently
-have had no opportunity to evaluate the ORF3 protein. This example
-therefore illustrates that improved functional annotation cannot fully
-compensate for an incorrect initial gene model.
-
-More broadly, the OM869708 locus demonstrates how genome entropy can
-complement conventional phage annotation pipelines. Rather than
-considering only the ORFs selected by a single gene caller, the approach
-evaluates competing ORFs across overlapping reading frames and assigns
-each an independent probability of being protein coding. In this case,
-the model identified an alternative ORF with both stronger
-sequence-derived support and clear functional homology. Genome entropy
-can therefore reveal plausible genes missed by conventional gene callers
-and help distinguish the most likely coding frame in regions containing
-conflicting or overlapping ORFs.
-
-![](./images/media/image9.png){width="7.260416666666667in"
-height="1.1770833333333333in"}**Fig. 1. Genome of OM869708.** The
-visible range is 2880..5748. The orange box highlights the
-sequence-search match at 4753..5727. The green CDS arrows indicate the
-Pharokka/Phold annotations. Vertical bars mark the stop codons in each
-of six reading frames.
+## Real proteins and spurious ORFs occupy different structural-entropy regimes
+
+We called every six-frame ORF of at least 90 aa in 199,837 GTDB r232 species representatives: 2,568,244,984 bacterial and 54,858,398 archaeal ORFs. Of these, 12.03% and 17.26% match a deposited CDS. <!-- src: GR §1, §2 -->
+
+In genomes that carry any annotation, matched and unmatched ORFs separate on 3Di entropy, not protein entropy (Fig. 1a–c).
+- **3Di entropy:** the mean differs by 2.08 bits in bacteria (3.123 against 1.043) and by 1.99 bits in archaea.
+- **Protein entropy:** the means differ by only 0.39 and 0.37 bits.
+- **Mutual information:** 3Di–12-state MI differs threefold (0.960 against 0.321 bits in bacteria). <!-- src: GR §4.1 item 1; figG01 caption -->
+- **DNA entropy:** it does not separate the classes (1.930 against 1.909 bits). <!-- src: GR §4.1 item 3 -->
+
+Matched ORFs are also about twice as long (376 against 178 aa), so part of the 3Di gap is length (next section). <!-- src: GR §4.1 item 2 -->
+
+Unmatched ORFs pile up against a sharp edge at 1.585 bits (Fig. 1b). This is log₂3, the maximum entropy of a string that uses only three distinct states. It is an arithmetic ceiling, not a biological threshold, and it falls at the same place in both domains. <!-- src: GR §5; figG01 caption --> Over the full population, ORFs below log₂3 are:
+- **bacteria:** 87.6% of unmatched against 3.3% of matched ORFs;
+- **archaea:** 84.1% against 3.7% (Fig. 1d). <!-- src: GR §4; figG01_population_bands.tsv.gz -->
+
+In three genomes, states D, V and P make up 99.4% of residues below the line. <!-- src: GR §5; RI G-5 --> We report this as an observation only. Whether state D marks disorder has not been tested; DSSP or a disorder predictor could test it. <!-- decision D11 -->
+
+**Never-annotated genomes.** 48.9% of bacterial and 45.7% of archaeal representatives carry no deposited CDS. <!-- src: GR §2, §6 --> Their ORFs are not low-3Di noise: 19.1% (bacteria) and 28.3% (archaea) reach 3Di ≥ 2.5 bits. Unmatched ORFs in annotated genomes reach that level only 0.83% and 1.25% of the time, a 23-fold difference in both domains. <!-- src: GR §4; GR §6 "The entropy-matched intergenic arm" --> These genomes therefore appear to hold many unlabelled genes, and we exclude them from every comparison (Methods).
+
+## Entropy rises with length mostly as estimator bias for protein, little for 3Di
+
+Between 100 and 300 aa, mean protein entropy of matched ORFs rises by 0.08 bits (bacteria) and 0.09 bits (archaea). That is less than the 0.11 bits that plug-in estimator bias alone produces (Fig. S1). <!-- src: figG02 caption; figG02_mean_curves.tsv.gz --> The apparent length trend in protein entropy is therefore an artefact.
+
+3Di entropy rises by 0.88 and 0.76 bits over the same range. Only 0.11 and 0.10 bits of that (12% and 14%) is bias, so longer proteins genuinely use more predicted structural states. <!-- src: figG02 caption; figG02_mean_curves.tsv.gz -->
+
+Only a reference built from real ORFs of the same length is calibrated: its z-scores have mean ≈ 0 and SD 1.00. Against i.i.d. draws, the SD of z is 3.9–6.6 (Fig. S2). <!-- src: figGS02 caption; figGS02_summary.tsv.gz -->
+
+## The six-frame ORF space of 50,000 metagenomes
+
+The 50,009 LOGAN metagenomes span 13 biomes and 4.895 Tbp of assembled contigs, and contain 89,991,549,208 six-frame ORFs ≥30 aa (5.28 trillion amino acids). <!-- src: LMS Table 1 (l.150-161), LMS:282-288; methods_provenance.md §2 --> Most of this space consists of alternative translations of genes (Table 2). Antisense shadows of Prodigal genes make up 47.55% of ORFs and same-strand frameshift shadows 26.97%, against 8.71% intergenic ORFs. <!-- src: manuscript/data/tabL01_orf_classes_by_truncation.tsv.gz; LMS:306-316 --> Only 0.98% of ORFs (881,348,601) are complete Prodigal genes, and a further 14.54% match partial genes. <!-- src: tabL01 --> Fragmentation is pervasive: about 59% of ORFs are open at a contig end (18.1% at the 5′ end, 41.2% at the 3′ end). <!-- src: tabL01 (column sums: open5 16.28 B, open3 37.08 B of 89.99 B) -->
+
+**Table 2. Classes of the 89.99 billion six-frame ORFs ≥30 aa in 50,009 LOGAN metagenomes, by truncation state.** Counts in billions. Prodigal+ ORFs match a Prodigal 2.6.3 (`-p meta`) gene; Prodigal− ORFs are classed by their largest-overlapping Prodigal gene. No ORF fell in the frame-undefined overlap class. <!-- src: manuscript/data/tabL01_orf_classes_by_truncation.tsv.gz -->
+
+| class | share of ORFs | complete | open 5′ | open 3′ |
+|---|---:|---:|---:|---:|
+| Prodigal+, complete gene | 0.98% | 0.881 | — | — |
+| Prodigal+, partial gene | 14.54% | 0.008 | 1.97 | 11.12 |
+| antisense shadow | 47.55% | 19.31 | 8.08 | 15.40 |
+| frameshift shadow | 26.97% | 11.82 | 4.27 | 8.19 |
+| intergenic | 8.71% | 3.90 | 1.74 | 2.20 |
+| marginal overlap (<30 bp) | 1.18% | 0.687 | 0.192 | 0.184 |
+| same frame, unmatched | 0.07% | 0.031 | 0.029 | — |
+| all ORFs | 100% | 36.64 | 16.28 | 37.08 |
+
+## Structural entropy separates genes beyond length
+
+Length alone separates complete Prodigal genes from all complete Prodigal− ORFs with AUC 0.964 but AP only 0.580 (Table S2). <!-- src: manuscript/data/tabL02_single_feature_overall.tsv.gz (aa_len, vs all Prodigal−) --> 3Di entropy alone reaches AP 0.783 over all 36.6 billion complete ORFs. <!-- src: tabL02 (three_di_entropy, vs all Prodigal−) --> In cross-validated models nested on length, adding 3Di entropy raised AP from 0.582 to 0.860, against 0.727 for amino-acid entropy; all four features together reached 0.880 (fold SD ≤0.002; Fig. 2a). <!-- src: AH/manuscript/tables/S4_models_overall.tsv; LMS:396-410 --> 3Di entropy therefore carries most of the signal; the other features add 0.020 AP beyond it.
+
+The gain is largest where length is least informative. Against antisense shadows, AP rose from 0.632 (length) to 0.877 (length + 3Di) and 0.899 (all features); against frameshift shadows, from 0.793 to 0.918 and 0.942 (Fig. 2b,c). <!-- src: S4_models_overall.tsv; #24 LOGAN agent comment (0.877 = length+3Di, 0.899 = all) --> Against intergenic ORFs, length alone already gave AP 0.962, and features added little (0.972 with all; Fig. 2d). <!-- src: S4_models_overall.tsv -->
+
+Within fixed length bins the structural signal persists while length falls towards chance (Fig. S3, S4; Table S3). At 100–149 aa, within-bin AUC was 0.612 for length, 0.805 for amino-acid entropy, 0.896 for 3Di entropy and 0.902 for MI; at 150–199 aa, 3Di entropy reached 0.960 (amino acids 0.833), and at 200–299 aa 0.988. <!-- src: manuscript/data/tabL03_single_feature_by_length.tsv.gz; LMS:332-336 --> Against intergenic ORFs only, the corresponding values at 100–149 aa were 0.597 for amino-acid entropy, 0.852 for 3Di and 0.863 for MI. <!-- src: tabL03 (vs intergenic, 100-149) --> Cross-validated models gave the same picture: at 100–149 aa, AUC 0.612 for length, 0.898 with 3Di and 0.940 with all features (Fig. S4a). <!-- src: AH/manuscript/tables/S5_models_by_length.tsv --> At fixed length, shadows sit well below genes in 3Di and 12-state entropy (Fig. S3). Short ORFs remain the limit: within-bin 3Di AUC is 0.52 at 30–49 aa and 0.66 at 50–74 aa. <!-- src: tabL03 (three_di_entropy, 30-49, 50-74) -->
+
+The complete-ORF model also recognised contig-end fragments without retraining (Fig. S5). For 5′-open fragments, AUC rose from 0.714 (length) to 0.791 and AP from 0.331 to 0.559; for 3′-open fragments, AUC from 0.697 to 0.854 and AP from 0.471 to 0.751. <!-- src: AH/manuscript/tables/S6_models_fragments.tsv; LMS:433-438 -->
+
+The length-controlled separation held in every biome and replicated across sampling tranches (Fig. S6). At 100–149 aa, 3Di AUC ranged from 0.819 (plant) to 0.920 (wastewater), with 9 of 13 biomes between 0.89 and 0.92, and was 0.906, 0.893 and 0.898 in the pilot and the two tranches. <!-- src: AH/manuscript/tables/S21_biome_batch_separation.tsv; LMS:363-380 --> Plant and food metagenomes, the biomes richest in eukaryotic candidate hits (below), were weakest.
+
+## Structural entropy is specific to the reading frame
+
+If high 3Di entropy were a property of coding DNA, it would be shared by the other frames of a gene. We compared each of 8.82 million complete Prodigal genes with the best-overlapping Prodigal− ORF in each of its five alternative frames (Fig. 3). <!-- src: LMS:452-455; notebooks/figL05_six_frame.ipynb caption --> Length and amino-acid entropy are partly shared between frames (Spearman ρ 0.33–0.45 and 0.29–0.36), 12-state entropy weakly (ρ 0.06–0.13), while 3Di entropy (ρ −0.01 to 0.02) and MI (ρ −0.04 to 0.01) are not (Fig. 3a). <!-- src: AH/manuscript/tables/S7_six_frame_inheritance.tsv (spearman); LMS:457-465 -->
+
+Even so, among the 5,722,417 genes with all five alternatives, 3Di entropy ranked Prodigal's frame first in 92.4% of genes, 12-state entropy in 91.3%, MI in 85.2%, amino-acid entropy in 81.8% and length in 80.9%, against chance 16.7% (Fig. 3b). <!-- src: AH/manuscript/tables/S8_six_frame_discrimination.tsv; LMS:476-479 --> The selected frame exceeded the median of its alternatives by a median 1.99 bits of 3Di entropy, and did so in 97.0% of genes (Fig. 3c–g). <!-- src: S8_six_frame_discrimination.tsv (median_delta, frac_delta_positive) --> Length still ranks the selected frame within the top three more often (98.8% against 97.0%), so the two kinds of signal are complementary. <!-- src: S8 (top3_rate) --> We read this as an observation that the 3Di signal belongs to the translation Prodigal selects rather than to the nucleotide sequence; it does not identify what ModernProst detects.
+
+## Missed genes in GTDB
+
+**Candidates.** In annotated genomes we kept unmatched ORFs with 3Di ≥ 2.5 bits: 9,598,500 bacterial ORFs. Of these, 94.5% overlap a deposited CDS (shadows). That leaves 523,346 bacterial and 22,447 archaeal candidates (Fig. 4a). <!-- src: GR §6 table; figG04_funnel.tsv.gz --> Candidate burden per genome rises with genome size (Spearman ρ = 0.55 in bacteria) and is almost flat against contig N50 (ρ = 0.10) (Fig. S8). <!-- src: figGS03 caption; figGS03_burden_rho.tsv.gz -->
+
+**Structural homology against a matched comparator.** High 3Di entropy alone is not evidence of a gene. Above 3.38 bits nearly every ORF hits a structure database, because a sequence-only encoder emits confident 3Di for any protein-like sequence. <!-- src: GR §6.1 --> We therefore compared candidates with antisense and frameshift shadows matched on length, 3Di entropy and truncation, counting only full-length hits (Methods).
+
+For the technical null, we shuffled the 3Di strings of the bacterial candidates; at most 0.04% then had full-length hits. <!-- src: GR §6.1 --> In every database, candidates fall between the comparator and annotated CDS. Against Swiss-Prot, the full-length hit rates are 10.3% for bacterial candidates, 7.4% for the comparator and 35.3% for annotated CDS (Fig. 4b). <!-- src: GR §6.1 table; v7 -->
+
+The implied real-gene share in bacteria is 10.4% (95% CI 10.0–10.7) for Swiss-Prot, 9.0% (8.6–9.5) for PDB100 and 9.9% (9.3–10.5) for CATH50 (Fig. 4c). <!-- src: GR §6.1; MC "Result"; v7 share_* --> In archaea it is 15.6% (13.4–17.9), 16.2% (13.7–18.7) and 22.0% (18.5–25.4). <!-- src: GR §6.1; v7 -->
+
+The bacterial share barely moves when the comparator is weighted differently (10.3–10.6%). The archaeal Swiss-Prot share ranges from 14.0% to 19.8%, because few shadows match the long, high-3Di candidates. <!-- src: GR §6.1; MC "Result", "Reading" 2 -->
+
+Together these imply **~51,000–59,000 protein-coding genes absent from GenBank annotation**: 47,300–54,200 in bacteria and 3,500–4,900 in archaea. <!-- src: GR §6.1; v7 structural_estimate; decision D1 -->
+
+The estimate assumes a two-component mixture, and its CIs cover binomial noise only. Any real genes among the comparator shadows would make it an underestimate. <!-- src: GR §10; MC "Caveats" -->
+
+**Direct evidence.** Without the mixture model, the candidate excess over the comparator gives two floors (Fig. 4d, Table 3):
+- **any full-length structural hit (C3):** ~27,400 (25,620 bacterial + 1,731 archaeal);
+- **the strict rule (C7):** ~5,400 (4,974 + 407). <!-- src: GR §6.1; v7 ladder_C3/C7_excess -->
+
+Both are conservative. 18,566 scaled comparator ORFs also meet C7. C7 also cannot see the 13,996 bacterial C3 candidates whose only full-length hit is viral (BFVD). <!-- src: GR §6.1 -->
+
+**Table 3. Direct evidence for GTDB candidates against the matched comparator.** For each criterion the table gives the number of candidates, the comparator count and the excess. The comparator count is weighted by draw multiplicity and scaled to the candidate arm. The excess is a floor on the number of real genes. C3–C6 are each C2 plus one requirement and are not nested (in archaea C6 exceeds C4); C7 is the strict combined rule (Methods). C2 has no excess by construction, because the comparator is matched on truncation.
+
+| criterion | bacteria: candidates | bacteria: comparator | bacteria: excess | archaea: candidates | archaea: comparator | archaea: excess |
+|---|---:|---:|---:|---:|---:|---:|
+| C1 all candidates | 523,346 | 523,346 | 0 | 22,447 | 22,447 | 0 |
+| C2 not contig-truncated | 483,767 | 483,767 | 0 | 19,835 | 19,835 | 0 |
+| C3 C2 + full-length hit, any database | 90,658 | 65,038 | 25,620 | 5,141 | 3,410 | 1,731 |
+| C4 C2 + full-length in ≥2 databases | 44,325 | 32,868 | 11,457 | 2,777 | 1,872 | 905 |
+| C5 C2 + full-length in Swiss-Prot, PDB100 or CATH50 | 76,662 | 57,343 | 19,319 | 4,396 | 3,030 | 1,366 |
+| C6 C2 + structure-only full-length hit | 81,257 | 59,429 | 21,828 | 4,439 | 3,030 | 1,409 |
+| C7 strict combined rule | 23,540 | 18,566 | 4,974 | 1,574 | 1,167 | 407 |
+
+<!-- src: Validation/gtdb/matched_comparator/{bac,arc}_v7_matched.tsv ladder_C*_{candidates,comparator_scaled,excess}; GR §6.1 ladder table -->
+
+**An independent gene caller.** GTDB's Prodigal annotation uses neither GenBank nor structure. It calls a gene with the same stop and strand for these shares of each arm (Fig. S7a):
+
+| arm | bacteria | archaea |
+|---|---:|---:|
+| candidates | 47.4% | 55.4% |
+| matched comparator | 20.6% | 25.6% |
+| annotated CDS | 94.2% | 96.1% |
+
+<!-- src: GR §6.1; v7 prodigal_* -->
+
+The implied Prodigal share is 36.4% (36.2–36.6) in bacteria and 42.2% (41.1–43.2) in archaea, or **~200,000 genes** (190,597 + 9,468). <!-- src: GR §6.1; v7 prodigal_share_larger_bg --> We treat this as the upper bracket. It is 3.5–4.0 times the structural estimate in bacteria and 1.9–2.7 times in archaea. <!-- src: GR §6.1; MC "Result" -->
+
+We cannot resolve this gap with these data. Prodigal may over-call: the 20.6% comparator rate is its false-positive rate on ORF-shaped non-genes. The structural assay may also undercount, because it finds full-length hits for only 30–35% of known genes, against 94–96% for Prodigal. <!-- src: GR §6.1 "Where the two estimates disagree"; decision D2 --> Prodigal also shares the structural assay's preference for coding-like composition, which the matched comparator bounds but does not remove. <!-- src: GR §10 --> The ~5,400 strict floor depends on neither estimate. <!-- src: GR §6.1 -->
+
+The two lines of evidence converge on the same ORFs. Prodigal calls 91.8% of the bacterial C7 set (21,617 of 23,540) and 95.9% of the archaeal set (1,509 of 1,574), although C7 never uses Prodigal. <!-- src: GR §6.1; SA §10 item 10 --> Part of this agreement is shared sensitivity to protein-like sequence. Against the earlier, unmatched comparator, shadows meeting a C7-like clause coincided with Prodigal 56.7% (bacteria) and 68.4% (archaea) of the time. <!-- src: SA §10 item 10 table and reading (pre-v7 comparator) -->
+
+**What the missed genes are.** In the C7 set (Fig. S9a):
+- metabolism accounts for 33.8% of bacterial and 41.3% of archaeal candidates;
+- mobile elements account for 13.6% and 11.8%. <!-- src: GR §6.1 functional table; figG06 caption --> Mobile elements are genuinely under-annotated in GenBank.
+
+The 23,393 bacterial C7 candidates with a Swiss-Prot product carry 8,065 distinct products. <!-- src: GR §6.1 --> These classes are homology labels, not evidence of function, and C7 favours well-characterised folds. <!-- src: figG06 caption -->
+
+Ten worked examples were chosen across functional classes (Fig. S9b). Each one:
+- meets C7;
+- is called by Prodigal;
+- lies between two deposited CDS;
+- sits in a genome at least 95% complete. <!-- src: GR §6.1 "Examples"; figG06 caption -->
+
+Two fill the only gap in an otherwise complete module:
+- **Cas5** in GCA_049515795.1. A 226-aa candidate lies 5 bp from *cas7* and 96 bp from *cas1*, in a co-oriented type I CRISPR–*cas* operon annotated with Cas6, Cas7, Cas8a1, Cas3′, Cas1 and Cas2 but not Cas5, which the type I Cascade complex requires. <!-- src: GR §6.1 "Examples"; figG06_examples.tsv.gz; figG06_neighbours.tsv.gz -->
+- **SusC** in GCA_900230115.1. A 917-aa candidate fills the 3,029-bp gap in a polysaccharide utilisation locus that is annotated with SusD and SusE but lacks SusC. <!-- src: GR §6.1 "Examples"; figG06 data -->
+
+The other eight include a RecF/Rad50-family ABC ATPase. <!-- src: RI G-16 --> These examples illustrate the kind of gene found; they are not evidence for the rate. Structural homology shows that an ORF is protein-like, not that it is expressed or functional.
+
+**Assembly quality.** We recomputed the estimate within quartiles of contig N50 and of CheckM2 completeness, keeping each comparator draw with its candidate's genome (scheme (i); Methods). <!-- src: AS; decision D15 --> <!-- integrator: no figure/table number is assigned to the strata; cite assembly_strata_v7 tables or add a supplementary table. --> The excess is present in every stratum, in both domains and for every database, with the smallest lower CI bound at 3.0%. The C3 and C7 excesses are positive throughout. <!-- src: AS "Reading" 1 --> The pooled estimate is therefore not an artefact of poor assemblies.
+
+**Bacteria.** The share is higher in poorer assemblies. Counting a full-length hit in any of Swiss-Prot, PDB100 or CATH50, it falls from 17.4% to 10.3% across N50 quartiles and from 19.9% to 9.0% across completeness quartiles. <!-- src: AS "Reading" 2 --> The decline comes mostly from PDB100 and CATH50. Swiss-Prot alone is flat with N50 (9.2–12.1%). <!-- src: AS "Reading" 2 -->
+
+**Archaea.** There is no monotonic trend; the CIs are about ±5 points. <!-- src: AS "Reading" 3 -->
+
+**Prodigal.** The Prodigal share falls with assembly quality in both domains. By N50 it falls from 44.8% to 31.1% in bacteria and from 47.0% to 32.6% in archaea. <!-- src: AS "Reading" 4 -->
+
+**Sensitivity analysis.** Placing every ORF by its own genome (scheme (ii)) gives the same direction for the combined share and the Prodigal share in both domains. It does not agree on every database or cell:
+- bacterial Swiss-Prot by N50 changes endpoint direction (9.8% → 9.2% under (i), 10.5% → 11.3% under (ii));
+- archaeal PDB100 by completeness also changes endpoint direction;
+- neither readout shows a trend under either scheme;
+- bacterial cells differ by up to 3.3 points. <!-- src: AS "Reading" 6 -->
+
+Why bacterial shares are higher in poorer assemblies is not established. Assembly-driven false signal and less complete annotation of lower-quality genomes both fit the data. <!-- src: AS "What it does and does not establish" -->
+
+## Missed-gene candidates in metagenomes
+
+The final model scored 49.95 million intergenic Prodigal− ORFs ≥100 aa. <!-- src: LMS:532-534 --> At the 0.90 precision threshold, 3,434,482 scored high, in 47,754 of the 50,009 metagenomes (Table S5), from 5.5% of scanned ORFs in soil to 8.7% in human gut. <!-- src: manuscript/data/tabL05_candidate_counts.tsv.gz; AH/manuscript/tables/S14_candidate_biomes.tsv -->
+
+Candidates carry full-length structural homologues; matched controls do not (Fig. 5a). Of 20,000 candidates, 41.9% had a full-length structural hit across five databases, against 72.6% of complete Prodigal genes, 0.21% of low-scoring intergenic ORFs (41 of 20,000), 0.45% of antisense shadows (89 of 20,000), 0.36% of frameshift shadows and 1 of 20,000 candidates with shuffled 3Di. <!-- src: AH/manuscript/tables/S33_all_arms_evidence.tsv; #24 LOGAN agent corrections --> Candidates thus reach 58% of the Prodigal-gene rate and about 200 times the low-score rate. <!-- src: S33 (0.41875/0.7259; 0.41875/0.00205) --> The shuffled null keeps each query's amino acids and 3Di composition, so the hits depend on the order of the predicted states. Any sequence hit at E ≤ 10⁻³ is not evidence: it reached 23–26% for the low-score and antisense controls (Fig. 5b). <!-- src: S33 (hit_rate_seq 0.2608, 0.2291) -->
+
+The 0.90 target is a precision calibrated on complete ORFs of all lengths, not the precision of intergenic candidates; the hit rates above measure that directly. Complete candidates had full-length structural hits at 41.5% and the 1,123 5′-open candidates, admitted without a calibrated precision, at 47.5%; every control stayed at or below 0.5% in both states (Table S6). <!-- src: manuscript/data/tabL06_evidence_by_truncation.tsv.gz; #24 Setonix integrator comment -->
+
+AFDB50 alone gives full-length structural hits for 41.5% of candidates, against 7–12% for each other database, so a hit often means that a homologous protein is already annotated in another genome. <!-- src: AH/manuscript/tables/S16_evidence_rates.tsv; LMS:600-604 --> Among candidates, 20.7% had both full-length sequence and structural evidence, 21.2% structure only and 4.0% sequence only, against 62.7%, 9.9% and 7.9% for Prodigal genes (Fig. S10b). <!-- src: AH/manuscript/tables/S17_evidence_classes.tsv --> The rate rose with length from 38.1% at 100–149 aa to 70.6% at 300–499 aa, roughly parallel to Prodigal genes (57.7% to 96.9%; Fig. S10a). <!-- src: AH/manuscript/tables/S18_evidence_by_length.tsv --> Weighted by the candidates' length distribution, about 38% of the 3.07 million complete and 5′-open candidates, roughly 1.2 million ORFs, would have a full-length structural homologue. <!-- src: LMS:613-616; tabL05 (2,759,781 + 305,573) -->
+
+Best full-length targets of candidates were 64.5% bacterial, 30.1% eukaryotic, 1.9% archaeal and 1.9% viral, against 88.4%, 2.9%, 2.1% and 4.7% for Prodigal genes (Fig. S10d). <!-- src: AH/manuscript/tables/S19_hit_superkingdom.tsv --> The eukaryotic share was highest in plant (73%), food (71%) and built-environment (51%) metagenomes. <!-- src: AH/manuscript/tables/S24_euk_by_biome.tsv (euk_hit_share) --> Kraken2 classified 84.4% of the query contigs (Fig. S11a). <!-- src: LMS:660-661 --> Candidates sat on eukaryotic contigs more often than Prodigal genes (31.6% against 9.6%), and of the 2,525 candidates with a eukaryotic best hit, 69.8% lay on eukaryotic contigs, 20.9% on unclassified and 9.3% on bacterial contigs (Fig. S11b; Table S9). <!-- src: AH/manuscript/tables/S22_contig_group_by_arm.tsv; manuscript/data/tabL09_euk_explained.tsv.gz (S23) --> Part of what Prodigal misses is therefore probably eukaryotic coding sequence, which a prokaryotic caller is not designed to find, although low-scoring intergenic ORFs also sit on eukaryotic contigs (38.2%). <!-- src: S22 (intergenic_lo) -->
+
+For the 5,402 candidates with a bacterial best hit, Prodigal's own scores fall just below its decision boundary (Fig. S12; Table S8). 49.6% have a negative coding score under the model chosen for the contig, 42.2% a positive coding score made negative by start, RBS and upstream penalties, 5.0% no potential gene at that stop, and 3.3% a positive score but were not chosen. <!-- src: manuscript/data/tabL08_skip_reasons.tsv.gz (S25) --> Their median coding score was −0.6 against +42.1 for called genes with bacterial hits; 42.9% of their best starts were ATG (89.6% for called genes), and 61.9% had no RBS motif (19.2%). <!-- src: AH/manuscript/tables/S26_skip_feature_summary.tsv --> These bacterial candidates look like genes whose codon usage and start signals fall outside Prodigal's metagenomic models. A full-length homologue is evidence that a candidate resembles a known protein, not that it is expressed or functional.
+
+## Prodigal genes that look unlike proteins
+
+Of the scan's 880,405 sampled complete Prodigal genes, 17.4% scored below the 0.80 threshold, almost all of them short: 99.9% of genes at 30–49 aa, 88% at 50–74 aa, 55% at 75–99 aa, 23% at 100–149 aa and 2% at 200–299 aa (Fig. S13a). <!-- src: AH/manuscript/tables/S29_lowscore_population.tsv; LMS:725-730 --> Within each length bin from 50 aa, low-scoring genes had much lower 3Di entropy than high-scoring genes (0.9–1.5 against 2.9–3.5 bits), while amino-acid entropy differed by less than 0.3 bits (Table S7). <!-- src: manuscript/data/tabL07_lowscore_features.tsv.gz -->
+
+Length-matched, 6.8% of 10,269 low-scoring genes had a full-length structural homologue, against 87.5% of 8,769 high-scoring genes; full-length sequence hits were 28.3% against 79.8% (Fig. S13b). <!-- src: AH/manuscript/tables/S33_all_arms_evidence.tsv (prodigal_lo, prodigal_hi); tabL06; #24 correction 6.8% --> 70.8% of low-scoring genes had no full-length evidence of either kind, and 22.4% had sequence hits only, mostly to near-identical UniProt entries in AFDB50. <!-- src: AH/manuscript/tables/S31_extra_evidence_classes.tsv; LMS:752-758 --> The relation is graded: among Prodigal genes in the positive-control arm, the full-length structural rate rose from 2.7% at scores below 0.2 to 95.1% at 0.95 and above. <!-- src: AH/manuscript/tables/S32_prodigal_by_score.tsv --> Outside the shortest genes, a low score therefore marks Prodigal calls that lack independent protein-level support; whether these are spurious calls or proteins without a folded domain was not tested. Below 75 aa, low scores are nearly universal and reflect a limit of the method rather than a verdict on each gene.
+
+## Structural entropy finds missing and misannotated genes in phage
+
+### Structural entropy carries most of the information about phage annotation
+
+Phage genomes are densely coding: 39.8% of the 6,754,361 ORFs of at least 90 aa in 36,025 Inphared genomes match an annotated CDS. <!-- src: Validation/mutual_information/README.md TL;DR (2,685,382 / 6,754,361); IG:14 --> These labels are corrected ones. The matcher used before genome_entropy 0.2.0 labelled 3 of 3,311,070 minus-strand ORFs as genes, against 1,000,839 after correction (Fig. S15a). <!-- src: Validation/mutual_information/README.md §2.1 table; figPS01 caption -->
+
+3Di entropy alone carries 0.587 bits of information about the label (95% CI 0.584–0.589), out of 1 bit on a class-balanced sample (Fig. 6a). <!-- src: Validation/mutual_information/README.md §4.2 table; data/figP01_mutual_information.tsv.gz --> As a single score it gives a ROC AUC of 0.947. <!-- src: Validation/mutual_information/README.md §4.6 --> The best pair, protein plus 3Di entropy, reaches 0.644 bits, only 0.057 bits (95% CI 0.055–0.058) more than 3Di entropy alone. <!-- src: Validation/mutual_information/README.md TL;DR, §4.2 table --> Every other partner adds at most 0.026 bits to 3Di entropy. <!-- src: Validation/mutual_information/README.md TL;DR --> DNA entropy carries essentially nothing (0.003 bits). <!-- src: Validation/mutual_information/README.md §4.2 table --> Every estimate is far above the permutation null, whose 99th percentile is at most 0.0009 bits at 20 bins. <!-- src: Validation/mutual_information/README.md TL;DR -->
+
+The signal is not a length effect. Every ORF here is at least 90 aa, and length alone is weak (0.130 bits; AUC 0.733). <!-- src: Validation/mutual_information/README.md §4.2 table, §4.6 --> Conditioning on length keeps 82% of the information in 3Di entropy (0.472 of 0.572 bits, full population). <!-- src: Validation/mutual_information/README.md §4.3 conditional-MI table --> Within length bins, 3Di entropy gives AUC 0.874 at 90–99 aa, rising to 0.991 at 300 aa and above, against 0.53–0.63 for length. <!-- src: Validation/mutual_information/README.md §4.3 AUC table -->
+
+Amino-acid composition therefore adds little once predicted structure is known. The labels are Pyrodigal-gv gene calls, not ground truth, so these values measure agreement with that gene caller.
+
+### Ranking missing genes with corrected labels
+
+Fig. S15b shows what the label error cost. The original ranking model included strand among its features. Trained on the old labels, it learned that a plus-strand ORF is a gene: the strand feature carried 0.89 of its gain. <!-- src: Validation/Inphared/README.md:10, §4.2 table; figPS01 caption --> Scored against corrected labels, that model reaches AUC 0.740 only. <!-- src: Validation/Inphared/README.md Table 1 (0.7404) -->
+
+We therefore retrained on corrected labels using intrinsic features only: entropies and lengths, with no strand, frame or position. On the 31,200-genome ranking set this model gives AUC 0.976 and average precision (AP) 0.970, against 0.733 and 0.660 for length alone (Fig. 6b). <!-- src: Validation/Inphared/README.md Table 1 (intrinsic 0.9764 / 0.9696; length only 0.7328 / 0.6598); data/figP01_ranking_models.tsv.gz --> Length plus 3Di entropy already reaches 0.953 and 0.945. <!-- src: Validation/Inphared/README.md Table 1 --> 3Di entropy takes 0.745 of the model's gain. <!-- src: Validation/Inphared/README.md §4.2 intrinsic table --> The ranking set's positives make up 40% of ORFs, so AP here is not comparable with AP on metagenomes. <!-- src: Validation/Inphared/README.md:139, :192 -->
+
+The model flags 46,132 unannotated ORFs at p ≥ 0.8, in 19,560 genomes (median 136 aa). <!-- src: Validation/Inphared/README.md:210 --> Most overlap an annotated gene:
+
+- 22,913 are antisense to a CDS;
+- 15,005 lie in another frame on the same strand;
+- 4,169 are intergenic.
+
+<!-- src: Validation/Inphared/README.md §5.1 candidate context table -->
+
+The remaining 4,045 are pieces of annotated genes, mostly partial CDS at genome ends, and were not searched. <!-- src: Validation/Inphared/README.md:224 -->
+
+Structural searches support the candidates (Fig. 6c). Full-length Foldseek hits in any database were found for:
+
+- 33.8% of candidates (95% CI 33.1–34.5%);
+- 64.6% of annotated genes;
+- 2.2%, 0.24% and 0.10% of low-scoring intergenic, other-frame and antisense ORFs;
+- 0.015% of candidates with shuffled 3Di strings.
+
+<!-- src: Validation/Inphared/README.md §5.2 rate table; data/figP01_foldseek_rates.tsv.gz (fullcov_ci) -->
+
+Scaled between the controls and the annotated genes, this places 51–52% of candidates with the genes. <!-- src: Validation/Inphared/README.md §5.2 excess table (50.6–52.3%); tables/evidence_excess.tsv --> Most of that evidence comes from BFVD, a database of predicted structures of viral proteins. Its hits are mostly near-identical (median identity 0.98 for candidates), so they mostly show that another annotation of a related genome called the same ORF. <!-- src: Validation/Inphared/README.md §5.2 identity table --> The independent test is the non-viral databases. There candidates reach 6.1% (95% CI 5.8–6.5%), against 18.0% for annotated genes and at most 0.09% for every control. <!-- src: Validation/Inphared/README.md §5.2; data/figP01_foldseek_rates.tsv.gz --> That gives a share of 34%. <!-- src: Validation/Inphared/README.md §5.2 excess table (33.7–34.0%) -->
+
+Antisense candidates validate poorly: 9.9% have a full-length hit, against 66.5% of intergenic and 61.6% of other-frame candidates. <!-- src: Validation/Inphared/README.md §5.2 by-context table --> Many are probably shadows of the gene on the opposite strand.
+
+Of the 4,102 replacement pairs, only the replacement ORF has a full-length hit in 46.6% of pairs, and only the annotated gene in 5.9%. <!-- src: Validation/Inphared/README.md §6 table --> Replacement ORFs hit 53.8% of the time, the genes they would replace 13.2%. <!-- src: Validation/Inphared/README.md §6 hit-rate table --> This test shows only which ORF of a pair has better external evidence. Phages do carry overlapping genes, so each case needs checking before it is called an annotation error.
+
+Two limits apply to every phage result:
+
+- **Short genes.** The 90-aa floor hides 28.7% of the annotated CDS, so these results say nothing about short phage genes. <!-- src: Validation/mutual_information/README.md §2.1 (957,269 / 3,336,744) -->
+- **Near-duplicate genomes.** Inphared contains near-duplicate genomes, and cross-validation was grouped by genome, not by homology cluster. Out-of-fold metrics may therefore be slightly optimistic.
+
+### Phage genes sit lower in 3Di entropy than cellular genes
+
+Annotated phage genes show the same separation as bacterial and archaeal genes, and the gap widens with length in every population (Fig. S14). Annotated phage ORFs have lower mean 3Di entropy than annotated bacterial ORFs at every length:
+
+| length (aa) | difference (bits) |
+|---|---|
+| 90–149 | 0.24 |
+| 150–299 | 0.34 |
+| 300–599 | 0.20 |
+| 600–999 | 0.09 |
+
+<!-- src: notebooks/figP04_phage_vs_cellular.ipynb caption (a); recomputed from data/figP04_{phage,gtdb}_length_3di.tsv.gz as n-weighted means: 0.242, 0.339, 0.194, 0.090 -->
+
+We have not tested the cause. Phage proteomes may be richer in small or poorly folded proteins. Alternatively, the labels may contribute: 310,360 phage positives match a CDS shorter than 90 aa inside a longer stop-to-stop ORF. <!-- src: AH inphared_gadi/README.md §3.2; Validation/mutual_information/README.md §2.1 --> Restricting positives to CDS that cover most of their ORF would separate the two.
+
+### An annotation error in OM869708
+
+OM869708 is the 5,753-bp genome of the microvirus *Dipodfec virus* RodF1_38 (Fig. 6d). <!-- src: work/om869708/OM869708_ncbi.gb (DEFINITION, ORGANISM, REFERENCE bases 1 to 5753) --> The submitters' GenBank record annotates a replication initiator protein at 4753..5730 (UPW42009.1). <!-- src: data/figP01_om869708_ncbi_cds.tsv.gz (0-based 4752–5730); decisions.md D7 --> The Pharokka and phold re-annotation used for our labels does not contain this gene. Instead it calls a hypothetical protein in another frame, CDS_0007, which matches ORF7. <!-- src: data/figP01_om869708_cds.tsv.gz; data/figP01_om869708_orfs.tsv.gz -->
+
+The corrected model disagrees with the re-annotation. ORF3 is the 335-aa stop-to-stop ORF that contains the submitters' gene and shares its stop codon. It has 3Di entropy 2.98 bits and scores p = 0.889. <!-- src: data/figP01_om869708_orfs.tsv.gz (orf3); decisions.md D7 --> The annotated ORF7 (198 aa) has 3Di entropy 1.20 bits and scores p = 0.175. <!-- src: data/figP01_om869708_orfs.tsv.gz (orf7); decisions.md D7 --> The model ranks ORF3 → ORF7 179th of the 4,102 replacement candidates. <!-- src: data/figP01_om869708_orfs.tsv.gz (replacement_rank); decisions.md D7 -->
+
+BLASTP against nr agrees with the model. ORF7 has no hit at E ≤ 10⁻⁵. <!-- src: data/figP01_om869708_blastp.tsv.gz (no OM869708_orf7 rows) --> ORF3's top hit is the genome's own submitted protein (UPW42009.1, 100% identity), which is not independent support. <!-- src: data/figP01_om869708_blastp.tsv.gz row 1 --> The next five hits are replication initiator proteins of other viruses, one of them a named microvirus, at 43.7–55.4% identity. The best of these aligns over 323 aa with E = 2 × 10⁻¹²⁷. <!-- src: data/figP01_om869708_blastp.tsv.gz rows 2–6 (XHH71331.1 55.4%, E 2.4e-127 … QXN75198.1 43.7%) -->
+
+genome_entropy therefore recovers a replication gene that the submitters annotated and the re-annotation pipeline lost. We did not determine why the pipeline lost it. Its functional annotation step can only describe proteins that its gene caller reports, so a wrong gene model is not corrected downstream. This example shows how one score per ORF can flag such a locus for review. It does not by itself show that the replacement is correct; here that rests on the submitters' annotation and the independent homologues.
+
+## Short ORFs mark the lower limit of the method
+
+On the GMSC benchmark, structural entropy separates real from spurious small ORFs only weakly (Fig. S16). Pooled over all 43.7 million smORFs, length is the best single feature (AUC 0.640). 3Di entropy (0.605) and 12-state entropy (0.602) come next. <!-- src: Validation/smorfs/README.md:74–80; data/figS01_single_feature_auc.tsv.gz --> Nucleotide and amino-acid entropy barely separate the classes (0.504 and 0.525). <!-- src: data/figS01_single_feature_auc.tsv.gz (0.5037, 0.5254) --> Positives are longer (median 80 against 70 aa; Table S13). <!-- src: data/tabS04_dataset_summary.tsv.gz -->
+
+At fixed length, 3Di entropy keeps a small signal that grows with length: AUC rises from 0.526 at 50–59 aa to 0.626 at 90–99 aa (Fig. S16d). <!-- src: AH smorfs/manuscript.md Table 2; data/figS01_single_feature_auc.tsv.gz --> Amino-acid entropy falls to or below chance in the same bins (0.46–0.50). <!-- src: AH smorfs/manuscript.md Table 2 --> At 10–29 aa, 3Di entropy is uninformative (AUC 0.47). This bin holds only 11,382 positives against 80,578 negatives (Table S10). <!-- src: data/figS01_single_feature_auc.tsv.gz (0.4727); data/tabS01_length_bins.tsv.gz -->
+
+Combining features helps, but the ceiling is low (Fig. S16e):
+
+- length plus nucleotide and amino-acid entropy reaches held-out AUC 0.669;
+- length plus 3Di and 12-state entropy reaches 0.699;
+- all five features reach 0.730.
+
+<!-- src: AH smorfs/manuscript.md Table 3; data/figS01_models_by_split.tsv.gz (0.6692, 0.6993, 0.7300) -->
+
+Holding out homology clusters barely changes this: 0.728 at 50% identity and 0.721 at 30%. <!-- src: Validation/smorfs/README.md:86–90 --> Weighting each 50%-identity cluster once lowers the all-feature AUC to 0.695 under the 30% split. <!-- src: Validation/smorfs/README.md:90 --> The positives are far more redundant than the negatives: 14.5 against 6.0 sequences per 50%-identity cluster, and the 20 largest clusters at each threshold are all positive (Tables S11, S12). <!-- src: data/tabS02_cluster_stats.tsv.gz; data/tabS03_cluster_largest.tsv.gz; AH smorfs/manuscript.md §3.7 --> Cluster weighting lowers 3Di AUC more than the other features (0.612 to 0.571, random split). Part of the structural signal therefore sits in large positive families. <!-- src: data/figS01_models_by_split.tsv.gz (3Di, random: 0.6122 / 0.5710) -->
+
+The amino-acid × 3Di entropy plane shows where the classes differ (Fig. S17). Positives are enriched above about 2.3 bits of 3Di entropy when amino-acid entropy exceeds about 3.6 bits. Negatives are enriched in a band at 1.0–1.6 bits of 3Di entropy. <!-- src: notebooks/figSS01_smorf_density.ipynb caption --> Sharp stripes at 1.0 and 1.585 bits are strings that use only two or three 3Di states (Fig. S18). In the 1.0-bit stripe, 67% of positive and 61% of negative strings use exactly two states, almost always D and P. <!-- src: data/figSS02_stripe_bands.tsv.gz (67.43 / 60.68%; DP) --> In the 1.585-bit stripe, 42% and 31% use exactly three, mostly D, P and V. <!-- src: data/figSS02_stripe_bands.tsv.gz (41.81 / 30.74%; DPV) --> Such strings cannot exceed log₂2 or log₂3 bits and accumulate just below those values. Both classes contain them at similar rates, so low 3Di entropy alone does not mark a small ORF as non-coding.
+
+A short line near 2.81 bits contains only positives. Two families of near-identical 3Di strings appear to form it, which we identified by eye as ribosomal proteins L34 and S14. <!-- src: AH smorfs/manuscript.md §3.6 --> We did not confirm these identities by homology search, and we do not interpret the stripes biologically.
+
+These results set the method's lower length limit. Gene-length ORFs separate well: in phage genomes 3Di entropy alone reaches AUC 0.947. <!-- src: Validation/mutual_information/README.md §4.6 --> Below 100 aa, one entropy per alphabet carries only a small signal. The GMSC negatives are hard: they are conserved and in frame, unlike the shadows and random ORFs that dominate genomic negatives. Even so, much of the weakness is probably length itself. A 3Di string of 50–99 symbols gives few observations for a 20-state distribution, and many real small proteins are a single helix or disordered. ModernProst has not been validated against experimental or predicted structures below about 50 aa. Features that use the order of the 3Di string may do better, but we have not tested them.
 
 # Discussion
 
