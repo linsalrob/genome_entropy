@@ -1,0 +1,885 @@
+domain	scheme	covariate	stratum	cov_lo	cov_hi	metric	value	lo	hi
+arc	all	all	all			n_candidate	22447.0		
+arc	all	all	all			n_comparator_draws	22447.0		
+arc	all	all	all			n_comparator_distinct	21475.0		
+arc	all	all	all			n_comparator_effective	19357.939567405585		
+arc	all	all	all			n_comparator_with_replacement_draws	972.0		
+arc	all	all	all			n_annotated	22447.0		
+arc	all	all	all			fulllen_afdb_swissprot_candidate	0.14175613667750703		
+arc	all	all	all			fulllen_afdb_swissprot_comparator	0.10143894507061077		
+arc	all	all	all			fulllen_afdb_swissprot_annotated	0.3591125762908184		
+arc	all	all	all			share_afdb_swissprot	0.15646611341632094	0.13361948369190313	0.17931274314073875
+arc	all	all	all			fulllen_pdb100_candidate	0.13289080946228896		
+arc	all	all	all			fulllen_pdb100_comparator	0.0956029758987838		
+arc	all	all	all			fulllen_pdb100_annotated	0.3258341871965073		
+arc	all	all	all			share_pdb100	0.16195820433436536	0.1370987399675179	0.18681766870121283
+arc	all	all	all			fulllen_cath50_candidate	0.12718848843943512		
+arc	all	all	all			fulllen_cath50_comparator	0.09186082772753597		
+arc	all	all	all			fulllen_cath50_annotated	0.2527731990911926		
+arc	all	all	all			share_cath50	0.21954595791805093	0.18514587503504557	0.25394604080105626
+arc	all	all	all			fulllen_bfvd_candidate	0.09221722279146434		
+arc	all	all	all			fulllen_bfvd_comparator	0.05742415467545774		
+arc	all	all	all			fulllen_bfvd_annotated	0.11618479084064685		
+arc	all	all	all			share_bfvd	0.5921152388172859	0.5117951604809188	0.672435317153653
+arc	all	all	all			fulllen_any_sp_pdb_cath_candidate	0.2282710384461175		
+arc	all	all	all			fulllen_any_sp_pdb_cath_comparator	0.16376353187508352		
+arc	all	all	all			fulllen_any_sp_pdb_cath_annotated	0.4360939100993451		
+arc	all	all	all			share_any_sp_pdb_cath	0.2368722394896123	0.21134265910452313	0.26240181987470146
+arc	all	all	all			structural_estimate	4025.272925978715	3512.1948478561562	4928.1481173864895
+arc	all	all	all			ladder_C1_candidates	22447.0		
+arc	all	all	all			ladder_C1_comparator_scaled	22447.0		
+arc	all	all	all			ladder_C1_excess	0.0		
+arc	all	all	all			ladder_C2_candidates	19835.0		
+arc	all	all	all			ladder_C2_comparator_scaled	19835.0		
+arc	all	all	all			ladder_C2_excess	0.0		
+arc	all	all	all			ladder_C3_candidates	5141.0		
+arc	all	all	all			ladder_C3_comparator_scaled	3410.0		
+arc	all	all	all			ladder_C3_excess	1731.0		
+arc	all	all	all			ladder_C4_candidates	2777.0		
+arc	all	all	all			ladder_C4_comparator_scaled	1872.0		
+arc	all	all	all			ladder_C4_excess	905.0		
+arc	all	all	all			ladder_C5_candidates	4396.0		
+arc	all	all	all			ladder_C5_comparator_scaled	3030.0		
+arc	all	all	all			ladder_C5_excess	1366.0		
+arc	all	all	all			ladder_C6_candidates	4439.0		
+arc	all	all	all			ladder_C6_comparator_scaled	3030.0		
+arc	all	all	all			ladder_C6_excess	1409.0		
+arc	all	all	all			ladder_C7_candidates	1574.0		
+arc	all	all	all			ladder_C7_comparator_scaled	1167.0		
+arc	all	all	all			ladder_C7_excess	407.0		
+arc	all	all	all			prodigal_candidate	0.5536151824297233		
+arc	all	all	all			prodigal_annotated_cds	0.9613311355637725		
+arc	all	all	all			prodigal_comparator	0.2562035015815031		
+arc	all	all	all			prodigal_share_clean_bg	0.4217841799342935	0.41116496202913855	0.4324033978394485
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_candidate	5863.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_draws	5863.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_distinct	5739.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_effective	5550.584369449379		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_with_replacement_draws	294.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	n_annotated	6724.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_afdb_swissprot_candidate	0.14924100289953948		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_afdb_swissprot_comparator	0.11836943544260617		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_afdb_swissprot_annotated	0.34741225461035097		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	share_afdb_swissprot	0.13478513567510628	0.0831970366933375	0.18637323465687505
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_pdb100_candidate	0.14548865768377964		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_pdb100_comparator	0.11393484564216272		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_pdb100_annotated	0.31632956573468174		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	share_pdb100	0.15590234778453205	0.09865568749401046	0.21314900807505363
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_cath50_candidate	0.14668258570697595		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_cath50_comparator	0.10847688896469385		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_cath50_annotated	0.25133848899464606		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	share_cath50	0.2674315332760654	0.18897720197751833	0.34588586457461246
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_bfvd_candidate	0.0910796520552618		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_bfvd_comparator	0.06600716356813918		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_bfvd_annotated	0.11436644854253421		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	share_bfvd	0.5184627626400566	0.333865181067805	0.7030603442123082
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_any_sp_pdb_cath_candidate	0.25652396384103704		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_any_sp_pdb_cath_comparator	0.1959747569503667		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	fulllen_any_sp_pdb_cath_annotated	0.4257882212968471		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	share_any_sp_pdb_cath	0.26347110280441516	0.20289179245031955	0.3240504131585108
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	structural_estimate	1090.7505983738104	790.2452504631481	1567.9510795975714
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C1_candidates	5863.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C1_comparator_scaled	5863.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C1_excess	0.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C2_candidates	4428.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C2_comparator_scaled	4428.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C2_excess	0.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C3_candidates	1211.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C3_comparator_scaled	860.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C3_excess	351.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C4_candidates	657.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C4_comparator_scaled	478.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C4_excess	179.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C5_candidates	1065.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C5_comparator_scaled	759.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C5_excess	306.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C6_candidates	1045.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C6_comparator_scaled	757.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C6_excess	288.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C7_candidates	345.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C7_comparator_scaled	299.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	ladder_C7_excess	46.0		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_candidate	0.5993518676445506		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_annotated_cds	0.9527067221891731		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_comparator	0.2865427255671158		
+arc	candidate_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_clean_bg	0.4695677695936854	0.4481891469654423	0.4909463922219285
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_candidate	5610.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_draws	5610.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_distinct	5433.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_effective	5142.5		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_with_replacement_draws	329.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	n_annotated	6934.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_afdb_swissprot_candidate	0.18342245989304812		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_afdb_swissprot_comparator	0.12602495543672015		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_afdb_swissprot_annotated	0.39702913181424865		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	share_afdb_swissprot	0.21179564545296553	0.16517435878839035	0.25841693211754074
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_pdb100_candidate	0.17575757575757575		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_pdb100_comparator	0.11836007130124777		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_pdb100_annotated	0.3569368329968272		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	share_pdb100	0.24058296394166995	0.1889882775450768	0.2921776503382631
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_cath50_candidate	0.15811051693404635		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_cath50_comparator	0.1073083778966132		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_cath50_annotated	0.2701182578598212		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	share_cath50	0.31203351448274197	0.24049514879484535	0.3835718801706386
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_bfvd_candidate	0.09857397504456328		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_bfvd_comparator	0.06880570409982174		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_bfvd_annotated	0.13080473031439285		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	share_bfvd	0.4801409435321961	0.3285737944015955	0.6317080926627967
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_any_sp_pdb_cath_candidate	0.2841354723707665		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_any_sp_pdb_cath_comparator	0.1962566844919786		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_any_sp_pdb_cath_annotated	0.4746178252091145		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	share_any_sp_pdb_cath	0.3157006313898111	0.26386048633172327	0.3675407764478989
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	structural_estimate	1429.4506716506958	1188.1735709911366	1750.5080162481825
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C1_candidates	5610.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C1_comparator_scaled	5610.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C1_excess	0.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C2_candidates	4915.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C2_comparator_scaled	4915.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C2_excess	0.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C3_candidates	1557.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C3_comparator_scaled	1044.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C3_excess	513.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C4_candidates	925.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C4_comparator_scaled	580.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C4_excess	345.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C5_candidates	1392.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C5_comparator_scaled	935.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C5_excess	457.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C6_candidates	1261.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C6_comparator_scaled	900.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C6_excess	361.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C7_candidates	590.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C7_comparator_scaled	394.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C7_excess	196.0		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_candidate	0.6253119429590018		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_annotated_cds	0.963513123738102		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_comparator	0.3067736185383244		
+arc	candidate_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_clean_bg	0.48502994246368547	0.46311435765947145	0.5069455272678995
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_candidate	5451.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_draws	5451.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_distinct	5353.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_effective	5222.956758657057		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_with_replacement_draws	236.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	n_annotated	5726.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_afdb_swissprot_candidate	0.14015776921665749		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_afdb_swissprot_comparator	0.10273344340487983		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_afdb_swissprot_annotated	0.36849458609849806		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	share_afdb_swissprot	0.14081940434355428	0.09660439255181932	0.18503441613528923
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_pdb100_candidate	0.12658227848101267		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_pdb100_comparator	0.09282700421940929		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_pdb100_annotated	0.33391547327977644		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	share_pdb100	0.1400119814654066	0.09333242092577006	0.18669154200504318
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_cath50_candidate	0.11814345991561181		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_cath50_comparator	0.08897450009172629		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_cath50_annotated	0.2553265805099546		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	share_cath50	0.1753447251789782	0.11007470936281334	0.24061474099514307
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_bfvd_candidate	0.09649605576958356		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_bfvd_comparator	0.05852137222527976		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_bfvd_annotated	0.11805798113866574		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	share_bfvd	0.637837529503057	0.4739730830231421	0.801701975982972
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_any_sp_pdb_cath_candidate	0.2159236837277564		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_any_sp_pdb_cath_comparator	0.1570354063474592		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_any_sp_pdb_cath_annotated	0.4465595529165211		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	share_any_sp_pdb_cath	0.20339677390690533	0.15604372655147838	0.2507498212623323
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	structural_estimate	828.8719936650854	763.2053109679314	955.8040969506102
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C1_candidates	5451.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C1_comparator_scaled	5451.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C1_excess	0.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C2_candidates	5117.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C2_comparator_scaled	5117.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C2_excess	0.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C3_candidates	1307.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C3_comparator_scaled	890.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C3_excess	417.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C4_candidates	712.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C4_comparator_scaled	503.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C4_excess	209.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C5_candidates	1106.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C5_comparator_scaled	789.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C5_excess	317.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C6_candidates	1158.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C6_comparator_scaled	805.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C6_excess	353.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C7_candidates	384.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C7_comparator_scaled	303.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C7_excess	81.0		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_candidate	0.5633828655292606		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_annotated_cds	0.9661194551170101		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_comparator	0.26967528893780957		
+arc	candidate_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_clean_bg	0.42172451268100336	0.4001528483578469	0.4432961770041598
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_candidate	5523.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_comparator_draws	5523.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_comparator_distinct	5504.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_comparator_effective	5483.287614596441		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_comparator_with_replacement_draws	113.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	n_annotated	3063.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_afdb_swissprot_candidate	0.09306536302734021		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_afdb_swissprot_comparator	0.05721528154988231		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_afdb_swissprot_annotated	0.2814234410708456		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	share_afdb_swissprot	0.159896417481211	0.1171475609417173	0.2026452740207047
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_pdb100_candidate	0.08220170197356509		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_pdb100_comparator	0.05576679340937896		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_pdb100_annotated	0.2611818478615736		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	share_pdb100	0.12869022007507347	0.08394204609336094	0.17343839405678602
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_cath50_candidate	0.08401231214919427		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_cath50_comparator	0.06137968495382944		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_cath50_annotated	0.2118837740777016		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	share_cath50	0.15037881912123388	0.08826254202800704	0.21249509621446072
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_bfvd_candidate	0.08274488502625385		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_bfvd_comparator	0.035669020459894986		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_bfvd_annotated	0.08357819131570356		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	share_bfvd	0.9826065391121526	0.730788929905132	1.2344241483191731
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_any_sp_pdb_cath_candidate	0.15372080391091797		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_any_sp_pdb_cath_comparator	0.10320478001086367		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	fulllen_any_sp_pdb_cath_annotated	0.35194253999347047		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	share_any_sp_pdb_cath	0.20308948630713197	0.15493567697417435	0.2512432956400896
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	structural_estimate	808.1354057433111	710.7560854746308	883.1079137487284
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C1_candidates	5523.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C1_comparator_scaled	5523.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C1_excess	0.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C2_candidates	5375.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C2_comparator_scaled	5375.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C2_excess	0.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C3_candidates	1066.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C3_comparator_scaled	616.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C3_excess	450.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C4_candidates	483.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C4_comparator_scaled	311.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C4_excess	172.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C5_candidates	833.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C5_comparator_scaled	547.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C5_excess	286.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C6_candidates	975.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C6_comparator_scaled	568.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C6_excess	407.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C7_candidates	255.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C7_comparator_scaled	171.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	ladder_C7_excess	84.0		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_candidate	0.42259641499185224		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_annotated_cds	0.9663728370878224		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_comparator	0.15933369545536846		
+arc	candidate_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_clean_bg	0.3262081179903667	0.30796916973667093	0.34444706624406246
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_candidate	5863.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_draws	5310.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_distinct	5064.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_effective	4640.5694535878865		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_comparator_with_replacement_draws	246.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	n_annotated	6724.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_afdb_swissprot_candidate	0.14924100289953948		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_afdb_swissprot_comparator	0.12165725047080979		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_afdb_swissprot_annotated	0.34741225461035097		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	share_afdb_swissprot	0.12218445625984853	0.06734168655784054	0.17702722596185652
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_pdb100_candidate	0.14548865768377964		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_pdb100_comparator	0.11054613935969868		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_pdb100_annotated	0.31632956573468174		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	share_pdb100	0.16980239341728104	0.11207421292151065	0.22753057391305143
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_cath50_candidate	0.14668258570697595		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_cath50_comparator	0.10696798493408663		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_cath50_annotated	0.25133848899464606		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	share_cath50	0.27508805230901007	0.195596527145568	0.35457957747245217
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_bfvd_candidate	0.0910796520552618		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_bfvd_comparator	0.061016949152542375		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_bfvd_annotated	0.11436644854253421		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	share_bfvd	0.5635048734563961	0.39412597700784935	0.7328837699049429
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_any_sp_pdb_cath_candidate	0.25652396384103704		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_any_sp_pdb_cath_comparator	0.19472693032015065		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	fulllen_any_sp_pdb_cath_annotated	0.4257882212968471		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	share_any_sp_pdb_cath	0.26744866377085585	0.20554116942653317	0.32935615811517854
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	structural_estimate	1108.2533834482456	716.3674670514919	1612.841250687726
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C1_candidates	5863.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C1_comparator_scaled	5863.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C1_excess	0.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C2_candidates	4428.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C2_comparator_scaled	4323.824482109228		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C2_excess	104.17551789077243		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C3_candidates	1211.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C3_comparator_scaled	859.0233521657251		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C3_excess	351.9766478342749		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C4_candidates	657.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C4_comparator_scaled	458.21939736346513		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C4_excess	198.78060263653487		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C5_candidates	1065.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C5_comparator_scaled	780.6291902071563		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C5_excess	284.3708097928437		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C6_candidates	1045.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C6_comparator_scaled	756.3380414312618		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C6_excess	288.6619585687382		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C7_candidates	345.0		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C7_comparator_scaled	264.99435028248587		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	ladder_C7_excess	80.00564971751413		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_candidate	0.5993518676445506		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_annotated_cds	0.9527067221891731		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_comparator	0.28041431261770244		
+arc	own_genome	n50_contigs	Q1	-inf	13714.0	prodigal_share_clean_bg	0.47440302833426873	0.4528849319962549	0.49592112467228255
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_candidate	5610.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_draws	5177.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_distinct	4910.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_effective	4440.9824357912175		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_comparator_with_replacement_draws	267.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	n_annotated	6934.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_afdb_swissprot_candidate	0.18342245989304812		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_afdb_swissprot_comparator	0.12323739617539116		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_afdb_swissprot_annotated	0.39702913181424865		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	share_afdb_swissprot	0.21982060041813503	0.17278166924527175	0.2668595315909983
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_pdb100_candidate	0.17575757575757575		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_pdb100_comparator	0.11705621016032451		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_pdb100_annotated	0.3569368329968272		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	share_pdb100	0.24471074363209733	0.19234056721155085	0.2970809200526438
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_cath50_candidate	0.15811051693404635		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_cath50_comparator	0.10623913463395789		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_cath50_annotated	0.2701182578598212		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	share_cath50	0.316522210267123	0.24420198163207027	0.38884243890217574
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_bfvd_candidate	0.09857397504456328		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_bfvd_comparator	0.06895885648058721		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_bfvd_annotated	0.13080473031439285		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	share_bfvd	0.4788535876064882	0.3251398047673184	0.632567370445658
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_any_sp_pdb_cath_candidate	0.2841354723707665		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_any_sp_pdb_cath_comparator	0.19683214216727835		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	fulllen_any_sp_pdb_cath_annotated	0.4746178252091145		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	share_any_sp_pdb_cath	0.3142830445669143	0.26122477921787596	0.36734130991595265
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	structural_estimate	1460.5701465734544	1233.1935683457375	1775.68959959856
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C1_candidates	5610.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C1_comparator_scaled	5610.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C1_excess	0.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C2_candidates	4915.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C2_comparator_scaled	4790.768785010624		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C2_excess	124.23121498937599		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C3_candidates	1557.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C3_comparator_scaled	963.3552250338033		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C3_excess	593.6447749661967		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C4_candidates	925.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C4_comparator_scaled	542.9032258064516		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C4_excess	382.0967741935484		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C5_candidates	1392.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C5_comparator_scaled	872.3295344794283		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C5_excess	519.6704655205717		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C6_candidates	1261.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C6_comparator_scaled	867.9949777863627		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C6_excess	393.0050222136373		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C7_candidates	590.0		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C7_comparator_scaled	345.6808962719722		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	ladder_C7_excess	244.3191037280278		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_candidate	0.6253119429590018		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_annotated_cds	0.963513123738102		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_comparator	0.29109522889704464		
+arc	own_genome	n50_contigs	Q2	13714.0	38948.0	prodigal_share_clean_bg	0.49703720948853924	0.47546502545654984	0.5186093935205286
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_candidate	5451.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_draws	5567.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_distinct	5302.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_effective	4693.546721187339		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_comparator_with_replacement_draws	265.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	n_annotated	5726.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_afdb_swissprot_candidate	0.14015776921665749		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_afdb_swissprot_comparator	0.10220944853601581		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_afdb_swissprot_annotated	0.36849458609849806		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	share_afdb_swissprot	0.1425100966130238	0.09755093123007497	0.18746926199597264
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_pdb100_candidate	0.12658227848101267		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_pdb100_comparator	0.10095203880007185		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_pdb100_annotated	0.33391547327977644		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	share_pdb100	0.11001829423653044	0.05948990885762205	0.16054667961543884
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_cath50_candidate	0.11814345991561181		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_cath50_comparator	0.092868690497575		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_cath50_annotated	0.2553265805099546		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	share_cath50	0.15557735863804972	0.08657074326177375	0.2245839740143257
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_bfvd_candidate	0.09649605576958356		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_bfvd_comparator	0.06394826657086403		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_bfvd_annotated	0.11805798113866574		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	share_bfvd	0.6015147087485706	0.4218610237505267	0.7811683937466145
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_any_sp_pdb_cath_candidate	0.2159236837277564		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_any_sp_pdb_cath_comparator	0.16256511586132566		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	fulllen_any_sp_pdb_cath_annotated	0.4465595529165211		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	share_any_sp_pdb_cath	0.18788596149881723	0.1382561667708096	0.23751575622682486
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	structural_estimate	741.5281468189763	599.7097218833275	848.052181936009
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C1_candidates	5451.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C1_comparator_scaled	5451.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C1_excess	0.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C2_candidates	5117.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C2_comparator_scaled	5112.209628165978		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C2_excess	4.790371834022153		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C3_candidates	1307.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C3_comparator_scaled	918.4548230644872		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C3_excess	388.5451769355128		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C4_candidates	712.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C4_comparator_scaled	536.5812825579306		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C4_excess	175.41871744206935		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C5_candidates	1106.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C5_comparator_scaled	806.8302496856476		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C5_excess	299.1697503143524		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C6_candidates	1158.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C6_comparator_scaled	826.4135081731633		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C6_excess	331.58649182683666		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C7_candidates	384.0		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C7_comparator_scaled	345.64451230465244		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	ladder_C7_excess	38.35548769534756		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_candidate	0.5633828655292606		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_annotated_cds	0.9661194551170101		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_comparator	0.2947727680977187		
+arc	own_genome	n50_contigs	Q3	38948.0	221751.0	prodigal_share_clean_bg	0.4001063870950827	0.37712182150180557	0.4230909526883599
+arc	own_genome	n50_contigs	Q4	221751.0	inf	n_candidate	5523.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	n_comparator_draws	6393.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	n_comparator_distinct	6199.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	n_comparator_effective	5587.211073137389		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	n_comparator_with_replacement_draws	194.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	n_annotated	3063.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_afdb_swissprot_candidate	0.09306536302734021		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_afdb_swissprot_comparator	0.06632254027842953		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_afdb_swissprot_annotated	0.2814234410708456		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	share_afdb_swissprot	0.12432687473828362	0.07894817646474048	0.16970557301182676
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_pdb100_candidate	0.08220170197356509		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_pdb100_comparator	0.061160644454872515		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_pdb100_annotated	0.2611818478615736		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	share_pdb100	0.10519413522330433	0.058625036065382906	0.15176323438122574
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_cath50_candidate	0.08401231214919427		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_cath50_comparator	0.06679180353511653		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_cath50_annotated	0.2118837740777016		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	share_cath50	0.11868684772617005	0.053387595130357776	0.18398610032198232
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_bfvd_candidate	0.08274488502625385		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_bfvd_comparator	0.039418113561708115		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_bfvd_annotated	0.08357819131570356		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	share_bfvd	0.9811298726851921	0.7081931992778918	1.2540665460924925
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_any_sp_pdb_cath_candidate	0.15372080391091797		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_any_sp_pdb_cath_comparator	0.11231033943375567		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	fulllen_any_sp_pdb_cath_annotated	0.35194253999347047		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	share_any_sp_pdb_cath	0.17280843050491074	0.12239672743425545	0.22322013357556603
+arc	own_genome	n50_contigs	Q4	221751.0	inf	structural_estimate	641.0506660031624	580.9872088383098	686.6573291795404
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C1_candidates	5523.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C1_comparator_scaled	5523.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C1_excess	0.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C2_candidates	5375.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C2_comparator_scaled	5422.786015954951		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C2_excess	-47.786015954950926		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C3_candidates	1066.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C3_comparator_scaled	695.4504927264195		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C3_excess	370.5495072735805		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C4_candidates	483.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C4_comparator_scaled	352.47677146879397		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C4_excess	130.52322853120603		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C5_candidates	833.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C5_comparator_scaled	599.5560769591741		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C5_excess	233.4439230408259		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C6_candidates	975.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C6_comparator_scaled	604.7395588925388		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C6_excess	370.26044110746125		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C7_candidates	255.0		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C7_comparator_scaled	220.29798216799625		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	ladder_C7_excess	34.70201783200375		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_candidate	0.42259641499185224		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_annotated_cds	0.9663728370878224		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_comparator	0.17425308931643985		
+arc	own_genome	n50_contigs	Q4	221751.0	inf	prodigal_share_clean_bg	0.3135174023550388	0.2947774373796775	0.33225736733040007
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_candidate	4962.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_draws	4962.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_distinct	4875.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_effective	4769.7489345215035		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_with_replacement_draws	240.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	n_annotated	7254.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_afdb_swissprot_candidate	0.14772269246271666		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_afdb_swissprot_comparator	0.11386537686416767		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_afdb_swissprot_annotated	0.37730907085745796		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	share_afdb_swissprot	0.1285182237059404	0.08031689489769107	0.17671955251418975
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_pdb100_candidate	0.1396614268440145		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_pdb100_comparator	0.10882708585247884		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_pdb100_annotated	0.33926109732561344		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	share_pdb100	0.13380985208917617	0.07999889307773378	0.18762081110061857
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_cath50_candidate	0.14207980652962515		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_cath50_comparator	0.09754131398629586		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_cath50_annotated	0.2587537910118555		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	share_cath50	0.2762719943585252	0.2030719578459869	0.3494720308710635
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_bfvd_candidate	0.08907698508665861		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_bfvd_comparator	0.06630390971382508		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_bfvd_annotated	0.12861869313482216		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	share_bfvd	0.3654522108980018	0.21251617997613825	0.5183882418198653
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_any_sp_pdb_cath_candidate	0.2501007658202338		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_any_sp_pdb_cath_comparator	0.18480451430874648		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_any_sp_pdb_cath_annotated	0.4557485525227461		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	share_any_sp_pdb_cath	0.24099534332589517	0.1859131096237863	0.296077577028004
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	structural_estimate	890.8445160341236	637.7074260288763	1370.8616360070018
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C1_candidates	4962.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C1_comparator_scaled	4962.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C1_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C2_candidates	4066.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C2_comparator_scaled	4066.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C2_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C3_candidates	1123.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C3_comparator_scaled	768.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C3_excess	355.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C4_candidates	586.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C4_comparator_scaled	422.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C4_excess	164.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C5_candidates	980.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C5_comparator_scaled	675.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C5_excess	305.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C6_candidates	987.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C6_comparator_scaled	678.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C6_excess	309.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C7_candidates	307.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C7_comparator_scaled	263.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C7_excess	44.0		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_candidate	0.6023780733575171		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_annotated_cds	0.955748552522746		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_comparator	0.29907295445384924		
+arc	candidate_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_clean_bg	0.4618796857925059	0.4383322525585115	0.48542711902650026
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_candidate	5782.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_draws	5782.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_distinct	5634.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_effective	5427.195454545455		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_with_replacement_draws	324.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	n_annotated	6965.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_afdb_swissprot_candidate	0.17295053614666206		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_afdb_swissprot_comparator	0.1240055344171567		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_afdb_swissprot_annotated	0.3741564967695621		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	share_afdb_swissprot	0.19566185662141514	0.14674633929587183	0.24457737394695844
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_pdb100_candidate	0.16049809754410238		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_pdb100_comparator	0.1148391560013836		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_pdb100_annotated	0.3392677674084709		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	share_pdb100	0.20344527935388235	0.15066892693001424	0.2562216317777505
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_cath50_candidate	0.15340712556208924		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_cath50_comparator	0.11051539259771705		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_cath50_annotated	0.2618808327351041		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	share_cath50	0.28336542955539556	0.20787026380216928	0.35886059530862185
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_bfvd_candidate	0.10342442061570391		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_bfvd_comparator	0.06710480802490487		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_bfvd_annotated	0.11844938980617373		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	share_bfvd	0.7073699177358745	0.5183182331587591	0.89642160231299
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_any_sp_pdb_cath_candidate	0.2710134901418194		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_any_sp_pdb_cath_comparator	0.1973365617433414		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_any_sp_pdb_cath_annotated	0.4548456568557071		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	share_any_sp_pdb_cath	0.2861138880020087	0.23125002931433605	0.3409777466896814
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	structural_estimate	1315.3521246328223	1131.3168549850222	1638.4189136892971
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C1_candidates	5782.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C1_comparator_scaled	5782.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C1_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C2_candidates	4897.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C2_comparator_scaled	4897.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C2_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C3_candidates	1474.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C3_comparator_scaled	1036.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C3_excess	438.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C4_candidates	850.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C4_comparator_scaled	578.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C4_excess	272.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C5_candidates	1298.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C5_comparator_scaled	929.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C5_excess	369.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C6_candidates	1235.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C6_comparator_scaled	912.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C6_excess	323.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C7_candidates	499.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C7_comparator_scaled	377.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C7_excess	122.0		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_candidate	0.6293670010377033		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_annotated_cds	0.9628140703517588		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_comparator	0.3028363887928053		
+arc	candidate_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_clean_bg	0.4947600826039905	0.4734412010861275	0.5160789641218535
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_candidate	6056.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_draws	6056.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_distinct	5918.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_effective	5717.981914561896		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_with_replacement_draws	288.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	n_annotated	5399.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_afdb_swissprot_candidate	0.15901585204755614		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_afdb_swissprot_comparator	0.11046895640686923		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_afdb_swissprot_annotated	0.3715502870902019		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	share_afdb_swissprot	0.1859454887625411	0.14155361667448574	0.23033736085059647
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_pdb100_candidate	0.1537318361955086		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_pdb100_comparator	0.10435931307793923		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_pdb100_annotated	0.3408038525652899		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	share_pdb100	0.2088122788735863	0.160812464165443	0.25681209358172963
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_cath50_candidate	0.1345772787318362		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_cath50_comparator	0.0977542932628798		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_cath50_annotated	0.2631968883126505		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	share_cath50	0.22257258149195988	0.15732415102830544	0.2878210119556143
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_bfvd_candidate	0.09544253632760898		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_bfvd_comparator	0.05845442536327609		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_bfvd_annotated	0.11724393406186331		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	share_bfvd	0.6291617634358926	0.46869009323785216	0.789633433633933
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_any_sp_pdb_cath_candidate	0.2465323645970938		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_any_sp_pdb_cath_comparator	0.1714002642007926		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_any_sp_pdb_cath_annotated	0.4486015928875718		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	share_any_sp_pdb_cath	0.2710380240680446	0.2224419237110549	0.31963412442503436
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	structural_estimate	1246.1841981065654	1126.085879945949	1347.899553515309
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C1_candidates	6056.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C1_comparator_scaled	6056.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C1_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C2_candidates	5482.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C2_comparator_scaled	5482.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C2_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C3_candidates	1514.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C3_comparator_scaled	989.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C3_excess	525.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C4_candidates	895.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C4_comparator_scaled	568.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C4_excess	327.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C5_candidates	1329.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C5_comparator_scaled	889.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C5_excess	440.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C6_candidates	1261.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C6_comparator_scaled	875.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C6_excess	386.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C7_candidates	548.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C7_comparator_scaled	370.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C7_excess	178.0		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_candidate	0.559445178335535		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_annotated_cds	0.9675865901092795		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_comparator	0.26354029062087186		
+arc	candidate_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_clean_bg	0.4202918017319049	0.3999996124143552	0.44058399104945456
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_candidate	5647.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_draws	5647.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_distinct	5625.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_effective	5597.438827453046		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_with_replacement_draws	120.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	n_annotated	2829.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_afdb_swissprot_candidate	0.08606339649371347		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_afdb_swissprot_comparator	0.05772976801841686		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_afdb_swissprot_annotated	0.25167903852951573		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	share_afdb_swissprot	0.14608783214616528	0.09822048141178112	0.19395518288054941
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_pdb100_candidate	0.07632371170533027		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_pdb100_comparator	0.054896405170887196		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_pdb100_annotated	0.22976316719688936		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	share_pdb100	0.12253504488895893	0.07171187459127111	0.17335821518664674
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_cath50_candidate	0.07933415973083054		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_cath50_comparator	0.06144855675579954		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_cath50_annotated	0.1951219512195122		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	share_cath50	0.1338007690070762	0.06556238404923237	0.20203915396492
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_bfvd_candidate	0.08004250044271294		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_bfvd_comparator	0.038604568797591644		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_bfvd_annotated	0.0767055496641923		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	share_bfvd	1.0875817551837836	0.7514233932295838	1.4237401171379833
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_any_sp_pdb_cath_candidate	0.14574110146980698		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_any_sp_pdb_cath_comparator	0.10270940322295023		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	fulllen_any_sp_pdb_cath_annotated	0.31565924354895725		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	share_any_sp_pdb_cath	0.20207433910717706	0.14712065064096347	0.25702802757339066
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	structural_estimate	757.4954430667684	691.9553984879511	824.9579881293953
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C1_candidates	5647.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C1_comparator_scaled	5647.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C1_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C2_candidates	5390.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C2_comparator_scaled	5390.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C2_excess	0.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C3_candidates	1030.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C3_comparator_scaled	617.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C3_excess	413.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C4_candidates	446.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C4_comparator_scaled	304.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C4_excess	142.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C5_candidates	789.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C5_comparator_scaled	537.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C5_excess	252.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C6_candidates	956.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C6_comparator_scaled	565.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C6_excess	391.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C7_candidates	220.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C7_comparator_scaled	157.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	ladder_C7_excess	63.0		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_candidate	0.4269523640871259		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_annotated_cds	0.96005655708731		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_comparator	0.16291836373295554		
+arc	candidate_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_clean_bg	0.33122738636210153	0.31287506398009785	0.3495797087441052
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_candidate	4962.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_draws	5324.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_distinct	4980.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_effective	4363.450738916256		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_comparator_with_replacement_draws	344.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	n_annotated	7254.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_afdb_swissprot_candidate	0.14772269246271666		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_afdb_swissprot_comparator	0.1258452291510143		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_afdb_swissprot_annotated	0.37730907085745796		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	share_afdb_swissprot	0.08700043379295025	0.03377376175112756	0.14022710583477294
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_pdb100_candidate	0.1396614268440145		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_pdb100_comparator	0.114763335837716		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_pdb100_annotated	0.33926109732561344		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	share_pdb100	0.11090574285143037	0.05365535612156198	0.16815612958129877
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_cath50_candidate	0.14207980652962515		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_cath50_comparator	0.1115702479338843		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_cath50_annotated	0.2587537910118555		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	share_cath50	0.2072891979477506	0.12309193243794297	0.29148646345755824
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_bfvd_candidate	0.08907698508665861		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_bfvd_comparator	0.06574004507888806		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_bfvd_annotated	0.12861869313482216		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	share_bfvd	0.3711425218145757	0.21828519432775592	0.5239998493013954
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_any_sp_pdb_cath_candidate	0.2501007658202338		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_any_sp_pdb_cath_comparator	0.1992862509391435		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	fulllen_any_sp_pdb_cath_annotated	0.4557485525227461		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	share_any_sp_pdb_cath	0.1981363910692564	0.1376433008014759	0.2586294813370369
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	structural_estimate	670.1931495753851	431.69615248061916	1028.5690002167385
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C1_candidates	4962.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C1_comparator_scaled	4962.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C1_excess	0.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C2_candidates	4066.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C2_comparator_scaled	3982.461682945154		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C2_excess	83.53831705484617		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C3_candidates	1123.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C3_comparator_scaled	842.5334335086401		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C3_excess	280.4665664913599		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C4_candidates	586.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C4_comparator_scaled	464.1389932381668		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C4_excess	121.86100676183321		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C5_candidates	980.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C5_comparator_scaled	754.9248685199099		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C5_excess	225.07513148009014		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C6_candidates	987.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C6_comparator_scaled	764.244928625094		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C6_excess	222.75507137490604		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C7_candidates	307.0		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C7_comparator_scaled	296.3779113448535		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	ladder_C7_excess	10.622088655146513		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_candidate	0.6023780733575171		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_annotated_cds	0.955748552522746		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_comparator	0.3495492111194591		
+arc	own_genome	checkm2_completeness	Q1	-inf	83.22	prodigal_share_clean_bg	0.4170721493243232	0.39060858198727794	0.44353571666136843
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_candidate	5782.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_draws	4938.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_distinct	4704.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_effective	4156.8094101602455		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_comparator_with_replacement_draws	234.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	n_annotated	6965.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_afdb_swissprot_candidate	0.17295053614666206		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_afdb_swissprot_comparator	0.12717699473471042		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_afdb_swissprot_annotated	0.3741564967695621		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	share_afdb_swissprot	0.1853333618167732	0.13292271202959968	0.23774401160394673
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_pdb100_candidate	0.16049809754410238		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_pdb100_comparator	0.11522883758606724		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_pdb100_annotated	0.3392677674084709		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	share_pdb100	0.20205979377744848	0.1465684780054973	0.2575511095493997
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_cath50_candidate	0.15340712556208924		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_cath50_comparator	0.11097610368570271		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_cath50_annotated	0.2618808327351041		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	share_cath50	0.28117754919725524	0.2022584494274548	0.3600966489670557
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_bfvd_candidate	0.10342442061570391		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_bfvd_comparator	0.08100445524503848		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_bfvd_annotated	0.11844938980617373		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	share_bfvd	0.5987449473055163	0.3407424769194581	0.8567474176915746
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_any_sp_pdb_cath_candidate	0.2710134901418194		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_any_sp_pdb_cath_comparator	0.2019036046982584		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	fulllen_any_sp_pdb_cath_annotated	0.4548456568557071		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	share_any_sp_pdb_cath	0.2732241825908102	0.21456694635825882	0.33188141882336164
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	structural_estimate	1288.5586050347733	1071.5974980245826	1625.7685894585297
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C1_candidates	5782.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C1_comparator_scaled	5782.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C1_excess	0.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C2_candidates	4897.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C2_comparator_scaled	4878.050222762252		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C2_excess	18.949777237748094		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C3_candidates	1474.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C3_comparator_scaled	1084.2713649250709		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C3_excess	389.7286350749291		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C4_candidates	850.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C4_comparator_scaled	578.4341838801134		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C4_excess	271.56581611988656		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C5_candidates	1298.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C5_comparator_scaled	950.7865532604293		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C5_excess	347.2134467395707		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C6_candidates	1235.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C6_comparator_scaled	964.8375860672337		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C6_excess	270.1624139327663		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C7_candidates	499.0		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C7_comparator_scaled	358.30133657351155		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	ladder_C7_excess	140.69866342648845		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_candidate	0.6293670010377033		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_annotated_cds	0.9628140703517588		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_comparator	0.29222357229647633		
+arc	own_genome	checkm2_completeness	Q2	83.22	92.28	prodigal_share_clean_bg	0.5027560481679139	0.4812889254910057	0.524223170844822
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_candidate	6056.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_draws	5870.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_distinct	5618.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_effective	5106.238885595732		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_comparator_with_replacement_draws	252.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	n_annotated	5399.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_afdb_swissprot_candidate	0.15901585204755614		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_afdb_swissprot_comparator	0.1020442930153322		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_afdb_swissprot_annotated	0.3715502870902019		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	share_afdb_swissprot	0.21139254890337258	0.1682601300669219	0.2545249677398233
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_pdb100_candidate	0.1537318361955086		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_pdb100_comparator	0.1030664395229983		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_pdb100_annotated	0.3408038525652899		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	share_pdb100	0.21311494906986864	0.16463242258846228	0.261597475551275
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_cath50_candidate	0.1345772787318362		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_cath50_comparator	0.09250425894378195		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_cath50_annotated	0.2631968883126505		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	share_cath50	0.24648410387500694	0.18281167926169517	0.3101565284883187
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_bfvd_candidate	0.09544253632760898		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_bfvd_comparator	0.057240204429301535		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_bfvd_annotated	0.11724393406186331		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	share_bfvd	0.6366659561371076	0.47858360908925923	0.794748303184956
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_any_sp_pdb_cath_candidate	0.2465323645970938		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_any_sp_pdb_cath_comparator	0.16286201022146507		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	fulllen_any_sp_pdb_cath_annotated	0.4486015928875718		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	share_any_sp_pdb_cath	0.2928203141998687	0.24531980769690256	0.34032082070283487
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	structural_estimate	1354.50838026433	1280.1932761588243	1492.707733067042
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C1_candidates	6056.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C1_comparator_scaled	6056.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C1_excess	0.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C2_candidates	5482.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C2_comparator_scaled	5518.491311754685		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C2_excess	-36.49131175468483		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C3_candidates	1514.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C3_comparator_scaled	935.7396933560477		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C3_excess	578.2603066439523		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C4_candidates	895.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C4_comparator_scaled	551.9522998296422		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C4_excess	343.04770017035776		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C5_candidates	1329.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C5_comparator_scaled	837.729471890971		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C5_excess	491.270528109029		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C6_candidates	1261.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C6_comparator_scaled	807.8105621805793		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C6_excess	453.18943781942073		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C7_candidates	548.0		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C7_comparator_scaled	365.2170357751278		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	ladder_C7_excess	182.78296422487222		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_candidate	0.559445178335535		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_annotated_cds	0.9675865901092795		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_comparator	0.2485519591141397		
+arc	own_genome	checkm2_completeness	Q3	92.28	99.17	prodigal_share_clean_bg	0.43237586316408827	0.41242493000121033	0.4523267963269662
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_candidate	5647.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_draws	6315.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_distinct	6173.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_effective	5763.726694609048		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_comparator_with_replacement_draws	142.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	n_annotated	2829.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_afdb_swissprot_candidate	0.08606339649371347		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_afdb_swissprot_comparator	0.060174188440221696		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_afdb_swissprot_annotated	0.25167903852951573		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	share_afdb_swissprot	0.13518826307229437	0.086658036703382	0.18371848944120672
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_pdb100_candidate	0.07632371170533027		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_pdb100_comparator	0.05716547901821061		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_pdb100_annotated	0.22976316719688936		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	share_pdb100	0.11099935861995111	0.05940136389569418	0.16259735334420805
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_cath50_candidate	0.07933415973083054		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_cath50_comparator	0.059699129057798894		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_cath50_annotated	0.1951219512195122		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	share_cath50	0.14499055889992263	0.07831757815723561	0.21166353964260964
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_bfvd_candidate	0.08004250044271294		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_bfvd_comparator	0.03214568487727633		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_bfvd_annotated	0.0767055496641923		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	share_bfvd	1.0748869143673987	0.78984640294517	1.3599274257896274
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_any_sp_pdb_cath_candidate	0.14574110146980698		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_any_sp_pdb_cath_comparator	0.10482977038796516		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	fulllen_any_sp_pdb_cath_annotated	0.31565924354895725		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	share_any_sp_pdb_cath	0.19404939199654217	0.13865992460221088	0.24943885939087346
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	structural_estimate	736.3277286013245	626.8133781268639	818.761686107863
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C1_candidates	5647.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C1_comparator_scaled	5647.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C1_excess	0.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C2_candidates	5390.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C2_comparator_scaled	5407.349010292954		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C2_excess	-17.349010292953608		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C3_candidates	1030.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C3_comparator_scaled	601.8101346001583		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C3_excess	428.18986539984166		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C4_candidates	446.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C4_comparator_scaled	308.5059382422803		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C4_excess	137.4940617577197		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C5_candidates	789.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C5_comparator_scaled	532.9551860649248		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C5_excess	256.04481393507524		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C6_candidates	956.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C6_comparator_scaled	539.2147268408551		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C6_excess	416.78527315914494		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C7_candidates	220.0		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C7_comparator_scaled	169.00760095011876		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	ladder_C7_excess	50.99239904988124		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_candidate	0.4269523640871259		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_annotated_cds	0.96005655708731		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_comparator	0.1564528899445764		
+arc	own_genome	checkm2_completeness	Q4	99.17	inf	prodigal_share_clean_bg	0.33660806340559446	0.31852985284918806	0.35468627396200086
