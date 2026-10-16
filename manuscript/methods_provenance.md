@@ -114,7 +114,7 @@ This file records, for each dataset in the paper, where the inputs and outputs l
 - **On Teams, superseded:**
   - `Validation/Inphared/rank_orfs/` (52,057 candidates);
   - `Validation/mutual_information/{phold_modernprost_50m_mutual_information.tsv,in_genbank_pair_analysis/}`.
-- **OM869708:** the input is at Teams `Validation/Inphared/separate_genbank/OM869708.gbk`. Corrected-model scores are in Setonix `work/phage_rank/rank_orfs_relabelled_intrinsic/`. The BLASTP result is not on record (D7).
+- **OM869708:** the input is at Teams `Validation/Inphared/separate_genbank/OM869708.gbk`. Corrected-model scores are in Setonix `work/phage_rank/rank_orfs_relabelled_intrinsic/`. BLASTP 2.12.0+ of ORF3/ORF7 against nr (`/scratch/references/blastdb_update/blast-2026-08-01`, Setonix job 50987603) is committed as `manuscript/data/figP01_om869708_blastp.tsv.gz`, and the submitters' GenBank record as `figP01_om869708_ncbi_cds.tsv.gz` (#122; D7).
 
 ## 4. Gaps to close before submission
 
@@ -122,5 +122,5 @@ This file records, for each dataset in the paper, where the inputs and outputs l
 2. ~~GTDB package build and model revision~~ **Recovered** (Gadi, #24): model `2d68d506…` (certain); package v0.2.0 (`90c8c15`, strong inference). State the package version as inferred.
 3. ~~LOGAN encoding size~~ **Confirmed** (LOGAN agent, #24): 10,000; 0.3.0 at `750e2b92`; model `2d68d506…`, in all 89,994 chunk manifests.
 4. ~~OM869708 BLASTP~~ **Done** (#122, `figP01_om869708_blastp.tsv.gz`).
-6. **Archive checksums:** tarballs built with GNU tar ≥1.30 default to PAX headers, which carry atime and ctime, so checksums don't reproduce. Use `--format=gnu` and normalised modes (LOGAN agent, #24; applies to R1–R4). Owner: Gadi.
 5. **Teams copies:** the LOGAN 16 October results (owner: LOGAN agent), and #101/#107/#109/#110 outputs if they are to be archived (owners: Gadi, Setonix).
+6. **Archive checksums (R1–R5).** An archive's bytes depend on header format, member order, timestamps, ownership and modes. The default format is a property of the tar build, not its version: Setonix's GNU tar 1.34 defaults to `--format=posix` (PAX headers carry atime and ctime), while other builds default to `gnu`; check with `tar --show-defaults`. Pin every control, as `manuscript/prep/logan_roads_manifest.sh` does: `tar --format=gnu --sort=name --mtime='<fixed date>' --owner=0 --group=0 --numeric-owner --mode='u+rw,go+r,a-x'`, then compress with fixed settings. Verify by building twice and comparing checksums (LOGAN agent, #24). Owner: Gadi for R1–R4.
