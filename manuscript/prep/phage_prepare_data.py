@@ -8,13 +8,21 @@ manuscript/data/ that the notebooks read. Nothing is re-estimated: every
 value is copied from a table written by the analysis that computed it.
 
   phage_prepare_data.py --phage-rank /scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank \
-                        [--blast <om869708_blastp_nr.tsv>]
+                        --blast <om869708_blastp_nr.tsv> --ncbi-gb <OM869708_ncbi.gb>
+
+The OM869708 inputs not produced by this repository:
+  --blast    blastp 2.12.0+ of ORF3/ORF7 (stop-to-stop translations) against
+             NCBI nr (/scratch/references/blastdb_update/blast-2026-08-01/db/nr),
+             -evalue 1e-5 -max_target_seqs 50; script work/om869708/blastp_nr.slurm.
+  --ncbi-gb  the submitters' GenBank record, fetched with
+             efetch.fcgi?db=nuccore&id=OM869708&rettype=gb&retmode=text
 
 Run from the repository root.
 """
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -86,7 +94,25 @@ def label_audit():
     write(g, "figPS01_feature_importance.tsv.gz", [imp])
 
 
-def om869708(phage_rank, blast):
+def ncbi_cds(gb):
+    """CDS of a GenBank flatfile: 0-based start, end-exclusive, strand, product, protein_id."""
+    rows, cur = [], None
+    for line in Path(gb).read_text().splitlines():
+        m = re.match(r"^     CDS\s+(complement\()?<?(\d+)\.\.>?(\d+)\)?", line)
+        if m:
+            cur = {"g_start": int(m.group(2)) - 1, "g_end": int(m.group(3)),
+                   "strand": "-" if m.group(1) else "+", "product": "", "protein_id": ""}
+            rows.append(cur)
+        elif re.match(r"^     \S", line):
+            cur = None
+        elif cur is not None:
+            q = re.match(r'^\s+/(product|protein_id)="([^"]*)"', line)
+            if q:
+                cur[q.group(1)] = q.group(2)
+    return pd.DataFrame(rows)
+
+
+def om869708(phage_rank, blast, gb):
     pr = Path(phage_rank)
     f = [("input_id", "==", "OM869708")]
     orfs = pd.read_parquet(pr / "tables/orfs.parquet",
@@ -112,7 +138,9 @@ def om869708(phage_rank, blast):
     r = r[r.input_id == "OM869708"]
     o["replacement_rank"] = o.orf_id.map(dict(zip(r.orf_id, r["rank"])))
     o["replacement_pairs_total"] = len(pd.read_csv(rep, sep="\t", usecols=[0]))
-    sources = [pr / "tables/orfs.parquet", pr / "tables/cds.parquet", rep]
+    sources = [pr / "tables/orfs.parquet", pr / "tables/cds.parquet", rep,
+               pr / "rank_orfs_relabelled_intrinsic/all_orf_oof_predictions.parquet",
+               pr / "rank_orfs_orig/all_orf_oof_predictions.parquet"]
     write(o, "figP01_om869708_orfs.tsv.gz", sources)
     write(cds, "figP01_om869708_cds.tsv.gz", [pr / "tables/cds.parquet"])
     if blast:
@@ -120,6 +148,8 @@ def om869708(phage_rank, blast):
                  "sstart", "send", "evalue", "bitscore", "qcovs", "staxids", "sscinames", "stitle"]
         b = pd.read_csv(blast, sep="\t", names=names)
         write(b, "figP01_om869708_blastp.tsv.gz", [Path(blast)])
+    if gb:
+        write(ncbi_cds(gb), "figP01_om869708_ncbi_cds.tsv.gz", [Path(gb)])
 
 
 PROVENANCE = {}
@@ -130,13 +160,14 @@ def main():
     ap.add_argument("--phage-rank", required=True,
                     help="work/phage_rank directory of the corrected ranking run")
     ap.add_argument("--blast", help="BLASTP tabular output for OM869708 ORF3/ORF7")
+    ap.add_argument("--ncbi-gb", help="the submitters' GenBank record of OM869708")
     args = ap.parse_args()
     OUT.mkdir(parents=True, exist_ok=True)
     mi_panel()
     model_panel()
     foldseek_panel()
     label_audit()
-    om869708(args.phage_rank, args.blast)
+    om869708(args.phage_rank, args.blast, args.ncbi_gb)
     (OUT / "phage_provenance.json").write_text(json.dumps(PROVENANCE, indent=1) + "\n")
     print("  phage_provenance.json")
 
