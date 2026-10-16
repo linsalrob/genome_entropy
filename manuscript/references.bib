@@ -4,8 +4,7 @@
 % has no paper; ask G. Bouras for the preferred citation.
 % Entries with Paperpile keys (Author2013-xx) are copied from Rob's Paperpile library
 % (GoogleDrive:Paperpile/paperpile.bib, 2026-10-17) minus abstract, file, keywords, annote
-% and affiliation; fix them in Paperpile, not here. The four entries with other keys
-% (Berman2000, modernprost, genome_entropy, get_orfs) are not yet in Paperpile.
+% and affiliation; fix them in Paperpile, not here. modernprost is not in Paperpile.
 
 @ARTICLE{Akhter2013-pl,
   title       = "Applying Shannon's information theory to bacterial and phage
@@ -153,22 +152,22 @@
   note         = {revision 2d68d506d4ce8d59025c985fd00243a8860363c6; no paper yet: ask G. Bouras for the preferred citation}
 }
 
-@software{genome_entropy,
-  author  = {Edwards, Robert A. and others},
-  title   = {genome\_entropy},
-  url     = {https://github.com/linsalrob/genome_entropy},
-  doi     = {10.5281/zenodo.18312206},
-  note    = {Zenodo concept DOI (all versions); versions 0.1.15--0.4.0 as stated per dataset; v0.4.0 not yet archived},
-  year    = {2026}
+@MISC{Edwards2026-jk,
+  title     = "linsalrob/genome\_entropy: {v0}.3.0",
+  author    = "Edwards, Rob",
+  publisher = "Zenodo",
+  year      =  2026,
+  url       = "http://dx.doi.org/10.5281/zenodo.22225525",
+  doi       = "10.5281/ZENODO.22225525"
 }
 
-@misc{get_orfs,
-  author       = {Edwards, Robert A.},
-  title        = {get\_orfs: six-frame open reading frame extraction},
-  howpublished = {\url{https://github.com/linsalrob/get_orfs}},
-  note         = {Zenodo concept DOI; latest release v1.1.0},
-  doi     = {10.5281/zenodo.11218737},
-  year    = {2024}
+@MISC{Edwards2024-cn,
+  title     = "linsalrob/get\_orfs: {v1}.1.0",
+  author    = "Edwards, Rob",
+  publisher = "Zenodo",
+  year      =  2024,
+  url       = "https://zenodo.org/records/11361300",
+  doi       = "10.5281/ZENODO.11361300"
 }
 
 @ARTICLE{Parks2022-eo,
@@ -261,14 +260,23 @@
   language  = "en"
 }
 
-@article{Berman2000,
-  author  = {Berman, Helen M. and Westbrook, John and Feng, Zukang and Gilliland, Gary and Bhat, T. N. and Weissig, Helge and Shindyalov, Ilya N. and Bourne, Philip E.},
-  title   = {The {Protein} {Data} {Bank}},
-  journal = {Nucleic Acids Research},
-  year    = {2000},
-  volume  = {28},
-  pages   = {235--242},
-  doi     = {10.1093/nar/28.1.235}
+@ARTICLE{Berman2000-je,
+  title     = "The Protein Data Bank",
+  author    = "Berman, H M and Westbrook, J and Feng, Z and Gilliland, G and
+               Bhat, T N and Weissig, H and Shindyalov, I N and Bourne, P E",
+  journal   = "Nucleic Acids Res.",
+  publisher = "Oxford University Press (OUP)",
+  volume    =  28,
+  number    =  1,
+  pages     = "235--242",
+  month     =  "1~" # jan,
+  year      =  2000,
+  url       = "https://dx.doi.org/10.1093/nar/28.1.235",
+  doi       = "10.1093/nar/28.1.235",
+  pmc       = "PMC102472",
+  pmid      =  10592235,
+  issn      = "0305-1048,1362-4962",
+  language  = "en"
 }
 
 @ARTICLE{Sillitoe2021-lf,
@@ -330,25 +338,21 @@
   language    = "en"
 }
 
-@ARTICLE{Pedregosa2012-xv,
-  title         = "Scikit-learn: Machine Learning in Python",
-  author        = "Pedregosa, Fabian and Varoquaux, Gaël and Gramfort, Alexandre
-                   and Michel, Vincent and Thirion, Bertrand and Grisel, Olivier
-                   and Blondel, Mathieu and Müller, Andreas and Nothman, Joel
-                   and Louppe, Gilles and Prettenhofer, Peter and Weiss, Ron and
-                   Dubourg, Vincent and Vanderplas, Jake and Passos, Alexandre
-                   and Cournapeau, David and Brucher, Matthieu and Perrot,
-                   Matthieu and Duchesnay, Édouard",
-  journal       = "arXiv [cs.LG]",
-  number        = "null",
-  pages         = "2825--2830",
-  month         =  "2~" # jan,
-  year          =  2012,
-  url           = "http://dl.acm.org/citation.cfm?id=1953048.2078195",
-  archivePrefix = "arXiv",
-  primaryClass  = "cs.LG",
-  eprint        = "1201.0490",
-  doi           = "10.48550/arXiv.1201.0490"
+@ARTICLE{Pedregosa2011-tz,
+  title   = "Scikit-learn: Machine Learning in Python",
+  author  = "Pedregosa, Fabian and Varoquaux, Gaël and Gramfort, Alexandre and
+             Michel, Vincent and Thirion, Bertrand and Grisel, Olivier and
+             Blondel, Mathieu and Prettenhofer, Peter and Weiss, Ron and
+             Dubourg, Vincent and Vanderplas, Jake and Passos, Alexandre and
+             Cournapeau, David and Brucher, Matthieu and Perrot, Matthieu and
+             Duchesnay, Édouard",
+  journal = "J. Mach. Learn. Res.",
+  volume  =  12,
+  number  =  85,
+  pages   = "2825--2830",
+  year    =  2011,
+  url     = "https://jmlr.org/papers/v12/pedregosa11a.html",
+  issn    = "1533-7928,1532-4435"
 }
 
 @INPROCEEDINGS{Chen2016-cv,
