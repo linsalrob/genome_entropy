@@ -17,12 +17,12 @@ We asked whether the information content of predicted protein structure separate
 - 6.75 million ORFs from 36,025 phage genomes;
 - 43.7 million small ORFs.
 
-**Annotated genes and unannotated ORFs separate on 3Di entropy, not amino-acid entropy.** In bacteria the mean difference is 2.08 bits for 3Di against 0.39 bits for amino acids, and most spurious ORFs collapse onto two or three predicted structural states. The structural signal:
+**Annotated genes and unannotated ORFs separate on 3Di entropy, not amino-acid entropy.** In bacteria the mean difference is 2.08 bits for 3Di against 0.39 bits for amino acids, and 87.6% of unannotated bacterial ORFs have 3Di entropy below log₂3, the most that a string of three states can reach. The structural signal:
 - persists at fixed length;
 - is specific to the translated frame, ranking a gene's own frame first among six in 92.4% of genes;
 - carries most of the information about phage annotation (0.587 of 1 bit).
 
-**Missed genes.** Against length-, entropy- and truncation-matched shadow ORFs, about 51,000–59,000 ORFs in GTDB genomes behave like protein-coding genes missing from GenBank. About 5,400 of these have strict individual structural support, and an independent gene caller gives an upper bracket of about 200,000. In metagenomes, 41.9% of high-scoring intergenic ORFs that Prodigal did not call have full-length structural homologues, against at most 0.45% of matched controls. The approach also recovers a phage replication gene lost in re-annotation.
+**Missed genes.** Against length-, entropy- and truncation-matched shadow ORFs, about 51,000–59,000 ORFs in GTDB genomes behave like protein-coding genes missing from GenBank. Under a strict individual test, which 25,114 candidates pass, the excess over the matched comparator gives a conservative floor of about 5,400; an independent gene caller gives an upper bracket of about 200,000. In metagenomes, 41.9% of high-scoring intergenic ORFs that Prodigal did not call have full-length structural homologues, against at most 0.45% of matched controls. The approach also recovers a phage replication gene lost in re-annotation.
 
 **Limit.** Below about 100 amino acids the signal weakens, which marks the method's lower length limit.
 
@@ -632,13 +632,13 @@ These results set the method's lower length limit. Gene-length ORFs separate wel
 The idea that sequence and structural entropy must be read jointly therefore needs refining. Predicted structure does most of the work, amino-acid entropy adds little, and much of protein entropy's apparent rise with length is estimator bias.
 
 **Two observations explain why it works, without yet explaining it mechanistically.**
-1. **Spurious ORFs collapse onto two or three 3Di states.** Their entropy piles up against the log₂3 ceiling, which is arithmetic rather than biological.
+1. **Most unannotated ORFs pile up against the log₂3 ceiling**, the maximum entropy of a string of three 3Di states, which is arithmetic rather than biological. In the three genomes examined, three states (D, V and P) made up 99.4% of residues below the line; state counts were not measured more widely.
 2. **The signal belongs to the translated frame.** Length and amino-acid entropy are partly shared between a gene's six frames; 3Di entropy is not. Yet the gene's own frame ranks first among six in 92.4% of genes.
 
 Together these suggest that the encoder responds to properties of real protein sequences that their shadow translations lack. We have not tested what those properties are. In particular, we have not tested whether the dominant low-entropy state D marks disorder.
 
 **Gene callers and structural entropy disagree in both directions, and the disagreements are informative.**
-- **Missed genes.** In GTDB genomes, about 51,000–59,000 unannotated ORFs behave like genes against a comparator matched on length, 3Di entropy and truncation. About 5,400 of them pass a strict individual test.
+- **Missed genes.** In GTDB genomes, about 51,000–59,000 unannotated ORFs behave like genes against a comparator matched on length, 3Di entropy and truncation. A strict individual test is passed by 25,114 candidates, of which about 5,400 are in excess of the matched comparator, a conservative floor.
 - **The examples are biologically coherent.** They include a Cas5 that completes a type I CRISPR–*cas* operon and a SusC that completes a polysaccharide utilisation locus.
 - **The excess persists in the best assemblies.** In the poorer bacterial assemblies it is larger, which is consistent with either assembly artefacts or less complete annotation; we cannot yet separate the two.
 - **Metagenomes.** High-scoring intergenic ORFs that Prodigal skipped have full-length structural homologues 200 times as often as matched controls. For the bacterial ones, Prodigal's own scores fall just short of its decision boundary.
@@ -648,7 +648,7 @@ A structural score is therefore a complement to a gene caller, not a replacement
 
 **The numbers depend on what is counted as evidence, so we report brackets, not a single figure.**
 - **Structural estimate (~51,000–59,000).** It assumes that candidates are a mixture of gene-like and shadow-like ORFs. It is conservative: structure databases contain full-length homologues for only 30–35% of known genes.
-- **Prodigal-based figure (~200,000).** It is 3.5–4 times higher in bacteria. Prodigal also calls 20.6% of the matched shadow ORFs, an upper bound on its false-positive rate on ORF-shaped non-genes, so this figure is likely to overestimate.
+- **Prodigal-based figure (~200,000).** It is 3.5–4 times higher in bacteria. Prodigal also calls 20.6% of the matched shadow ORFs, which are presumed but not shown to be non-coding, and its false-positive rate on confidently non-coding sequence was not measured. Which estimate is closer remains unresolved.
 - **Strict floor (~5,400).** It requires neither assumption.
 
 Structural homology shows that an ORF resembles a known protein. It does not show that the ORF is expressed or functional. The candidates are best read as a prioritised list for transcriptomic, proteomic or experimental confirmation.
