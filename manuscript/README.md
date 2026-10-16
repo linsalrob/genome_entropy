@@ -18,6 +18,7 @@ The manuscript is a work in progress. Expect the text, figures, and author list 
 | [`figure_plan.md`](figure_plan.md) | Proposed main and supplementary figures and tables |
 | [`methods_provenance.md`](methods_provenance.md) | Data locations, code and configuration for each dataset |
 | [`manuscript_audit.md`](manuscript_audit.md) | Line-level check of the current text against the final results |
+| [`references.bib`](references.bib) | Bibliography for the `[@key]` citations in the manuscript |
 
 ## Being included as an author
 
@@ -34,3 +35,14 @@ If you have contributed to `genome_entropy` or to this manuscript and want to be
 Please leave the **"Added"** column and the **"Order in the author list"** column blank. These are filled in when your details are added to the manuscript.
 
 To add your details, open a pull request against the `manuscript` branch with the updated spreadsheet. If you can't do that, send your details to [Rob Edwards](mailto:robert.edwards@flinders.edu.au).
+
+## Rendering
+
+The manuscript uses pandoc citations (`[@key]`) and TeX equations. To render it:
+
+```bash
+pandoc genome_entropy.md --citeproc --bibliography references.bib -s -o genome_entropy.html   # or .docx
+```
+
+HTML comments of the form `<!-- src: … -->` record the source of every number, for the final audit. They are not rendered, and are stripped before submission.
+
