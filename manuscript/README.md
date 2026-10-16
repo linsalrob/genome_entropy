@@ -13,6 +13,11 @@ The manuscript is a work in progress. Expect the text, figures, and author list 
 | [`genome_entropy.md`](genome_entropy.md) | The manuscript text (Markdown) |
 | [`images/`](images/) | Figures referenced by the manuscript |
 | [`Author_Information.xlsx`](Author_Information.xlsx) | Author details used to build the author list, affiliations, contributions, and funding statements |
+| [`results_inventory.md`](results_inventory.md) | Evidence matrix: every result the paper may state, its final value and source |
+| [`decisions.md`](decisions.md) | Open scientific and editorial decisions for the authors |
+| [`figure_plan.md`](figure_plan.md) | Proposed main and supplementary figures and tables |
+| [`methods_provenance.md`](methods_provenance.md) | Data locations, code and configuration for each dataset |
+| [`manuscript_audit.md`](manuscript_audit.md) | Line-level check of the current text against the final results |
 
 ## Being included as an author
 

@@ -2,14 +2,14 @@
 """Figures for the scientific report's missed-gene sections.
 
 Every panel reads a machine-readable artefact written by the stage that
-computed it — the coverage TSV from 18_pilot_analysis.py, the ladder TSV from
-22_rank_candidates.py, the per-ORF coincidence tables from
+computed it — the matched-comparator summary from 41_comparator_summary.py
+(coverage and ladder, committed under ../matched_comparator/), the per-ORF coincidence tables from
 24_prodigal_overlap.py, the classified candidates from 25_functional_classes.py
 and the neighbour table from 27_build_dossiers.py. Nothing here re-derives a
 published number, because a plotting script that reimplements the analysis is a
 second implementation that will drift from the first.
 
-  28_report_figures.py --out-dir <figures dir>
+  28_report_figures.py --out-dir <figures dir> [--only coverage ladder ...]
 """
 import argparse
 import sys
@@ -26,6 +26,9 @@ from matplotlib.patches import FancyArrow, Patch
 GD = "/g/data/ob80/re3494/gtdb_entropy"
 BAC = f"{GD}/missed_genes/full_bac"
 ARC = f"{GD}/missed_genes/pilot_arc"
+# 41_comparator_summary.py output for the matched clean comparator (#109),
+# weighted by draw multiplicity -- the numbers the report text quotes.
+MATCHED = Path(__file__).resolve().parent.parent / "matched_comparator"
 
 INK = "#2b2a28"
 MUTED = "#52514e"
@@ -128,13 +131,33 @@ def fig_funnel(out_dir):
 
 
 # --------------------------------------------------------------------------
+def read_matched(tag):
+    """41_comparator_summary.py long table -> {metric: (value, lo, hi)}."""
+    path = MATCHED / f"{tag}_v7_matched.tsv"
+    if not path.exists():
+        return None
+    d = pd.read_csv(path, sep="\t")
+    return {r.metric: (r.value, r.lo, r.hi) for r in d.itertuples()}
+
+
+DATABASES = ("afdb_swissprot", "bfvd", "cath50", "pdb100")
+
+
 def fig_coverage(out_dir):
     """Full-length mutual coverage per arm, and the implied real-gene share."""
     got = {}
-    for dom, path in (("bacteria", f"{BAC}/analysis_v5_bac_coverage.tsv"),
-                      ("archaea", f"{ARC}/analysis_v5_arc_coverage.tsv")):
-        if Path(path).exists():
-            got[dom] = pd.read_csv(path, sep="\t")
+    for dom, tag in (("bacteria", "bac"), ("archaea", "arc")):
+        m = read_matched(tag)
+        if m is None:
+            continue
+        got[dom] = pd.DataFrame([dict(
+            database=db,
+            candidate=m[f"fulllen_{db}_candidate"][0],
+            clean_shadow=m[f"fulllen_{db}_comparator"][0],
+            annotated=m[f"fulllen_{db}_annotated"][0],
+            share=m[f"share_{db}"][0],
+            share_lo=m[f"share_{db}"][1],
+            share_hi=m[f"share_{db}"][2]) for db in DATABASES])
     if not got:
         print("  (no coverage TSVs; skipping candidate_coverage.png)")
         return
@@ -189,13 +212,23 @@ def fig_coverage(out_dir):
 # --------------------------------------------------------------------------
 def fig_ladder(out_dir):
     """Direct evidence, candidates against their matched clean shadows."""
+    labels = {"C3": "any full-length structural hit",
+              "C4": "full-length in >=2 databases",
+              "C5": "full-length SwissProt/PDB/CATH",
+              "C6": "structure-only, full-length",
+              "C7": "strict combined rule"}
     got = {}
-    for dom, path in (("bacteria", f"{BAC}/ranked5_ladder.tsv"),
-                      ("archaea", f"{ARC}/ranked5_ladder.tsv")):
-        if Path(path).exists():
-            d = pd.read_csv(path, sep="\t")
-            d = d[d.comparator.str.startswith("CLEAN")]
-            got[dom] = d[~d.criterion.str.startswith(("C1", "C2"))]
+    for dom, tag in (("bacteria", "bac"), ("archaea", "arc")):
+        m = read_matched(tag)
+        if m is None:
+            continue
+        # comparator_scaled is already weighted by draw multiplicity and
+        # scaled to the candidate arm.
+        got[dom] = pd.DataFrame([dict(
+            criterion=lbl,
+            candidates=m[f"ladder_{c}_candidates"][0],
+            scaled=m[f"ladder_{c}_comparator_scaled"][0],
+            excess=m[f"ladder_{c}_excess"][0]) for c, lbl in labels.items()])
     if not got:
         print("  (no ladder TSVs; skipping evidence_ladder.png)")
         return
@@ -207,14 +240,13 @@ def fig_ladder(out_dir):
         # bar makes it read as a subset of it; they are separate arms and the
         # point of the panel is the gap between them.
         y = np.arange(len(d))[::-1]
-        scaled = d.shadows * d.n_candidate_arm / d.n_shadow_arm
+        scaled = d.scaled
         h = 0.36
         ax.barh(y + h / 2, d.candidates, height=h, color=ARM["candidate"],
                 label="candidates")
         ax.barh(y - h / 2, scaled, height=h, color=ARM["shadow_hi"],
                 label="matched shadows (scaled to the candidate arm)")
-        ax.set_yticks(y, [c.split(" ", 1)[1].replace("C2 + ", "")
-                          for c in d.criterion], fontsize=7.8)
+        ax.set_yticks(y, d.criterion, fontsize=7.8)
         ax.set_xlabel("ORFs")
         ax.set_title(dom, loc="left", fontweight="bold")
         for yy, exc in zip(y, d.excess):
@@ -232,31 +264,36 @@ def fig_ladder(out_dir):
 
 # --------------------------------------------------------------------------
 def fig_prodigal(out_dir):
-    """Agreement with an independent gene caller, by arm and by frame class."""
+    """Agreement with an independent gene caller, by arm and by frame class.
+
+    Left panel: per-arm rates against the matched clean comparator, weighted
+    by draw multiplicity (41_comparator_summary.py, committed). Right panel:
+    the frame-class breakdown of the original, unfiltered shadow_hi arm from
+    the v6 coincidence tables (Gadi only) -- the point there is why same-frame
+    shadows had to leave the comparator, which matching does not change.
+    """
     got = {}
     for dom, path in (("bacteria", f"{BAC}/prodigal_bac4.coincidence.tsv.gz"),
                       ("archaea", f"{ARC}/prodigal_arc4.coincidence.tsv.gz")):
         if Path(path).exists():
-            got[dom] = pd.read_csv(path, sep="\t", low_memory=False)
-    if not got:
+            got[dom] = pd.read_csv(path, sep="\t", low_memory=False,
+                                   usecols=["group", "cds_frame_class",
+                                            "coincides"])
+    matched = {dom: read_matched(tag)
+               for dom, tag in (("bacteria", "bac"), ("archaea", "arc"))}
+    if not got or any(m is None for m in matched.values()):
         print("  (no coincidence tables; skipping prodigal_validation.png)")
         return
 
-    CLEAN = {"opposite strand", "same strand, frameshift"}
     fig, axes = plt.subplots(1, 2, figsize=(11.0, 3.7))
 
     ax = axes[0]
-    arms = ["annotated_cds", "candidate", "shadow_hi", "intergenic_lo"]
+    arms = ["annotated_cds", "candidate", "comparator", "intergenic_lo"]
     labels = ["annotated CDS\n(positive control)", "candidate",
               "matched shadow\n(clean)", "intergenic_lo\n(unoccupied space)"]
     w = 0.36
-    for k, (dom, d) in enumerate(got.items()):
-        vals = []
-        for a in arms:
-            sub = d[d.group == a]
-            if a == "shadow_hi":
-                sub = sub[sub.cds_frame_class.isin(CLEAN)]
-            vals.append(sub.coincides.mean() * 100 if len(sub) else np.nan)
+    for k, (dom, m) in enumerate(matched.items()):
+        vals = [m[f"prodigal_{a}"][0] * 100 for a in arms]
         ax.bar(np.arange(len(arms)) + (k - 0.5) * w, vals, width=w, label=dom,
                color=[ARM["candidate"], "#3f8fa8"][k])
         for i, v in enumerate(vals):
@@ -271,8 +308,9 @@ def fig_prodigal(out_dir):
     # Placed over the low bars on the right, not over the candidate bars: at
     # (0.5, 0.52) the box hid the archaeal candidate's value label.
     ax.text(0.72, 0.82,
-            "the two backgrounds agree to within\nhalf a point — the "
-            "already-committed-call\nconfound is measurably absent",
+            "unoccupied space scores LOWER than\nmatched shadows, so a "
+            "committed\noverlapping call is not what keeps\nthe "
+            "background low",
             transform=ax.transAxes, ha="center", fontsize=7.4, color=MUTED,
             bbox=dict(facecolor=PLATE, edgecolor="#e0ddd8", boxstyle="round,pad=0.35"))
 
@@ -294,8 +332,10 @@ def fig_prodigal(out_dir):
                    "opposite\nstrand"], fontsize=7.8)
     ax.set_ylabel("% coinciding")
     ax.set_ylim(0, 108)
-    ax.set_title("Why the frame class had to be fixed", loc="left",
-                 fontweight="bold")
+    # Below the note box and above the low opposite-strand bars.
+    ax.legend(fontsize=8, loc="center right", bbox_to_anchor=(0.99, 0.5))
+    ax.set_title("Why the frame class had to be fixed (all shadows, "
+                 "before matching)", loc="left", fontweight="bold")
     ax.text(0.99, 0.74,
             "a same-frame shadow IS the annotated\nprotein, so Prodigal calls "
             "it — leaving\nthose in the comparator hides the signal",
@@ -440,17 +480,19 @@ def fig_exemplar_loci(out_dir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    figs = {"funnel": fig_funnel, "coverage": fig_coverage,
+            "ladder": fig_ladder, "prodigal": fig_prodigal,
+            "composition": fig_composition, "exemplars": fig_exemplar_loci}
     ap.add_argument("--out-dir", default=f"{GD}/figures")
+    ap.add_argument("--only", nargs="+", choices=figs, default=list(figs),
+                    help="render only these figures (coverage and ladder "
+                         "need only the committed matched_comparator/ tables)")
     args = ap.parse_args()
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
     style()
     print(f"writing to {args.out_dir}")
-    fig_funnel(args.out_dir)
-    fig_coverage(args.out_dir)
-    fig_ladder(args.out_dir)
-    fig_prodigal(args.out_dir)
-    fig_composition(args.out_dir)
-    fig_exemplar_loci(args.out_dir)
+    for name in args.only:
+        figs[name](args.out_dir)
     return 0
 
 
