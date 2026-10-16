@@ -6,7 +6,7 @@ Agents do not choose between these silently. Each entry gives the options, the
 evidence, and a recommendation. Record the decision under **Decision** and
 move the entry to *Decided* at the bottom.
 
-Status as of 2026-10-16 (integrator, Setonix).
+Status as of 2026-10-16 (integrator, Setonix). **All recommendations D1–D14 accepted by Rob on 2026-10-16**; D15 decided separately.
 
 | # | topic | blocks | recommendation |
 |---|---|---|---|
@@ -44,7 +44,7 @@ Independent gene calling (GTDB Prodigal) implies **~200,000**. The v6 figure of 
 
 **Recommendation.** (b). Quote ~51–59k and the ~5,400 strict floor, and give Prodigal's ~200k as the bracket, explaining why the two differ. Report archaea as a range.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D2. The Prodigal vs structure disagreement
 
@@ -61,7 +61,7 @@ The strict set is 91.8% Prodigal-confirmed.
 
 **Recommendation.** (a). #24 asks for synthesis, not new compute, and the bracket in D1 already carries the uncertainty.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D3. Paper scope
 
@@ -80,7 +80,7 @@ The canonical `genome_entropy.md` currently covers bacterial genomes and phage (
 
 **Recommendation.** (a). It matches the manuscript's current title, and the smORF result (AUC 0.73; 3Di near-uninformative below 30 aa) is best presented as the method's lower length limit.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D4. Main-figure sequence
 
@@ -94,7 +94,7 @@ See [`figure_plan.md`](figure_plan.md). Six main figures:
 
 All other panels are supplementary.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D5. Which phage run and ORF set
 
@@ -116,7 +116,7 @@ All other panels are supplementary.
 
 The alternative, re-running ranking on the full Gadi set, is new compute.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D6. Phage 90-aa ORF floor
 
@@ -128,7 +128,7 @@ The alternative, re-running ranking on the full Gadi set, is new compute.
 
 **Recommendation.** (a). Say it plainly in the Methods for every affected dataset.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D7. OM869708 worked example
 
@@ -156,7 +156,7 @@ The manuscript's 0.91 and 0.27 match neither model. They likely come from the Ju
 - Use the corrected-model probabilities, and cite only the non-self homologues as independent evidence.
 - Drop "Phynteny" unless Rob confirms it was run.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D8. "Neither amino-acid nor 3Di entropy alone is sufficient"
 
@@ -167,7 +167,7 @@ The manuscript says this at line ~306 and in the Abstract. Every dataset contrad
 
 **Recommendation.** Reframe: 3Di entropy carries most of the signal. Amino-acid entropy adds little beyond it, and length explains much of what amino-acid entropy appears to show (PR #101).
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D9. Mixed encoding configurations
 
@@ -190,7 +190,7 @@ The determinism test (Gadi PBS 181181761) shows:
 - State that population conclusions are unaffected but per-ORF values are not comparable bit-for-bit across hardware.
 - Don't re-encode.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D10. Software version to cite
 
@@ -202,7 +202,7 @@ The runs used 0.1.15 (phage ranking ORFs), 0.2.0 (GTDB, phage MI) and 0.3.0 (LOG
 
 The release is Rob's call (an outward-facing action).
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D11. Untested mechanistic claims
 
@@ -213,7 +213,7 @@ Three claims rest on observation, not tests:
 
 **Recommendation.** Word each as an observation, with the test named as future work. No new compute.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D12. Unsupported claims in the current text
 
@@ -225,7 +225,7 @@ No source was found in either repo, agent-handoffs or Teams for:
 
 **Recommendation.** Remove each one unless Rob supplies the source.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D13. LOGAN follow-ups
 
@@ -236,7 +236,7 @@ The LOGAN draft lists three possible follow-ups:
 
 **Recommendation.** Treat all three as future work in the Discussion.
 
-**Decision.** _open_
+**Decision.** 2026-10-16, Rob: recommendation accepted.
 
 ## D14. Data deposition (ROADS / figshare)
 
@@ -248,7 +248,7 @@ Gadi owns checkpoint E: `roads_deposition_candidates.md`. The Teams inventory fl
 
 LOGAN raw outputs (5.95 + 3.32 TB) and the GTDB raw tars (1.5 TB) are too large to deposit; for those, deposit the manifests and summaries instead.
 
-**Decision.** _open_: Rob arranges any DOIs. Agents do not claim one.
+**Decision.** 2026-10-16, Rob: recommendation accepted. Rob arranges any DOIs; agents do not claim one.
 
 ---
 
