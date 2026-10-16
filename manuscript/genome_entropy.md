@@ -89,6 +89,21 @@ All entropy features were computed with genome_entropy (https://github.com/linsa
 
 When an input record carries CDS annotations, each ORF is also labelled by whether it matches one of them. Different datasets were processed with different package releases, encoding settings and hardware. The configuration for each is given in Table 1, and its effect on the values is quantified under *Reproducibility of the structural encoding*.
 
+
+**Table 1. Datasets and encoding configurations.**
+
+| dataset | genomes / samples | ORFs analysed | ORF floor | labels | genome_entropy | encoding size | hardware |
+|---|---|---:|---|---|---|---:|---|
+| GTDB r232 bacteria | 189,715 species representatives (of 189,801) | 2,568,244,984 | 90 aa | deposited GenBank CDS | 0.2.0 (inferred; commit 90c8c15) | 10,000 | NVIDIA V100, NCI Gadi |
+| GTDB r232 archaea | 10,122 species representatives | 54,858,398 | 90 aa | deposited GenBank CDS | 0.2.0 (inferred) | 10,000 | NVIDIA V100, NCI Gadi |
+| LOGAN metagenomes | 50,009 assembled metagenomes, 13 biomes | 89,991,549,208 | 30 aa | Prodigal 2.6.3 `-p meta` | 0.3.0 (commit 750e2b92) | 10,000 | AMD MI250X, Pawsey Setonix |
+| Inphared phage, mutual information | 36,025 genomes | 6,754,361 | 90 aa | Pharokka + phold CDS (corrected matcher) | ≈0.2.0 | 20,000 | AMD MI250X (ROCm, fp16), Setonix |
+| Inphared phage, ORF ranking | 31,200 genomes | 5,887,690 | 90 aa | as above | ORFs from 0.1.15, relabelled | 20,000 | Setonix |
+| Inphared phage, comparison with bacteria | 36,025 genomes | 6,754,361 | 90 aa | as above | 0.3.0 (commit 45dd283) | 10,000 | NVIDIA V100, Gadi |
+| GMSC small ORFs | — | 43,726,909 (10–99 aa) | — | GMSC curated positive/negative | 0.3.0 | 50,000 | NVIDIA V100, Gadi |
+
+ModernProst revision `2d68d506…` is recorded for GTDB (recovered from the offline model cache), LOGAN (every chunk manifest) and the small ORFs. It is not recorded for the Setonix phage runs. <!-- src: methods_provenance.md §2; agent-handoffs#24 (LOGAN agent, Gadi provenance comments); Validation/mutual_information/README.md §2; Validation/Inphared/README.md -->
+
 ## ORF calling
 
 ORFs are maximal stop-to-stop open reading frames reported by `get_orfs` [@get_orfs], so an ORF extends upstream of any start codon to the preceding in-frame stop. Each ORF records whether it is complete or runs off a contig end.
@@ -378,20 +393,6 @@ Every figure and supplementary figure is drawn by a Jupyter notebook in `manuscr
 
 Running `manuscript/tools/run_notebooks.py` in the pinned environment (`manuscript/environment.yml`, `environment.lock.txt`) regenerates every committed image byte for byte. Datasets too large for the repository are listed, with checksums, in `manuscript/roads_deposition_candidates.md` and `manuscript/roads/`.
 
-**Table 1. Datasets and encoding configurations.**
-
-| dataset | genomes / samples | ORFs analysed | ORF floor | labels | genome_entropy | encoding size | hardware |
-|---|---|---:|---|---|---|---:|---|
-| GTDB r232 bacteria | 189,715 species representatives (of 189,801) | 2,568,244,984 | 90 aa | deposited GenBank CDS | 0.2.0 (inferred; commit 90c8c15) | 10,000 | NVIDIA V100, NCI Gadi |
-| GTDB r232 archaea | 10,122 species representatives | 54,858,398 | 90 aa | deposited GenBank CDS | 0.2.0 (inferred) | 10,000 | NVIDIA V100, NCI Gadi |
-| LOGAN metagenomes | 50,009 assembled metagenomes, 13 biomes | 89,991,549,208 | 30 aa | Prodigal 2.6.3 `-p meta` | 0.3.0 (commit 750e2b92) | 10,000 | AMD MI250X, Pawsey Setonix |
-| Inphared phage, mutual information | 36,025 genomes | 6,754,361 | 90 aa | Pharokka + phold CDS (corrected matcher) | ≈0.2.0 | 20,000 | AMD MI250X (ROCm, fp16), Setonix |
-| Inphared phage, ORF ranking | 31,200 genomes | 5,887,690 | 90 aa | as above | ORFs from 0.1.15, relabelled | 20,000 | Setonix |
-| Inphared phage, comparison with bacteria | 36,025 genomes | 6,754,361 | 90 aa | as above | 0.3.0 (commit 45dd283) | 10,000 | NVIDIA V100, Gadi |
-| GMSC small ORFs | — | 43,726,909 (10–99 aa) | — | GMSC curated positive/negative | 0.3.0 | 50,000 | NVIDIA V100, Gadi |
-
-ModernProst revision `2d68d506…` is recorded for GTDB (recovered from the offline model cache), LOGAN (every chunk manifest) and the small ORFs. It is not recorded for the Setonix phage runs. <!-- src: methods_provenance.md §2; agent-handoffs#24 (LOGAN agent, Gadi provenance comments); Validation/mutual_information/README.md §2; Validation/Inphared/README.md -->
-
 # Results
 
 ## Real proteins and spurious ORFs occupy different structural-entropy regimes
@@ -525,9 +526,9 @@ Two fill the only gap in an otherwise complete module:
 - **Cas5** in GCA_049515795.1. A 226-aa candidate lies 5 bp from *cas7* and 96 bp from *cas1*, in a co-oriented type I CRISPR–*cas* operon annotated with Cas6, Cas7, Cas8a1, Cas3′, Cas1 and Cas2 but not Cas5, which the type I Cascade complex requires. <!-- src: GR §6.1 "Examples"; figG06_examples.tsv.gz; figG06_neighbours.tsv.gz -->
 - **SusC** in GCA_900230115.1. A 917-aa candidate fills the 3,029-bp gap in a polysaccharide utilisation locus that is annotated with SusD and SusE but lacks SusC. <!-- src: GR §6.1 "Examples"; figG06 data -->
 
-The other eight include a RecF/Rad50-family ABC ATPase. <!-- src: RI G-16 --> These examples illustrate the kind of gene found; they are not evidence for the rate. Structural homology shows that an ORF is protein-like, not that it is expressed or functional.
+The other eight include a RecF/Rad50-family ABC ATPase whose genomic context is metabolic rather than replicative. <!-- src: RI G-16; GR §6.1 "Examples" --> These examples illustrate the kind of gene found; they are not evidence for the rate. Structural homology shows that an ORF is protein-like, not that it is expressed or functional.
 
-**Assembly quality.** We recomputed the estimate within quartiles of contig N50 and of CheckM2 completeness, keeping each comparator draw with its candidate's genome (scheme (i); Methods). <!-- src: AS; decision D15 --> <!-- integrator: no figure/table number is assigned to the strata; cite assembly_strata_v7 tables or add a supplementary table. --> The excess is present in every stratum, in both domains and for every database, with the smallest lower CI bound at 3.0%. The C3 and C7 excesses are positive throughout. <!-- src: AS "Reading" 1 --> The pooled estimate is therefore not an artefact of poor assemblies.
+**Assembly quality.** We recomputed the estimate within quartiles of contig N50 and of CheckM2 completeness, keeping each comparator draw with its candidate's genome (scheme (i); Methods). <!-- src: AS; decision D15 --> The excess is present in every stratum (Table S14), in both domains and for every database, with the smallest lower CI bound at 3.0%. The C3 and C7 excesses are positive throughout. <!-- src: AS "Reading" 1 --> The pooled estimate is therefore not an artefact of poor assemblies.
 
 **Bacteria.** The share is higher in poorer assemblies. Counting a full-length hit in any of Swiss-Prot, PDB100 or CATH50, it falls from 17.4% to 10.3% across N50 quartiles and from 19.9% to 9.0% across completeness quartiles. <!-- src: AS "Reading" 2 --> The decline comes mostly from PDB100 and CATH50. Swiss-Prot alone is flat with N50 (9.2–12.1%). <!-- src: AS "Reading" 2 -->
 
@@ -535,11 +536,7 @@ The other eight include a RecF/Rad50-family ABC ATPase. <!-- src: RI G-16 --> Th
 
 **Prodigal.** The Prodigal share falls with assembly quality in both domains. By N50 it falls from 44.8% to 31.1% in bacteria and from 47.0% to 32.6% in archaea. <!-- src: AS "Reading" 4 -->
 
-**Sensitivity analysis.** Placing every ORF by its own genome (scheme (ii)) gives the same direction for the combined share and the Prodigal share in both domains. It does not agree on every database or cell:
-- bacterial Swiss-Prot by N50 changes endpoint direction (9.8% → 9.2% under (i), 10.5% → 11.3% under (ii));
-- archaeal PDB100 by completeness also changes endpoint direction;
-- neither readout shows a trend under either scheme;
-- bacterial cells differ by up to 3.3 points. <!-- src: AS "Reading" 6 -->
+**Sensitivity analysis.** Placing every ORF by its own genome (scheme (ii)) gives the same direction for the combined share and the Prodigal share in both domains. Two single-database readouts that show no trend under either scheme change endpoint direction (bacterial Swiss-Prot by N50; archaeal PDB100 by completeness), and bacterial cells differ by up to 3.3 points. <!-- src: AS "Reading" 6 -->
 
 Why bacterial shares are higher in poorer assemblies is not established. Assembly-driven false signal and less complete annotation of lower-quality genomes both fit the data. <!-- src: AS "What it does and does not establish" -->
 
@@ -628,7 +625,7 @@ We have not tested the cause. Phage proteomes may be richer in small or poorly f
 
 ### An annotation error in OM869708
 
-OM869708 is the 5,753-bp genome of the microvirus *Dipodfec virus* RodF1_38 (Fig. 6d). <!-- src: work/om869708/OM869708_ncbi.gb (DEFINITION, ORGANISM, REFERENCE bases 1 to 5753) --> The submitters' GenBank record annotates a replication initiator protein at 4753..5730 (UPW42009.1). <!-- src: data/figP01_om869708_ncbi_cds.tsv.gz (0-based 4752–5730); decisions.md D7 --> The Pharokka and phold re-annotation used for our labels does not contain this gene. Instead it calls a hypothetical protein in another frame, CDS_0007, which matches ORF7. <!-- src: data/figP01_om869708_cds.tsv.gz; data/figP01_om869708_orfs.tsv.gz -->
+OM869708 is the 5,753-bp genome of *Dipodfec virus* RodF1_38, a member of the *Microviricetes* (Fig. 6d). <!-- src: work/om869708/OM869708_ncbi.gb (DEFINITION, ORGANISM, REFERENCE bases 1 to 5753) --> The submitters' GenBank record annotates a replication initiator protein at 4753..5730 (UPW42009.1). <!-- src: data/figP01_om869708_ncbi_cds.tsv.gz (0-based 4752–5730); decisions.md D7 --> The Pharokka and phold re-annotation used for our labels does not contain this gene. Instead it calls a hypothetical protein in another frame, CDS_0007, which matches ORF7. <!-- src: data/figP01_om869708_cds.tsv.gz; data/figP01_om869708_orfs.tsv.gz -->
 
 The corrected model disagrees with the re-annotation. ORF3 is the 335-aa stop-to-stop ORF that contains the submitters' gene and shares its stop codon. It has 3Di entropy 2.98 bits and scores p = 0.889. <!-- src: data/figP01_om869708_orfs.tsv.gz (orf3); decisions.md D7 --> The annotated ORF7 (198 aa) has 3Di entropy 1.20 bits and scores p = 0.175. <!-- src: data/figP01_om869708_orfs.tsv.gz (orf7); decisions.md D7 --> The model ranks ORF3 → ORF7 179th of the 4,102 replacement candidates. <!-- src: data/figP01_om869708_orfs.tsv.gz (replacement_rank); decisions.md D7 -->
 
@@ -656,7 +653,7 @@ The amino-acid × 3Di entropy plane shows where the classes differ (Fig. S17). P
 
 A short line near 2.81 bits contains only positives. Two families of near-identical 3Di strings appear to form it, which we identified by eye as ribosomal proteins L34 and S14. <!-- src: AH smorfs/manuscript.md §3.6 --> We did not confirm these identities by homology search, and we do not interpret the stripes biologically.
 
-These results set the method's lower length limit. Gene-length ORFs separate well: in phage genomes 3Di entropy alone reaches AUC 0.947. <!-- src: Validation/mutual_information/README.md §4.6 --> Below 100 aa, one entropy per alphabet carries only a small signal. The GMSC negatives are hard: they are conserved and in frame, unlike the shadows and random ORFs that dominate genomic negatives. Even so, much of the weakness is probably length itself. A 3Di string of 50–99 symbols gives few observations for a 20-state distribution, and many real small proteins are a single helix or disordered. ModernProst has not been validated against experimental or predicted structures below about 50 aa. Features that use the order of the 3Di string may do better, but we have not tested them.
+These results set the method's lower length limit. Gene-length ORFs separate well: in phage genomes 3Di entropy alone reaches AUC 0.947. <!-- src: Validation/mutual_information/README.md §4.6 --> Below 100 aa, one entropy per alphabet carries only a small signal. The GMSC negatives are hard: they are conserved and in frame, unlike the shadows and random ORFs that dominate genomic negatives. Even so, much of the weakness is probably length itself. A 3Di string of 50–99 symbols gives few observations for a 20-state distribution, and many real small proteins may be a single helix or disordered. Features that use the order of the 3Di string may do better, but we have not tested them.
 
 # Discussion
 
