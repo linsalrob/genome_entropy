@@ -1,0 +1,61 @@
+{
+ "figP01_mutual_information.tsv.gz": {
+  "rows": 7,
+  "sources": {
+   "Validation/mutual_information/tables/mi_single_and_pairs.tsv": "a48e54314c711531f079fdc5645f5489bfb5634d582336e8dee0ee7d79c4e419",
+   "Validation/mutual_information/tables/conditional_mi_given_length.tsv": "3788e109abe128c2849c06e24bfc93bdd0bd658b5561cc75b9d7ae9ef2b559f7"
+  }
+ },
+ "figP01_ranking_models.tsv.gz": {
+  "rows": 8,
+  "sources": {
+   "Validation/Inphared/tables/model_metrics_pooled.tsv": "440565091f62189e1cde43b560609650f7b2cd2536e8845e3e9bb6ecc5d9c62a"
+  }
+ },
+ "figP01_foldseek_rates.tsv.gz": {
+  "rows": 22,
+  "sources": {
+   "Validation/Inphared/tables/evidence_rates.tsv": "ef4c68332ffd9cf7344f19ba6ab2e194a5293cd4bfa389878f2cfeb3bbd3ce76"
+  }
+ },
+ "figPS01_label_audit.tsv.gz": {
+  "rows": 10,
+  "sources": {
+   "Validation/mutual_information/tables/label_legacy_vs_v2.tsv": "b01a60298e0e5807db2142446b51653a2a1224e0c0f9a619e70a168da4e71bca"
+  }
+ },
+ "figPS01_feature_importance.tsv.gz": {
+  "rows": 92,
+  "sources": {
+   "Validation/Inphared/tables/model_importance.tsv": "fa8c6618c1dd96ffa4dcf7d8c706328e17f63e6af6c27d9e643e8a9095d516fe"
+  }
+ },
+ "figP01_om869708_orfs.tsv.gz": {
+  "rows": 16,
+  "sources": {
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank/tables/orfs.parquet": "32027bf3a2ec64583923ffa128aa8442836a2ab3db502ecc59f3cc28bd11c370",
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank/tables/cds.parquet": "4e770aded57cd0360342b4a398b868f397a9d59f22a03ae732ffeda4ed8d201d",
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank/rank_orfs_relabelled_intrinsic/ranked_overlapping_gene_replacements.tsv.gz": "a5d97f43f51402dbf150af992eef37376be186b54d4c55f4a44acecb946d33e3",
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank/rank_orfs_relabelled_intrinsic/all_orf_oof_predictions.parquet": "3d7b71684b1e157f9d384027db2b83dadd5ab6b07e2f5e6affafa898688f5246",
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank/rank_orfs_orig/all_orf_oof_predictions.parquet": "30e4bc53e521aba360367536e4d2e8e40239d6dc6dea0cfc09585596f394b9af"
+  }
+ },
+ "figP01_om869708_cds.tsv.gz": {
+  "rows": 7,
+  "sources": {
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank/tables/cds.parquet": "4e770aded57cd0360342b4a398b868f397a9d59f22a03ae732ffeda4ed8d201d"
+  }
+ },
+ "figP01_om869708_blastp.tsv.gz": {
+  "rows": 50,
+  "sources": {
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/om869708/om869708_blastp_nr.tsv": "bb4150e12c7dbe49d8c6e56ed05f5d222c37c48f69a814ca92890e621063a939"
+  }
+ },
+ "figP01_om869708_ncbi_cds.tsv.gz": {
+  "rows": 7,
+  "sources": {
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/om869708/OM869708_ncbi.gb": "1a4ede9ba2fc9bb5e5abd242c3b0ea1b6798f73befd37c151ad9d65dce316805"
+  }
+ }
+}
