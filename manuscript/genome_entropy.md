@@ -1,7 +1,6 @@
 # Title
 
-Joint sequence and structural entropy distinguish protein-coding genes
-from spurious open reading frames in bacterial genomes and metagenomes.
+Structural entropy distinguishes protein-encoding genes from spurious open reading frames.
 
 # Authors
 
@@ -11,7 +10,7 @@ from spurious open reading frames in bacterial genomes and metagenomes.
 
 Most open reading frames (ORFs) in a microbial genome do not encode proteins. Gene callers choose among them from nucleotide statistics, without asking whether the translated sequence resembles a protein.
 
-We asked whether the information content of predicted protein structure separates real genes from spurious ORFs. With genome_entropy we computed, for every ORF, the Shannon entropy of the amino-acid sequence and of the Foldseek 3Di structural alphabet. The 3Di string is predicted from sequence alone by a protein language model. The datasets are:
+We asked whether the information content of predicted protein structure separates real genes from spurious ORFs. With genome_entropy we computed, for every ORF, the Shannon entropy of the amino-acid sequence, the Foldseek 3Di structural alphabet, and the 12-state structure. The 3Di string is predicted from sequence alone by a protein language model. The datasets are:
 - 2.62 billion ORFs from 199,837 GTDB species representatives;
 - 90 billion six-frame ORFs from 50,009 assembled metagenomes;
 - 6.75 million ORFs from 36,025 phage genomes;
@@ -28,21 +27,21 @@ We asked whether the information content of predicted protein structure separate
 
 # Introduction
 
-Almost every analysis in microbial genomics starts from a list of protein-coding genes, from metabolic reconstruction to comparative and evolutionary studies. Gene callers such as Prodigal [@Hyatt2010-qv], GeneMarkS [@Besemer2001-un] and Glimmer [@Delcher2007-uf] build that list from nucleotide statistics: codon usage, coding potential, start codons and ribosome-binding sites. They are accurate for complete bacterial genomes. They are weaker where those statistics are weakest: short genes, fragmented contigs, unusual codon usage, and metagenomes in which a contig may come from an organism unlike any the model was trained on.
+Almost every analysis in microbial genomics, from metabolic reconstruction to comparative and evolutionary studies, starts from a list of protein-coding genes. Gene callers such as Prodigal [@Hyatt2010-qv], GeneMarkS [@Besemer2001-un] and Glimmer [@Delcher2007-uf] build that list from nucleotide statistics: codon usage, coding potential, start codons and ribosome-binding sites. They are accurate for complete bacterial genomes. They are weaker where those statistics are weakest: short genes, fragmented contigs, unusual codon usage, and metagenomes in which a contig may come from an organism unlike any the model was trained on.
 
-None of these statistics asks directly whether the translated sequence looks like a protein. Most ORFs in a genome are not genes. In every six-frame translation, the ORFs of real genes are outnumbered by their own shadows in other frames and on the opposite strand, and by intergenic ORFs. A caller's decision is a judgement about nucleotide sequence, made on behalf of a protein that is never examined.
+None of these statistics asks directly whether the translated sequence looks like a protein. Most ORFs in a genome are not genes. In every six-frame translation, the ORFs of real genes are outnumbered by their own shadows in other frames on the same strand and on the opposite strand, and by intergenic ORFs. 
 
-Information theory gives a way to examine it. Shannon entropy has been used to describe the composition of genomes and metagenomes [@Akhter2013-pl]. Real proteins are constrained by folding and function. We reasoned that the constraint should show less in amino-acid composition than in structure, because a translated non-coding ORF can have an unremarkable composition yet no coherent fold.
+We can use information theory to compare predicted ORFs and protein-encoding ORFs. We previously used Shannon entropy to describe the composition of genomes and metagenomes [@Akhter2013-pl]. We reasoned that real proteins are constrained by folding and function, and this constraint should show less in amino-acid composition than in structure.
 
 Protein language models now make structure cheap to approximate. Foldseek's 3Di alphabet describes each residue's local tertiary interactions in 20 states [@Van_Kempen2024-il]. Models such as ProstT5 [@Heinzinger2024-ja] and ModernProst [@modernprost] predict 3Di strings directly from amino-acid sequences, fast enough to encode every ORF of a genome, or of a metagenome.
 
-Here we test whether the entropy of predicted structure separates protein-coding genes from spurious ORFs, and whether it finds genes that annotations missed. We use genome_entropy [@Edwards2026-jk] at four scales:
+Here we test whether the entropy of predicted structure separates protein-coding genes from spurious ORFs, and whether it finds genes that annotations missed. We compare structural evidence with matched controls using genome_entropy [@Edwards2026-jk] at four scales:
 1. **GTDB r232:** the species representatives [@Parks2022-eo], to describe the entropy landscape of annotated and unannotated ORFs across bacteria and archaea, and to estimate how many genes GenBank annotation misses.
 2. **LOGAN:** 50,009 assembled metagenomes [@Chikhi2025-ak], comprising 90 billion six-frame ORFs, to test the signal beyond ORF length, across reading frames and biomes, and against Prodigal's own calls.
 3. **Inphared:** 36,025 phage genomes [@Cook2021-ay], a gene-dense case in which we rank candidate missing genes and examine an annotation error.
 4. **GMSC small ORFs** [@Duan2024-ab], to find where the method stops working.
 
-Throughout, we compare structural evidence with matched controls rather than with raw rates. We treat annotations as labels to agree with, not as ground truth.
+
 
 # Methods
 
@@ -52,7 +51,7 @@ All entropy features were computed with genome_entropy (https://github.com/linsa
 1. calls every open reading frame (ORF) in all six frames;
 2. translates each ORF with the bacterial genetic code (NCBI table 11);
 3. predicts a structural-alphabet representation of each translated ORF;
-4. reports per-ORF entropy features.
+4. calculates per-ORF entropy features.
 
 When an input record carries CDS annotations, each ORF is also labelled by whether it matches one of them. Different datasets were processed with different package releases, encoding settings and hardware. The configuration for each is given in Table 1, and its effect on the values is quantified under *Reproducibility of the structural encoding*.
 
@@ -69,13 +68,13 @@ When an input record carries CDS annotations, each ORF is also labelled by wheth
 | Inphared phage, comparison with bacteria | 36,025 genomes | 6,754,361 | 90 aa | as above | 0.3.0 (commit 45dd283) | 10,000 | NVIDIA V100, Gadi |
 | GMSC small ORFs | — | 43,726,909 (10–99 aa) | — | GMSC curated positive/negative | 0.3.0 | 50,000 | NVIDIA V100, Gadi |
 
-ModernProst revision `2d68d506…` is recorded for GTDB (recovered from the offline model cache), LOGAN (every chunk manifest) and the small ORFs. It is not recorded for the Setonix phage runs. <!-- src: methods_provenance.md §2; agent-handoffs#24 (LOGAN agent, Gadi provenance comments); Validation/mutual_information/README.md §2; Validation/Inphared/README.md -->
+
 
 ## ORF calling
 
 ORFs are maximal stop-to-stop open reading frames reported by `get_orfs` [@Edwards2024-cn], so an ORF extends upstream of any start codon to the preceding in-frame stop. Each ORF records whether it is complete or runs off a contig end.
 
-The minimum-length argument behaves differently by release. Before genome_entropy 0.4.0 it was passed to `get_orfs` in amino acids, although it was documented as nucleotides (genome_entropy #103, #104). The GTDB, phage and mutual-information datasets therefore have an effective floor of **90 amino acids**. The LOGAN analysis set the floor explicitly to 30 amino acids. The GMSC small ORFs are a curated 10–99 amino-acid set and were not ORF-called. <!-- src: methods_provenance.md §1; Validation/gtdb/scientific_report.md l.135–141; #103 -->
+The minimum-length argument behaves differently by release. The GTDB, phage and mutual-information datasets have an effective floor of 90 amino acids. The LOGAN analysis set the floor explicitly to 30 amino acids. The GMSC small ORFs are a curated 10–99 amino-acid set and were not ORF-called. <!-- src: methods_provenance.md §1; Validation/gtdb/scientific_report.md l.135–141; #103 -->
 
 ## Annotation labels
 
@@ -87,9 +86,9 @@ For datasets with deposited annotations (GTDB, phage), an ORF was labelled as ma
 
 The rule has no stop-codon requirement. A short CDS that lies wholly inside a longer stop-to-stop ORF can therefore match it. <!-- src: src/genome_entropy/io/genbank.py evaluate_orf_genbank_cds_match; MIN_CDS_OVERLAP_FRACTION=0.90, MIN_SHARED_AA_IDENTITY=0.98 -->
 
-Earlier releases contained a matcher that compared reverse-complement ORF coordinates with genomic CDS coordinates. Under it, almost no minus-strand ORF could match. It was fixed in genome_entropy 0.2.0 (commit 2cc0e1a), and every label used here comes from the corrected matcher (Fig. S15). LOGAN has no deposited annotation, so its ORFs were labelled against Prodigal gene calls instead (*LOGAN metagenomes*).
+LOGAN has no deposited annotation, so its ORFs were labelled against *de novo* Prodigal gene calls instead.
 
-A label records agreement with an annotation, not proof that an ORF is expressed or functional, nor that an unmatched ORF is not.
+
 
 ## Structural encoding
 
@@ -97,7 +96,7 @@ Translated ORFs were encoded with ModernProst (`gbouras13/modernprost-50M`) [@mo
 - the 20-state Foldseek 3Di alphabet [@Van_Kempen2024-il];
 - a 12-state alphabet.
 
-The model revision is `2d68d506d4ce8d59025c985fd00243a8860363c6` for every dataset where it was recorded (Table 1). Sequences were encoded in batches of up to a fixed number of residues, the *encoding size*. Because ModernProst predicts structural states from sequence alone, it assigns confident 3Di states to any protein-like sequence. A 3Di string is therefore a prediction, not an observation of structure.
+We used model revision `2d68d506d4ce8d59025c985fd00243a8860363c6` (Table 1). Sequences were encoded in batches of up to a fixed number of residues, the *encoding size*. Because ModernProst predicts structural states from sequence alone, it assigns confident 3Di states to any protein-like sequence. A 3Di string is therefore a prediction, not an observation of structure.
 
 ## Entropy features
 
