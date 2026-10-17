@@ -6,11 +6,14 @@ This directory contains the **draft manuscript** describing [`genome_entropy`](.
 
 The manuscript is a work in progress. Expect the text, figures, and author list to change.
 
+**To edit the paper,** follow [`EDITING.md`](EDITING.md). It explains, step by step, how to fork this repository, make a token, edit the manuscript in the browser with [ManuMD](https://linsalrob.github.io/manumd/), and send your changes back as a pull request. No previous GitHub experience is needed.
+
 ## Contents
 
 | File / directory | Description |
 |---|---|
 | [`genome_entropy.md`](genome_entropy.md) | The manuscript text (Markdown) |
+| [`EDITING.md`](EDITING.md) | How co-authors edit the manuscript with ManuMD and send changes back |
 | [`images/`](images/) | Figures referenced by the manuscript |
 | [`Author_Information.xlsx`](Author_Information.xlsx) | Author details used to build the author list, affiliations, contributions, and funding statements |
 | [`results_inventory.md`](results_inventory.md) | Evidence matrix: every result the paper may state, its final value and source |
