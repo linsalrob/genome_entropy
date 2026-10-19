@@ -363,7 +363,7 @@ Running `manuscript/tools/run_notebooks.py` in the pinned environment (`manuscri
 
 ## Real proteins and spurious ORFs occupy different structural-entropy regimes
 
-We called every six-frame ORF of at least 90 aa in 199,837 GTDB r232 species representatives: 2,568,244,984 bacterial and 54,858,398 archaeal ORFs. Of these, 12.03% and 17.26% match a deposited CDS. <!-- src: GR §1, §2 -->
+We called every six-frame ORF of at least 90 aa <!-- AGENT: why 90 aa as a threshold? Why not 50 or 100 or 75? --> in 199,837 GTDB r232 species representatives: 2,568,244,984 bacterial and 54,858,398 archaeal ORFs. Of these, 12.03% and 17.26% match a deposited CDS. <!-- src: GR §1, §2 -->
 
 In genomes that carry any annotation, matched and unmatched ORFs separate on 3Di entropy, not protein entropy (Fig. 1a–c).
 - **3Di entropy:** the mean differs by 2.08 bits in bacteria (3.123 against 1.043) and by 1.99 bits in archaea.
