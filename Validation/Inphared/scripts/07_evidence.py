@@ -36,6 +36,8 @@ FIELDS = ["query", "target", "fident", "alnlen", "qlen", "tlen", "qcov", "tcov",
 LEN_EDGES = [90, 100, 150, 200, 300, 500, 1000, 10**9]
 SK = {2: "Bacteria", 2157: "Archaea", 2759: "Eukaryota", 10239: "Viruses"}
 CONTROLS = ["annotated", "antisense_lo", "frameshift_lo", "intergenic_lo", "candidate_shuffled_3di"]
+# Viral structure databases: hits there mostly report that a related genome annotated the ORF.
+VIRAL = {"bfvd", "phold"}
 
 
 def wilson(k, n, z=1.96):
@@ -86,7 +88,7 @@ def main() -> int:
     ap.add_argument("--dir", required=True, type=Path)
     ap.add_argument("--tables", required=True, type=Path, help="work tables/ (cds.parquet, orfs.parquet)")
     ap.add_argument("--rank", required=True, type=Path)
-    ap.add_argument("--orig", required=True, type=Path)
+    ap.add_argument("--orig", type=Path, help="original run (same ORF set only)")
     ap.add_argument("--nodes", default="/scratch/references/kraken_dec2025/nodes.dmp")
     ap.add_argument("--out", required=True, type=Path)
     a = ap.parse_args()
@@ -106,6 +108,8 @@ def main() -> int:
         x = df[(df.qtag == qtag) & (df["mode"] == mode)]
         if db == "non_bfvd":
             x = x[x.db != "bfvd"]
+        elif db == "non_viral":
+            x = x[~x.db.isin(VIRAL)]
         elif db is not None:
             x = x[x.db == db]
         return set(x["query"])
@@ -115,7 +119,7 @@ def main() -> int:
         qtag = "qnull" if arm == "candidate_shuffled_3di" else "qdb"
         q = set(g.query_id)
         for mode in (["struct"] if qtag == "qnull" else ["struct", "seq"]):
-            for db in dbs + ["non_bfvd", "any"]:
+            for db in dbs + ["non_bfvd", "non_viral", "any"]:
                 h = hits(best, qtag, mode, None if db == "any" else db) & q
                 f = hits(full, qtag, mode, None if db == "any" else db) & q
                 lo, hi = wilson(len(f), len(q))
@@ -129,7 +133,7 @@ def main() -> int:
     # behaving like annotated genes, given control and annotated full-length rates.
     ex = []
     for mode in ("struct", "seq"):
-        for db in dbs + ["non_bfvd", "any"]:
+        for db in dbs + ["non_bfvd", "non_viral", "any"]:
             r = R[(R["mode"] == mode) & (R.db == db)].set_index("arm").fullcov_rate
             if "candidate" not in r:
                 continue
@@ -153,6 +157,7 @@ def main() -> int:
 
     s_full, q_full = hits(full, "qdb", "struct"), hits(full, "qdb", "seq")
     s_full_nb = hits(full, "qdb", "struct", "non_bfvd")
+    s_full_nv = hits(full, "qdb", "struct", "non_viral")
     s_full_bfvd_lowid = set(fq[(fq["mode"] == "struct") & (fq.db == "bfvd") & (fq.fident < 0.5)]["query"])
     s_any = hits(best, "qdb", "struct")
     u = univ[univ.arm != "candidate_shuffled_3di"].copy()
@@ -160,6 +165,7 @@ def main() -> int:
     u["full_seq"] = u.query_id.isin(q_full)
     u["any_struct"] = u.query_id.isin(s_any)
     u["full_struct_non_bfvd"] = u.query_id.isin(s_full_nb)
+    u["full_struct_non_viral"] = u.query_id.isin(s_full_nv)
     u["full_struct_bfvd_fident_lt_0_5"] = u.query_id.isin(s_full_bfvd_lowid)
     u["evidence"] = np.select([u.full_struct & u.full_seq, u.full_struct, u.full_seq],
                               ["sequence+structure", "structure-only", "sequence-only"], default="neither")
@@ -168,6 +174,7 @@ def main() -> int:
     E.to_csv(a.out / "evidence_classes.tsv", sep="\t", float_format="%.5f")
     L = (u.groupby(["arm", "length_bin"]).agg(queries=("full_struct", "size"), fullcov_struct_rate=("full_struct", "mean"),
                                              fullcov_struct_non_bfvd_rate=("full_struct_non_bfvd", "mean"),
+                                             fullcov_struct_non_viral_rate=("full_struct_non_viral", "mean"),
                                              any_struct_rate=("any_struct", "mean")))
     L.to_csv(a.out / "evidence_by_length.tsv", sep="\t", float_format="%.5f")
     C = (u[u.arm == "candidate"].groupby("context").agg(queries=("full_struct", "size"),
@@ -175,6 +182,7 @@ def main() -> int:
                                                          fullcov_seq_rate=("full_seq", "mean"),
                                                          any_struct_rate=("any_struct", "mean"),
                                                          fullcov_struct_non_bfvd_rate=("full_struct_non_bfvd", "mean"),
+                                                         fullcov_struct_non_viral_rate=("full_struct_non_viral", "mean"),
                                                          median_length=("protein_length", "median")))
     C.to_csv(a.out / "evidence_by_context.tsv", sep="\t", float_format="%.5f")
     # full-length structural hits per database count
@@ -192,6 +200,7 @@ def main() -> int:
     # BFVD-only share among full-length structural hits
     per_db = full[(full.qtag == "qdb") & (full["mode"] == "struct")].groupby("query").db.agg(lambda x: set(x))
     u["bfvd_only"] = u.query_id.map(per_db).apply(lambda s: isinstance(s, set) and s == {"bfvd"})
+    u["viral_only"] = u.query_id.map(per_db).apply(lambda s: isinstance(s, set) and bool(s) and s <= VIRAL)
     u.to_parquet(a.dir / "evidence_per_query.parquet", index=False)
 
     # Replacement pairs: does the replacement ORF earn better structural evidence than the gene it replaces?
@@ -201,6 +210,8 @@ def main() -> int:
     prow = []
     for label, d, ra, rd in (("reranked", a.rank, "replacement", "replaced"),
                              ("original", a.orig, "orig_replacement", "orig_replaced")):
+        if d is None:
+            continue
         rep = pd.read_csv(d / "ranked_overlapping_gene_replacements.tsv.gz", sep="\t",
                           usecols=["input_id", "orf_id", "competing_orf_id"])
         if rep.empty:
@@ -232,8 +243,8 @@ def main() -> int:
                                                                 "strand", "record_length", "three_di_entropy",
                                                                 "protein_entropy"]).set_index("row")
     # Prefer independent evidence: full-length structural hits in >= 2 databases,
-    # at least one outside BFVD.
-    ex = u[(u.arm == "candidate") & (u.n_db_fullcov >= 2) & u.full_struct_non_bfvd].sort_values(
+    # at least one outside the viral databases (BFVD, phold).
+    ex = u[(u.arm == "candidate") & (u.n_db_fullcov >= 2) & u.full_struct_non_viral].sort_values(
         ["p", "bits"], ascending=False)
     # one exemplar per best target and per genome interval signature: Inphared holds
     # near-duplicate genomes (e.g. RefSeq NC_ copies of GenBank records)

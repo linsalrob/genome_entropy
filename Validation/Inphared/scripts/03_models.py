@@ -24,6 +24,11 @@ Outputs (in --out):
   importance.tsv            XGBoost gain importance per set and fold
   thresholds.tsv            OOF score at precision 0.80/0.90/0.95 per set
   fold_check.json           agreement of folds / probabilities with the original
+
+--groups TSV (columns input_id, group) replaces the one-genome-per-group split
+with a coarser one (a genus, or an ANI cluster): every genome of a group is
+held out together, so near-duplicate genomes never sit on both sides of a fold.
+Genomes absent from the TSV keep their own group.
 """
 
 from __future__ import annotations
@@ -70,6 +75,7 @@ def main() -> int:
     ap.add_argument("--labels", type=Path,
                     help="labels.parquet from 02_relabel.py: train and score on its recomputed in_genbank")
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--groups", type=Path, help="TSV input_id<TAB>group: hold out whole groups, not genomes")
     ap.add_argument("--sets", default=",".join(SETS))
     ap.add_argument("--threads", type=int, default=8)
     ap.add_argument("--seed", type=int, default=42)
@@ -92,6 +98,12 @@ def main() -> int:
     y = d.in_genbank.to_numpy().astype(int)
     groups = d.input_id.to_numpy()
     print(f"{len(d):,} ORFs, {y.sum():,} annotated, {len(np.unique(groups)):,} genomes", flush=True)
+    if a.groups:
+        gmap = pd.read_csv(a.groups, sep="\t", dtype=str).set_index("input_id").group
+        g = d.input_id.map(gmap)
+        print(f"groups from {a.groups}: {g.notna().mean():.4f} of ORFs mapped; "
+              f"{g.nunique():,} groups (+{d.input_id[g.isna()].nunique():,} unmapped genomes kept alone)", flush=True)
+        groups = g.fillna("genome:" + d.input_id).to_numpy()
 
     folds = np.full(len(d), -1)
     splits = list(GroupKFold(n_splits=5).split(np.zeros(len(d)), y, groups))

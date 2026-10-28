@@ -4,8 +4,8 @@
 #SBATCH --partition=work
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=28G
-#SBATCH --time=01:00:00
+#SBATCH --mem=58G
+#SBATCH --time=02:00:00
 #SBATCH -o %x-%j.out
 #SBATCH -e %x-%j.err
 #

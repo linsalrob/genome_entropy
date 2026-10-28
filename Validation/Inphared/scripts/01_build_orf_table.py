@@ -122,13 +122,23 @@ def classify(orf: pd.DataFrame, cds: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"context": cls, "cds_overlap_frac": ovl, "context_cds": ovl_cds})
 
 
+def part_name(path: Path) -> str:
+    """phold_NNN.json or phold_NNNN.json.gz -> phold_NNN(N)."""
+    return path.name.removesuffix(".gz").removesuffix(".json")
+
+
+def load_json(path: Path):
+    with (gzip.open(path, "rt") if path.suffix == ".gz" else open(path)) as fh:
+        return json.load(fh)
+
+
 def process(args):
     json_path, gbk_path = args
-    part = json_path.stem
+    part = part_name(json_path)
     cds = parse_gbk(gbk_path)
     cds["part"] = part
     cds["phase"] = phase(cds.g_start.to_numpy(), cds.g_end.to_numpy(), cds.strand.to_numpy())
-    data = json.load(open(json_path))
+    data = load_json(json_path)
     orf_rows, seq_rows = [], []
     for rec in data:
         feats = rec.get("features")
@@ -183,8 +193,8 @@ def main() -> int:
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     # Same ordering as rank_missing_orfs.discover_json_files (sorted paths).
-    jsons = sorted(a.json_dir.glob("*.json"))
-    jobs = [(j, a.gbk_dir / f"{j.stem}.gbk.gz") for j in jsons]
+    jsons = sorted([*a.json_dir.glob("*.json"), *a.json_dir.glob("*.json.gz")])
+    jobs = [(j, a.gbk_dir / f"{part_name(j)}.gbk.gz") for j in jsons]
     missing = [str(g) for _, g in jobs if not g.exists()]
     if missing:
         raise SystemExit(f"missing GenBank files: {missing[:5]} ...")
