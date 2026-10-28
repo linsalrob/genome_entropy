@@ -12,7 +12,8 @@
                         genome's ANI cluster when NCBI gives no genus. Genera that
                         share an ANI cluster are merged (connected components),
                         so no vOTU straddles two groups.
-   plus cluster_summary.json.
+   plus cluster_summary.json and genome_nonACGT.tsv (input_id, count of
+   non-ACGT bases such as IUPAC ambiguity codes; read by 12_all_genomes_tables.py).
 
   10_genome_groups.py --gbk-dir genbank_split --genus meta/ncbi_genus.tsv --out groups --threads 32
 """
@@ -60,7 +61,7 @@ def main() -> int:
     a.out.mkdir(parents=True, exist_ok=True)
 
     fa = a.out / "genomes.fa"
-    lengths = {}
+    lengths, nonacgt = {}, {}
     if not fa.exists():
         with open(fa.with_suffix(".fa.partial"), "w") as out:
             for g in sorted(a.gbk_dir.glob("*.gbk.gz")):
@@ -70,6 +71,9 @@ def main() -> int:
         fa.with_suffix(".fa.partial").rename(fa)
     for rec in SeqIO.parse(fa, "fasta"):
         lengths[rec.id] = len(rec.seq)
+        seq = str(rec.seq).upper()
+        nonacgt[rec.id] = len(seq) - sum(seq.count(b) for b in "ACGT")
+    pd.Series(nonacgt, name="nonACGT").to_csv(a.out / "genome_nonACGT.tsv", sep="\t", index_label="input_id")
     print(f"{len(lengths):,} genomes, {sum(lengths.values()):,} bp", flush=True)
 
     tsv = a.out / "skani_triangle.tsv"

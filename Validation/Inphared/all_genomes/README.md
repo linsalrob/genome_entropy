@@ -13,6 +13,10 @@ genome_entropy ≈ 0.2.0, ModernProst-50M, encoding size 20,000. Everything else
 Setonix work directory: `/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all` (job IDs in `logs/jobs.txt`).
 Run on 2026-10-28.
 
+The labels are the Pharokka v1.9.1 + phold 1.2.5 re-annotation of Inphared `7Apr2026_genomes` (361 parts, run 26–27 May
+2026; Pyrodigal-gv 0.3.2 gene calls, `--meta`). The versions are from the run logs inside the part tarballs on the remote
+(`Validation/Inphared/Pharokka/7Apr2026_genomes_pharokka_phold_out/*.tar.gz`), checked in parts 001, 180 and 361.
+
 ## Pipeline
 
 | step | script | job | notes |
@@ -20,7 +24,7 @@ Run on 2026-10-28.
 | labels | `02_relabel.py` | 51707135 | the current CDS matcher, on the MI set's `.json.gz` chunks |
 | ORF table | `01_build_orf_table.py` | 51707136 | 6,754,361 ORFs; every genome has its GenBank |
 | models, genome-grouped CV | `03_models.py` | 51707137 | all seven feature sets |
-| genome groups | `09_ncbi_genus.py` (login node), `10_genome_groups.py` | 51707640 | skani 0.3.2 `triangle --small-genomes` |
+| genome groups | `09_ncbi_genus.py` (login node), `10_genome_groups.py` | 51707640 | skani 0.3.2 `triangle --small-genomes`; also writes the per-genome non-ACGT counts |
 | models, ANI / genus CV | `03_models.py --groups` | 51707641, 51707643 | intrinsic and length-only |
 | ranking | `rank_missing_orfs.py --feature-set intrinsic` | 51707138 | |
 | Foldseek arms | `05_select_queries.py` | 51707140 | 20,000 per arm, length-matched |
