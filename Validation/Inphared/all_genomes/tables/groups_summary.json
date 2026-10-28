@@ -1,0 +1,22 @@
+{
+ "genomes": 36025,
+ "skani_pairs": 2166254,
+ "edges": 816597,
+ "ani_threshold": 95.0,
+ "af_threshold": 85.0,
+ "with_ncbi_genus": 23082,
+ "ani95": {
+  "groups": 10186,
+  "singletons": 5926,
+  "largest": 539,
+  "largest_name": "ani:AF158101",
+  "genomes_in_groups_of_2plus": 30099
+ },
+ "genus": {
+  "groups": 7515,
+  "singletons": 4822,
+  "largest": 1135,
+  "largest_name": "ani:AB102868",
+  "genomes_in_groups_of_2plus": 31203
+ }
+}
