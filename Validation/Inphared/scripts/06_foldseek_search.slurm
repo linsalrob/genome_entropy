@@ -42,8 +42,15 @@ run() {   # qdb tag mode
     else
         foldseek base:search "$q" "$dbpath" "$res" "$TMP/w" -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1
     fi
-    foldseek convertalis "$q" "$dbpath" "$res" "$out.partial" --format-output "$FIELDS" \
-        --threads "$SLURM_CPUS_PER_TASK" -v 1
+    if [[ -e "${dbpath}_taxonomy" ]]; then
+        foldseek convertalis "$q" "$dbpath" "$res" "$out.partial" --format-output "$FIELDS" \
+            --threads "$SLURM_CPUS_PER_TASK" -v 1
+    else   # no taxonomy (phold): convertalis refuses taxid/taxname, so fill them as 0 / unknown
+        foldseek convertalis "$q" "$dbpath" "$res" "$out.notax" --format-output "${FIELDS/,taxid,taxname/}" \
+            --threads "$SLURM_CPUS_PER_TASK" -v 1
+        awk 'BEGIN{FS=OFS="\t"} {th=$11; $11="0"; $12="unknown"; $13=th; print}' "$out.notax" > "$out.partial"
+        rm -f "$out.notax"
+    fi
     mv "$out.partial" "$out"
     awk -F'\t' '{ if (!($1 in b) || $10+0 > b[$1]) { b[$1]=$10+0; l[$1]=$0 } } END { for (q in l) print l[q] }' \
         "$out" > "$S/best/$tag.$db.$mode.m8"
