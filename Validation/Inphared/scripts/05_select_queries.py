@@ -77,7 +77,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--tables", required=True, type=Path)
     ap.add_argument("--rank", required=True, type=Path, help="re-ranked rank_missing_orfs output dir")
-    ap.add_argument("--orig", required=True, type=Path, help="original rank_orfs output dir")
+    ap.add_argument("--orig", type=Path, help="original rank_orfs output dir (same ORF set only; omit otherwise)")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--n", type=int, default=20000)
     ap.add_argument("--n-orig", type=int, default=5000)
@@ -116,14 +116,15 @@ def main() -> int:
     arms.append(o.loc[key.loc[list(zip(rep.input_id, rep.orf_id))].to_numpy()].assign(arm="replacement"))
     arms.append(o.loc[key.loc[list(zip(rep.input_id, rep.competing_orf_id))].drop_duplicates().to_numpy()]
                 .assign(arm="replaced"))
-    orep = pd.read_csv(a.orig / "ranked_overlapping_gene_replacements.tsv.gz", sep="\t",
-                       usecols=["input_id", "orf_id", "competing_orf_id"])
-    arms.append(o.loc[key.loc[list(zip(orep.input_id, orep.orf_id))].to_numpy()].assign(arm="orig_replacement"))
-    arms.append(o.loc[key.loc[list(zip(orep.input_id, orep.competing_orf_id))].drop_duplicates().to_numpy()]
-                .assign(arm="orig_replaced"))
-    oc = pd.read_csv(a.orig / "ranked_putative_missing_orfs.tsv.gz", sep="\t", usecols=["input_id", "orf_id"])
-    oc = oc.sample(min(a.n_orig, len(oc)), random_state=a.seed)
-    arms.append(o.loc[key.loc[list(zip(oc.input_id, oc.orf_id))].to_numpy()].assign(arm="orig_candidate"))
+    if a.orig:
+        orep = pd.read_csv(a.orig / "ranked_overlapping_gene_replacements.tsv.gz", sep="\t",
+                           usecols=["input_id", "orf_id", "competing_orf_id"])
+        arms.append(o.loc[key.loc[list(zip(orep.input_id, orep.orf_id))].to_numpy()].assign(arm="orig_replacement"))
+        arms.append(o.loc[key.loc[list(zip(orep.input_id, orep.competing_orf_id))].drop_duplicates().to_numpy()]
+                    .assign(arm="orig_replaced"))
+        oc = pd.read_csv(a.orig / "ranked_putative_missing_orfs.tsv.gz", sep="\t", usecols=["input_id", "orf_id"])
+        oc = oc.sample(min(a.n_orig, len(oc)), random_state=a.seed)
+        arms.append(o.loc[key.loc[list(zip(oc.input_id, oc.orf_id))].to_numpy()].assign(arm="orig_candidate"))
 
     sel = pd.concat(arms, ignore_index=True)
     sel["query_id"] = sel.arm + "|" + sel.row.astype(str)
