@@ -7,7 +7,8 @@ ranking run on Setonix (not in git: 28 GB). Outputs are the small TSVs in
 manuscript/data/ that the notebooks read. Nothing is re-estimated: every
 value is copied from a table written by the analysis that computed it.
 
-  phage_prepare_data.py --phage-rank /scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank \
+  phage_prepare_data.py --phage-rank /scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all \
+                        --legacy-rank /scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank \
                         --blast <om869708_blastp_nr.tsv> --ncbi-gb <OM869708_ncbi.gb>
 
 The OM869708 inputs not produced by this repository:
@@ -30,6 +31,8 @@ import pandas as pd
 REPO = Path(__file__).resolve().parents[2]
 MI = REPO / "Validation/mutual_information/tables"
 IR = REPO / "Validation/Inphared/tables"
+# The all-genome (36,025) rerun: ranking, grouped CV and Foldseek (incl. phold)
+IRA = REPO / "Validation/Inphared/all_genomes/tables"
 OUT = REPO / "manuscript/data"
 
 FEATURE_LABEL = {
@@ -74,15 +77,19 @@ def mi_panel():
 
 
 def model_panel():
-    src = IR / "model_metrics_pooled.tsv"
+    # one row per feature set: genome-grouped CV (auc/ap_relabelled, as before), plus the
+    # ANI-cluster and genus hold-outs where they were fitted
+    src = IRA / "model_metrics_pooled.tsv"
     d = pd.read_csv(src, sep="\t")
-    write(d, "figP01_ranking_models.tsv.gz", [src])
+    w = d.pivot(index="set", columns="cv_grouping", values=["auc", "ap"])
+    w.columns = [f"{m}_{'relabelled' if g == 'genome' else g}" for m, g in w.columns]
+    write(w.reset_index(), "figP01_ranking_models.tsv.gz", [src])
 
 
 def foldseek_panel():
-    src = IR / "evidence_rates.tsv"
+    src = IRA / "evidence_rates.tsv"
     d = pd.read_csv(src, sep="\t")
-    d = d[(d["mode"] == "struct") & d.db.isin(["any", "non_bfvd"])]
+    d = d[(d["mode"] == "struct") & d.db.isin(["any", "non_viral"])]
     write(d, "figP01_foldseek_rates.tsv.gz", [src])
 
 
@@ -114,7 +121,7 @@ def ncbi_cds(gb):
     return pd.DataFrame(rows)
 
 
-def om869708(phage_rank, blast, gb):
+def om869708(phage_rank, blast, gb, legacy_rank=None):
     pr = Path(phage_rank)
     f = [("input_id", "==", "OM869708")]
     orfs = pd.read_parquet(pr / "tables/orfs.parquet",
@@ -124,12 +131,13 @@ def om869708(phage_rank, blast, gb):
             "actual_label", "probability_in_genbank"]
     new = pd.read_parquet(pr / "rank_orfs_relabelled_intrinsic/all_orf_oof_predictions.parquet",
                           columns=cols, filters=f)
-    old = pd.read_parquet(pr / "rank_orfs_orig/all_orf_oof_predictions.parquet",
-                          columns=["orf_id", "probability_in_genbank"], filters=f)
-    o = (orfs.merge(new, on="orf_id")
-         .merge(old.rename(columns={"probability_in_genbank": "probability_legacy"}), on="orf_id")
-         .rename(columns={"probability_in_genbank": "probability_corrected",
-                          "actual_label": "matches_cds"})
+    o = orfs.merge(new, on="orf_id")
+    legacy = []
+    if legacy_rank:  # the August model on legacy labels (31,200-genome run); same ORF ids for OM869708
+        legacy = [Path(legacy_rank) / "rank_orfs_orig/all_orf_oof_predictions.parquet"]
+        old = pd.read_parquet(legacy[0], columns=["orf_id", "probability_in_genbank"], filters=f)
+        o = o.merge(old.rename(columns={"probability_in_genbank": "probability_legacy"}), on="orf_id")
+    o = (o.rename(columns={"probability_in_genbank": "probability_corrected", "actual_label": "matches_cds"})
          .sort_values("g_start"))
     cds = pd.read_parquet(pr / "tables/cds.parquet",
                           columns=["cds_id", "g_start", "g_end", "strand", "product"],
@@ -141,8 +149,7 @@ def om869708(phage_rank, blast, gb):
     o["replacement_rank"] = o.orf_id.map(dict(zip(r.orf_id, r["rank"])))
     o["replacement_pairs_total"] = len(pd.read_csv(rep, sep="\t", usecols=[0]))
     sources = [pr / "tables/orfs.parquet", pr / "tables/cds.parquet", rep,
-               pr / "rank_orfs_relabelled_intrinsic/all_orf_oof_predictions.parquet",
-               pr / "rank_orfs_orig/all_orf_oof_predictions.parquet"]
+               pr / "rank_orfs_relabelled_intrinsic/all_orf_oof_predictions.parquet"] + legacy
     write(o, "figP01_om869708_orfs.tsv.gz", sources)
     write(cds, "figP01_om869708_cds.tsv.gz", [pr / "tables/cds.parquet"])
     if blast:
@@ -160,7 +167,8 @@ PROVENANCE = {}
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--phage-rank", required=True,
-                    help="work/phage_rank directory of the corrected ranking run")
+                    help="work/phage_rank_all directory of the all-genome corrected ranking run")
+    ap.add_argument("--legacy-rank", help="work/phage_rank (31,200-genome run) for the legacy probabilities")
     ap.add_argument("--blast", help="BLASTP tabular output for OM869708 ORF3/ORF7")
     ap.add_argument("--ncbi-gb", help="the submitters' GenBank record of OM869708")
     args = ap.parse_args()
@@ -169,7 +177,7 @@ def main():
     model_panel()
     foldseek_panel()
     label_audit()
-    om869708(args.phage_rank, args.blast, args.ncbi_gb)
+    om869708(args.phage_rank, args.blast, args.ncbi_gb, args.legacy_rank)
     (OUT / "phage_provenance.json").write_text(json.dumps(PROVENANCE, indent=1) + "\n")
     print("  phage_provenance.json")
 

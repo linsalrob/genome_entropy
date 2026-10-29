@@ -2,3 +2,4 @@ pdb100
 afdb_swissprot
 cath50
 bfvd
+phold=/scratch/pawsey1018/edwa0468/Databases/phold_db/all_phold_structures

@@ -1,0 +1,8 @@
+arm	neither	sequence+structure	sequence-only	structure-only
+annotated	0.16190	0.65210	0.15925	0.02675
+antisense_lo	0.98315	0.00080	0.01550	0.00055
+candidate	0.58790	0.28615	0.04980	0.07615
+frameshift_lo	0.98675	0.00270	0.01015	0.00040
+intergenic_lo	0.86610	0.02650	0.10665	0.00075
+replaced	0.48764	0.23605	0.27018	0.00613
+replacement	0.37201	0.45590	0.06578	0.10632
