@@ -13,6 +13,19 @@ genome_entropy ≈ 0.2.0, ModernProst-50M, encoding size 20,000. Everything else
 Setonix work directory: `/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all` (job IDs in `logs/jobs.txt`).
 Run on 2026-10-28.
 
+## Data and backups
+
+| data | Setonix (`work/`) | rclone remote |
+|---|---|---|
+| encodings (genome_entropy JSON, 145 chunks) | `phage_mi/results/phold_*.json.gz` | `genome_entropy:General/Validation/mutual_information/results/` |
+| Pharokka + phold GenBank inputs | `phage_mi/chunks/phold_*.gbk.gz` | `genome_entropy:General/Validation/mutual_information/chunks/` |
+| corrected labels, ORF / CDS / sequence tables | `phage_rank_all/tables/{labels,orfs,cds,seqs}.parquet` | `genome_entropy:General/Validation/Inphared/all_genomes/tables/` |
+| genome groups (ANI95, genus), skani triangle, genome FASTA, non-ACGT counts | `phage_rank_all/groups/` | `genome_entropy:General/Validation/Inphared/all_genomes/groups/` |
+
+The `in_genbank` field inside the encoding JSONs is from the pre-0.2.0 matcher and is all False; use `labels.parquet`
+(`in_genbank`; `in_genbank_orig` is the stale value) or `orfs.parquet`, which carries the corrected label alongside the
+entropies. The remote copies of `tables/` and `groups/` were uploaded on 2026-10-30 and checked with `rclone check`.
+
 The labels are the Pharokka v1.9.1 + phold 1.2.5 re-annotation of Inphared `7Apr2026_genomes` (361 parts, run 26–27 May
 2026; Pyrodigal-gv 0.3.2 gene calls, `--meta`). The versions are from the run logs inside the part tarballs on the remote
 (`Validation/Inphared/Pharokka/7Apr2026_genomes_pharokka_phold_out/*.tar.gz`), checked in parts 001, 180 and 361.
