@@ -18,15 +18,15 @@ Almost every analysis in microbial genomics, from metabolic reconstruction to co
 
 However, none of these statistics asks directly whether the translated sequence looks like a protein. Most ORFs in a genome are not genes. In every six-frame translation, the ORFs of real genes are outnumbered by their own shadows in other frames on the same strand and on the opposite strand, and by intergenic ORFs. 
 
-We can use information theory to compare predicted ORFs and protein-encoding ORFs. We previously used Shannon entropy to describe the composition of genomes and metagenomes [@Akhter2013-pl] and to identify phage genes [@McNair2019-yt]. We reasoned that real proteins are constrained by folding and function, and so this constraint should show less in amino-acid composition than in structure.
+We can use information theory to compare predicted ORFs and protein-encoding ORFs. We previously used Shannon entropy to compare genomes and metagenomes [@Akhter2013-pl] and to identify phage genes [@McNair2019-yt]. We reason that real proteins are constrained by folding and function, and there should be higher residual information in protein-encoding genes than in other open reading frames.
 
-Protein language models now make structure fast and cheap to approximate. Foldseek's 3Di alphabet describes each residue's local tertiary interactions in 20 states [@Van_Kempen2024-il]. Models such as ProstT5 [@Heinzinger2024-ja] and ModernProst [@modernprost] predict 3Di strings directly from amino-acid sequences, fast enough to encode every ORF of a genome, or of a metagenome.
+Protein language models now make structure fast and cheap to approximate. Foldseek's 3Di alphabet describes each residue's local tertiary interactions in 20 states [@Van_Kempen2024-il]. The orthoganl 12-state model is designed to maximize mutual information with 3Di. Models such as ProstT5 [@Heinzinger2024-ja] and ModernProst [@modernprost] predict 3Di strings directly from amino-acid sequences, fast enough to encode every ORF of a genome, or of a metagenome.
 
 Here we test whether the entropy of predicted structure separates protein-coding genes from spurious ORFs, and whether it finds genes that annotations missed. We compare structural evidence with matched controls using genome_entropy [@Edwards2026-jk] at four scales:
 1. **GTDB r232:** the species representatives [@Parks2022-eo], to describe the entropy landscape of annotated and unannotated ORFs across bacteria and archaea, and to estimate how many genes GenBank annotation misses.
 2. **LOGAN:** 50,009 assembled metagenomes [@Chikhi2025-ak], comprising 90 billion six-frame ORFs, to test the signal beyond ORF length, across reading frames and biomes, and against Prodigal's own calls.
 3. **Inphared:** 36,025 phage genomes [@Cook2021-ay], a gene-dense case in which we rank candidate missing genes and examine an annotation error.
-4. **GMSC small ORFs** [@Duan2024-ab], to find where the method stops working.
+4. **GMSC small ORFs** [@Duan2024-ab], to find the lower bound where the method stops working.
 
 
 
