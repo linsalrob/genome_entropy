@@ -72,17 +72,16 @@ For datasets with deposited annotations (GTDB, phage), an ORF was labelled as ma
 - the two genomic intervals overlap by at least 90% of the shorter one;
 - the coordinate-aligned, ungapped translations over the shared codons are at least 98% identical, with `X` treated as a wildcard.
 
-We did not require a stop-codon because many ORFs, especially in metagenomics data, run off the end of the contigs. A short CDS that lies wholly inside a longer stop-to-stop ORF can therefore match it. <!-- src: src/genome_entropy/io/genbank.py evaluate_orf_genbank_cds_match; MIN_CDS_OVERLAP_FRACTION=0.90, MIN_SHARED_AA_IDENTITY=0.98 -->
+We did not require a stop-codon because many ORFs, especially in metagenomics data, run off the end of the contigs. A short CDS that lies wholly inside a longer stop-to-stop ORF can therefore match the longer one. <!-- src: src/genome_entropy/io/genbank.py evaluate_orf_genbank_cds_match; MIN_CDS_OVERLAP_FRACTION=0.90, MIN_SHARED_AA_IDENTITY=0.98 -->
 
 LOGAN has no deposited annotation, so its ORFs were labelled against *de novo* Prodigal 2.6.3 [@Hyatt2010-qv] gene calls (`-p meta`, contigs ≥ 120 nt) instead. <!-- src: AH genome_entropy_logan/PROJECT.md:71, :87; AH manuscript/manuscript.md:30; Table 1 -->
-
 
 
 ## Structural encoding
 
 Translated ORFs were encoded with ModernProst (`gbouras13/modernprost-50M`) [@modernprost]. This multitask protein language model predicts two per-residue structural alphabets directly from the amino-acid sequence, with no structure or alignment as input:
 - the 20-state Foldseek 3Di alphabet [@Van_Kempen2024-il];
-- a 12-state alphabet.
+- a 12-state alphabet designed to maximise mutual information with the 3Di alphabet.
 
 We used model revision `2d68d506d4ce8d59025c985fd00243a8860363c6` (Table 1). Sequences were encoded in batches of up to a fixed number of residues, the *encoding size*. Because ModernProst predicts structural states from sequence alone, it assigns confident 3Di states to any protein-like sequence.
 
@@ -92,7 +91,7 @@ For each ORF, Shannon entropy was computed in bits from the observed symbol freq
 
 $$H(X) = -\sum_{i} p_i \log_2 p_i ,$$
 
-where $p_i$ is the fraction of positions in the ORF that carry symbol $i$. This was done separately for the nucleotide sequence (4 symbols), the amino-acid sequence (20 standard residues; the GTDB analyses also counted `X` as a symbol), the 3Di string (20) and the 12-state string (12). The maxima are therefore $\log_2 4 = 2$, $\log_2 20 \approx 4.32$, $\log_2 20$ and $\log_2 12 \approx 3.58$ bits.
+where $p_i$ is the fraction of positions in the ORF that carry symbol $i$. This was done separately for the nucleotide sequence (4 symbols), the amino-acid sequence (20 standard residues; the GTDB analyses also counted `X` as a symbol), the 3Di string (20) and the 12-state string (12). The maxima are therefore $\log_2 4 = 2$, $\log_2 20 \approx 4.32$, $\log_2 20$ and $\log_2 12 \approx 3.58$ bits, respectively.
 
 The per-ORF mutual information between the aligned 3Di and 12-state strings was computed from their joint frequencies:
 
@@ -100,7 +99,7 @@ $$I(\mathrm{3Di};\,\mathrm{12st}) = \sum_{a,b} p(a,b)\,\log_2 \frac{p(a,b)}{p(a)
 <!-- src: src/genome_entropy/entropy/shannon.py shannon_entropy, mutual_information -->
 
 Two properties of these estimators shape the analyses below.
-- **Length bias.** The estimators are biased downwards by an amount that shrinks with sequence length. Part of any rise of entropy with ORF length is therefore estimation bias, not biology. We quantify this against an i.i.d. reference and an empirical length-conditioned reference (Fig. S1, S2), and control for length in every comparison.
+- **Length bias.** The estimators are biased downwards by an amount that shrinks with sequence length. Part of any rise of entropy with ORF length is therefore estimation bias, not biology. We quantify this against an independent and identically distributed (i.i.d.) reference and an empirical length-conditioned reference (Fig. S1, S2), and control for length in every comparison.
 - **The log₂k ceiling.** A string that uses only $k$ symbols has entropy of at most $\log_2 k$ bits. An ORF whose predicted 3Di uses two or three states therefore has 3Di entropy of at most 1 or $\log_2 3 \approx 1.585$ bits, whatever its length.
 
 ## Statistics
@@ -115,7 +114,7 @@ Dataset-specific estimands are described under each dataset:
 - grouped cross-validation (LOGAN, phage);
 - binned mutual information with permutation nulls (phage).
 
-Analyses used Python 3.12 with NumPy, pandas, SciPy, scikit-learn and XGBoost. The exact versions for each dataset are recorded in its analysis directory.
+Analyses used Python 3.12 with NumPy, pandas, SciPy, scikit-learn and XGBoost. 
 
 ## GTDB r232 reference genomes
 
@@ -123,7 +122,7 @@ Analyses used Python 3.12 with NumPy, pandas, SciPy, scikit-learn and XGBoost. T
 
 We analysed the species representatives of GTDB release 232 (R11-RS232) [@Parks2022-eo; @Parks2026-rp]: 189,801 bacterial and 10,122 archaeal genomes. <!-- src: GR:3; GR §2 --> GenBank records were downloaded with NCBI `datasets` 18.36.0 [@O-Leary2024-nb]. Forty-seven bacterial assemblies were no longer served and 39 failed to encode (below). That left 189,715 bacterial genomes with 2,568,244,984 ORFs and 10,122 archaeal genomes with 54,858,398 ORFs. <!-- src: GR §2, §3 -->
 
-Counted directly from the GenBank records, 92,840 bacterial (48.9%) and 4,630 archaeal (45.7%) genomes carry no deposited CDS. <!-- src: GR §2; GR §6 table --> Almost all are metagenome-assembled genomes (91,610 of 92,840 in bacteria; 4,592 of 4,630 in archaea) that were deposited in GenBank without annotation and never added to RefSeq; every RefSeq representative we processed is annotated. <!-- src: work/review_facts/answers.md §1 (ncbi_genome_category, ncbi_refseq_category); agent-handoffs#35 (over all 189,801 r232 bacterial representatives, 22 RefSeq are unannotated) --> Their ORFs are not low-3Di noise: 19.1% (bacteria) and 28.3% (archaea) reach 3Di ≥ 2.5 bits, against 0.83% and 1.25% of unmatched ORFs in annotated genomes, so they hold many gene-like ORFs with no label. <!-- src: GR §4; GR §6 "The entropy-matched intergenic arm" --> We therefore excluded these genomes from the analysis, leaving 96,875 bacterial and 5,492 archaeal genomes. <!-- src: GR §4; figGS03 caption -->
+Counted directly from the GenBank records, 92,840 bacterial (48.9%) and 4,630 archaeal (45.7%) genomes carry no deposited CDS. <!-- src: GR §2; GR §6 table --> Almost all are metagenome-assembled genomes (91,610 of 92,840 in bacteria; 4,592 of 4,630 in archaea) that were deposited in GenBank without annotation and never added to RefSeq; every RefSeq representative we processed is annotated. <!-- src: work/review_facts/answers.md §1 (ncbi_genome_category, ncbi_refseq_category); agent-handoffs#35 (over all 189,801 r232 bacterial representatives, 22 RefSeq are unannotated) --> Because we aimed to compare information theory between protein-encoding genes and other open reading frames, we excluded these unannotated genomes from the analysis, leaving 96,875 bacterial and 5,492 archaeal genomes. <!-- src: GR §4; figGS03 caption -->
 
 `genome_entropy` enumerated ORFs stop to stop in all six frames with a 30-aa minimum, so every GTDB statistic is over ORFs of at least 90 aa. <!-- src: GR §3 (GR:135–141); MP §1 -->
 
@@ -133,7 +132,7 @@ ORFs were labelled *matched* or *unmatched* against the deposited CDS. The algor
 
 ORFs were encoded with `genome_entropy` 0.2.0 (commit `90c8c15`, output schema 2.2.0). <!-- src: MP §2, §4 item 2 --> The encoder was ModernProst (`gbouras13/modernprost-50M`, revision 2d68d506) [@modernprost]. It predicts 20-state 3Di [@Van_Kempen2024-il] and a 12-state alphabet from sequence alone. <!-- src: MP §1; GR:4 --> Encoding ran on NVIDIA V100-SXM2-32GB GPUs (NCI Gadi), with an encoding size of 10,000 and four processes per GPU (Table 1). <!-- src: GR §3; MP §2 --> Thirty-nine genomes (0.021%) failed with out-of-memory errors on pathological ORF calls of roughly 48,000–766,000 aa. 
 
-Entropies and MI are as defined under *Entropy features*, except that protein entropy counted `X` as a 21st symbol. <!-- src: figG01 caption "Definitions"; GR §4.2 ("The protein alphabet is 21 symbols") --> Population statistics were streamed over every ORF row. Counts and means are exact, while medians and quartiles come from histograms with 10⁻⁴-bit bins. <!-- src: GR §4.1 --> Fig. 1a–c and Fig. S2 use a systematic sample of every 300th bacterial and every 30th archaeal row (4,893,192 and 1,138,714 ORFs after exclusion). <!-- src: GR §4 "Figures" -->
+Entropies and MI are as defined under *Entropy features*, except that protein entropy counted `X` as a 21st symbol. <!-- src: figG01 caption "Definitions"; GR §4.2 ("The protein alphabet is 21 symbols") --> Population statistics were streamed over every ORF row. Counts and means are exact, while medians and quartiles come from histograms with 10⁻⁴-bit bins. <!-- src: GR §4.1 --> Fig. 1a–c and Fig. S2 use a systematic sample of every 300th bacterial and every 30th archaeal row (4,893,192 and 1,138,714 ORFs after exclusion). <!-- src: GR §4 "Figures" --> <!-- AGENT: check all figure numbers compared to the actual figures -->
 
 **Length references.** To separate estimator bias from biology, we built two references: <!-- src: GR §4.2 -->
 - **independent, and identically distributed (i.i.d.):** the entropy of 400,000 multinomial draws at each of 671 lengths, using each domain's pooled residue composition (351 genomes);
