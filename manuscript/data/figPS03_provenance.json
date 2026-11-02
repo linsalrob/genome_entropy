@@ -1,0 +1,96 @@
+{
+ "seed": 0,
+ "phage_jackknife_groups": 200,
+ "bacterial_jackknife_groups": 760,
+ "state_chunks": [
+  "bac_012.tar.zst",
+  "bac_030.tar.zst",
+  "bac_056.tar.zst",
+  "bac_133.tar.zst",
+  "bac_203.tar.zst",
+  "bac_232.tar.zst",
+  "bac_384.tar.zst",
+  "bac_478.tar.zst",
+  "bac_618.tar.zst",
+  "bac_638.tar.zst"
+ ],
+ "histogram_bin_bits": 0.01,
+ "exact_length_range": [
+  90,
+  999
+ ],
+ "support_min_n": 5,
+ "sets": {
+  "all": {
+   "phage_covc": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "phage_trunc": [
+    0,
+    1
+   ],
+   "bacteria_covc": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "bacteria_trunc": [
+    0,
+    1
+   ]
+  },
+  "phage_cov80": {
+   "phage_covc": [
+    3
+   ],
+   "phage_trunc": [
+    0,
+    1
+   ],
+   "bacteria_covc": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "bacteria_trunc": [
+    0,
+    1
+   ]
+  },
+  "both_cov80": {
+   "phage_covc": [
+    3
+   ],
+   "phage_trunc": [
+    0,
+    1
+   ],
+   "bacteria_covc": [
+    3
+   ],
+   "bacteria_trunc": [
+    0,
+    1
+   ]
+  },
+  "both_cov80_untrunc": {
+   "phage_covc": [
+    3
+   ],
+   "phage_trunc": [
+    0
+   ],
+   "bacteria_covc": [
+    3
+   ],
+   "bacteria_trunc": [
+    0
+   ]
+  }
+ }
+}
