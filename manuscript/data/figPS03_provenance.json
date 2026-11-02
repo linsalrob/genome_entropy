@@ -1,0 +1,61 @@
+{
+ "inputs": {
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_000.tsv.gz": "18da7b9be200b9711b71dcceb3a826537eca3e66766db9af97ffabceb8495ed9",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_001.tsv.gz": "530a95c1ee99d97c59cab75d380763cb371a93dc39781c00af119f29ee218e11",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_002.tsv.gz": "98c81caf40c4b03aad102463272d49aeb1e95db7639cb1af4f608386092c0200",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_003.tsv.gz": "529ccbd6fa20540609b6556ab808ca4b8303e8f110f018c424ad78ee2758d3f3",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_004.tsv.gz": "e2a411cf55835236e55cc515c4c0ff5850228b1e1ff2526e43dbd411e852c8d8",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_005.tsv.gz": "bd48cbacff38b43d6f21ecd1f2e58102376310f14bce09cfe891c02f9a8a2dc5",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_006.tsv.gz": "048cfaf55deef192f79ce56c7dbb9dfa44eefe367b7a62c36a78263dcbeb0f1c",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_007.tsv.gz": "ba79c9820d7e219c47a0d32ecc499aba0fbab3ea8197871198496fa7afc62fa6",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_008.tsv.gz": "4d21876143389c9606cfc533be7178247a24a07337c7e9a6d8ff4fd3cf51b468",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_length_gap/gadi_phg/phg_009.tsv.gz": "77818ebf757b74043fcc26d16f7c35187dd341d36c15fd145bcdf6ff1d59d78a",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/tables/orfs.parquet": "8c2a20fcf120926636136c2d507464e5b6727f8ec85af0fbe1cad6fae2dbbdb6",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/tables/labels.parquet": "4f155f8dc6a9e55b3721c09e721f5fd678f101411155ab2bd37d705812540af1",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/tables/cds.parquet": "1721c80a2719fca25c90639ff319da2111695247aad595c9b12c1ecdf7c65909",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/tables/seqs.parquet": "41e8071dbd376714e652fb391ef70706294b27d065e07337709a6ef937a9252c",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/groups/groups_ani95.tsv": "3cd830f3e508c820e06dd106073382e6da05d8e12d69c3f8e5c85c3098c5649f",
+  "/scratch/pawsey1018/edwa0468/genome_entropy/wt/ms-round2/manuscript/data/figP04_gtdb_length_3di.tsv.gz": "28314b40a9fd226425924d4453d9d94f4fe7325e4cec2c661182cd0e32c06769"
+ },
+ "outputs": {
+  "figPS03_phage_length_3di.tsv.gz": {
+   "rows": 3640,
+   "sha256": "29ff2d050823de09ed655bba5f8539b0ed727448727b513bed0383d3ee4117b6"
+  },
+  "figPS03_length_dist.tsv.gz": {
+   "rows": 910,
+   "sha256": "4040f22de96442212837b04efc955b16eb2a9bafb1e52d5a4fc6012bbaa9d621"
+  },
+  "figPS03_gap_by_bin.tsv.gz": {
+   "rows": 100,
+   "sha256": "facc801cd4f0044356de5e643ee5300b1febbfde19a7ad93d395ac8842e060cd"
+  },
+  "figPS03_percentiles.tsv.gz": {
+   "rows": 60,
+   "sha256": "d07b546b5cd5d61e6053be9e1e2c019a3431841977844e0c2a90ace5dc034cf4"
+  }
+ },
+ "parameters": {
+  "min_n": 10,
+  "bootstrap": 1000,
+  "seed": 20261102,
+  "bootstrap_unit": "skani 95 % ANI cluster"
+ },
+ "join": {
+  "gadi_rows": 6754361,
+  "joined": 6754361
+ },
+ "label_agreement": {
+  "both": 2685268,
+  "gadi_only": 114,
+  "setonix_only": 0
+ },
+ "positives": 2685382,
+ "positives_without_cds_at_stop": 9411,
+ "class_n": {
+  "all": 2641487,
+  "cov80": 2212627,
+  "complete": 2636675,
+  "cov80_complete": 2211817
+ }
+}
