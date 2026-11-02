@@ -1,0 +1,8 @@
+arm	Archaea	Bacteria	Eukaryota	Viruses	unknown
+annotated	0.0001	0.0032	0.0019	0.6809	0.3139
+antisense_lo	0.0000	0.0741	0.2222	0.4815	0.2222
+candidate	0.0018	0.0160	0.0200	0.6655	0.2967
+frameshift_lo	0.0000	0.0000	0.0161	0.4516	0.5323
+intergenic_lo	0.0000	0.0055	0.0000	0.3908	0.6037
+replaced	0.0000	0.0009	0.0009	0.4679	0.5303
+replacement	0.0000	0.0299	0.0130	0.6571	0.3000

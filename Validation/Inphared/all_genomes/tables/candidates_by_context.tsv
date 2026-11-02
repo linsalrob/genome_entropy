@@ -1,0 +1,7 @@
+context	clean_genomes	genomes_with_nonACGT	all
+antisense	24858	1040	25898
+frameshift	16265	612	16877
+intergenic	4521	167	4688
+same_frame	1009	72	1081
+same_stop	3231	233	3464
+all	49884	2124	52008

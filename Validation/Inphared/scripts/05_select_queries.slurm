@@ -18,8 +18,10 @@ source "${PHAGE_REPO:?set PHAGE_REPO to the checkout}/Validation/Inphared/script
 fs="${1:-intrinsic}"
 D="$PHAGE_WORK/foldseek_$fs"
 mkdir -p "$D/search"
+orig=()   # the original run's comparison arms exist only for the 31,200-genome ORF set
+[[ -d "$PHAGE_WORK/rank_orfs_orig" ]] && orig=(--orig "$PHAGE_WORK/rank_orfs_orig")
 python "$PHAGE_SCRIPTS/05_select_queries.py" --tables "$PHAGE_WORK/tables" \
-    --rank "$PHAGE_WORK/rank_orfs_relabelled_$fs" --orig "$PHAGE_WORK/rank_orfs_orig" --out "$D"
+    --rank "$PHAGE_WORK/rank_orfs_relabelled_$fs" "${orig[@]}" --out "$D"
 B="$PHAGE_REPO/Validation/gtdb/scripts/15_build_query_db.py"
 python "$B" --aa "$D/queries.aa.fasta" --3di "$D/queries.3di.fasta" --db-dir "$D/search" --prefix qdb \
     --foldseek "$FSENV/bin/foldseek"

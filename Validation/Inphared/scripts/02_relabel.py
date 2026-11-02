@@ -26,6 +26,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import sys
 from collections import defaultdict
@@ -45,7 +46,9 @@ def process(job):
     by_parent = defaultdict(list)
     for cds in extract_cds_features(gbk_path):
         by_parent[cds.parent_id].append(cds)
-    data = json.load(open(json_path))
+    with (gzip.open(json_path, "rt") if json_path.suffix == ".gz" else open(json_path)) as fh:
+        data = json.load(fh)
+    part = json_path.name.removesuffix(".gz").removesuffix(".json")
     rows = []
     for rec in data:
         feats = rec.get("features")
@@ -62,7 +65,7 @@ def process(job):
                             has_stop_codon=bool(md["has_stop_codon"]))
             same = [c for c in cds_list if c.strand == orf.strand]
             new = bool(match_orf_to_genbank_cds(orf, same)) if same else False
-            rows.append((json_path.stem, iid, oid, orf.strand, bool(md["in_genbank"]), new))
+            rows.append((part, iid, oid, orf.strand, bool(md["in_genbank"]), new))
             md["in_genbank"] = new
     with open(out_json, "w") as fh:
         json.dump(data, fh)
@@ -79,7 +82,10 @@ def main() -> int:
     ap.add_argument("--threads", type=int, default=8)
     a = ap.parse_args()
     a.out_json.mkdir(parents=True, exist_ok=True)
-    jobs = [(j, a.gbk_dir / f"{j.stem}.gbk.gz", a.out_json / j.name) for j in sorted(a.json_dir.glob("*.json"))]
+    jobs = []
+    for j in sorted([*a.json_dir.glob("*.json"), *a.json_dir.glob("*.json.gz")]):
+        part = j.name.removesuffix(".gz").removesuffix(".json")
+        jobs.append((j, a.gbk_dir / f"{part}.gbk.gz", a.out_json / f"{part}.json"))
     parts, n_cds = [], 0
     with Pool(a.threads) as pool:
         for df, nc in pool.imap(process, jobs):

@@ -1,0 +1,20 @@
+{
+ "figPS02_atu_ph07_cds.tsv.gz": {
+  "rows": 826,
+  "sources": {
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/case_study/NC_042013_cds.tsv": "f58a6f7340c3805f7c7d4f10ca8b9a358004e795996e4368651bb5e7969c5247"
+  }
+ },
+ "figPS02_atu_ph07_orfs.tsv.gz": {
+  "rows": 1168,
+  "sources": {
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/case_study/NC_042013_orfs.tsv": "415c2897e59a070f6db1d87695d45e98efd0e8899f5d5e0e250c84ddb2809b9b"
+  }
+ },
+ "figPS02_atu_ph07_hits.tsv.gz": {
+  "rows": 9,
+  "sources": {
+   "/scratch/pawsey1018/edwa0468/genome_entropy/work/phage_rank_all/case_study/NC_042013_foldseek.m8": "080dc83c8e54ce9eed59b36e22b9df2760afe7df21e9f5c1046a8e44f38187de"
+  }
+ }
+}

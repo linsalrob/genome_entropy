@@ -1,0 +1,45 @@
+set	precision_target	threshold	recall	unannotated_above	cv_grouping
+orig14	0.8	0.19065	0.96305	646513	genome
+orig14	0.9	0.34360	0.92080	274729	genome
+orig14	0.95	0.61971	0.87013	122973	genome
+orig14	p>=0.8	0.80000	0.78484	50628	genome
+no_coord	0.8	0.19168	0.96330	646678	genome
+no_coord	0.9	0.34568	0.92157	274962	genome
+no_coord	0.95	0.61540	0.87058	123039	genome
+no_coord	p>=0.8	0.80000	0.78473	51402	genome
+intrinsic	0.8	0.19286	0.95896	643766	genome
+intrinsic	0.9	0.34637	0.91746	273736	genome
+intrinsic	0.95	0.60452	0.86655	122469	genome
+intrinsic	p>=0.8	0.80000	0.78248	52094	genome
+length_only	0.8	0.70540	0.21460	144030	genome
+length_only	0.9	0.82056	0.05332	15897	genome
+length_only	0.95			0	genome
+length_only	p>=0.8	0.80000	0.09467	36627	genome
+length_3di	0.8	0.25223	0.91694	615518	genome
+length_3di	0.9	0.50421	0.84422	251880	genome
+length_3di	0.95	0.71627	0.76014	107429	genome
+length_3di	p>=0.8	0.80000	0.70428	65449	genome
+length_entropies	0.8	0.19367	0.95822	643269	genome
+length_entropies	0.9	0.34641	0.91710	273628	genome
+length_entropies	0.95	0.60771	0.86579	122362	genome
+length_entropies	p>=0.8	0.80000	0.78490	53304	genome
+entropy_only	0.8	0.19593	0.95554	641468	genome
+entropy_only	0.9	0.37719	0.91161	271990	genome
+entropy_only	0.95	0.63851	0.85195	120405	genome
+entropy_only	p>=0.8	0.80000	0.77614	58188	genome
+intrinsic	0.8	0.19287	0.95636	642007	ani95
+intrinsic	0.9	0.35533	0.91303	272413	ani95
+intrinsic	0.95	0.62016	0.85903	121391	ani95
+intrinsic	p>=0.8	0.80000	0.77909	54829	ani95
+length_only	0.8	0.70762	0.20393	136804	ani95
+length_only	0.9	0.82689	0.04820	14129	ani95
+length_only	0.95			0	ani95
+length_only	p>=0.8	0.80000	0.09055	35664	ani95
+intrinsic	0.8	0.19281	0.95622	641919	genus
+intrinsic	0.9	0.35278	0.91301	272406	genus
+intrinsic	0.95	0.61828	0.85887	121384	genus
+intrinsic	p>=0.8	0.80000	0.77810	54948	genus
+length_only	0.8	0.70599	0.20416	136514	genus
+length_only	0.9	0.82101	0.04799	13883	genus
+length_only	0.95			0	genus
+length_only	p>=0.8	0.80000	0.09605	37810	genus

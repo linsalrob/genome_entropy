@@ -1,0 +1,11 @@
+table4_row	genome	input_id	orf_id	best_product	swissprot_target	struct_fident	struct_qcov	struct_tcov	struct_evalue	seq_fident	seq_full_length	structure_only
+1	GCA_900230115.1	LT907983.1	orf2487	TonB-dependent receptor SusC	AF-Q8A1G1-F1-model_v6	0.424	0.965	0.902	2.691e-95	0.273	True	False
+2	GCA_035656275.1	DASRSW010000044.1	orf6	Proline iminopeptidase	AF-C7TMK0-F1-model_v6	0.25	0.884	0.99	3.0700000000000005e-26		False	True
+3	GCA_006738865.1	AP019701.1	orf1415	DNA replication and repair protein RecF	AF-Q252K0-F1-model_v6	0.109	0.901	0.989	4.005e-08		False	True
+4	GCA_902825215.1	LR782234.1	orf2236	SPbeta prophage-derived uncharacterized protein YotB	AF-O34642-F1-model_v6	0.22	0.939	0.891	2.065e-14		False	True
+5	GCA_000961845.1	LADZ01000044.1	orf13	Probable hemoglobin and hemoglobin-haptoglobin-binding protein 3	AF-P44836-F1-model_v6	0.103	0.901	0.957	5.813999999999999e-29		False	True
+6	GCA_900635495.1	LR134136.1	orf5984	Long-chain-fatty-acid--CoA ligase	AF-P63522-F1-model_v6	0.895	1.0	0.971	0.0	0.989	True	False
+7	GCA_002898535.1	BEHN01000002.1	orf774	Lanthanide-dependent methanol dehydrogenase	AF-I0JWN7-F1-model_v6	0.716	0.967	1.0	8.456999999999999e-94	0.693	True	False
+8	GCA_049515795.1	JBEKTT010000008.1	orf10	CRISPR-associated protein Cas5	AF-Q07766-F1-model_v6	0.314	0.889	0.93	3.254e-11		False	True
+9	GCA_000156115.1	DS995276.1	orf6349	HTH-type transcriptional regulator IscR	AF-Q3J0R9-F1-model_v6	0.746	0.95	0.994	4.743e-19	0.663	True	False
+10	GCA_001552015.1	CP010514.1	orf419	DNA-directed RNA polymerase subunit Rpo3	AF-B0R4Y2-F1-model_v6	0.269	1.0	0.984	7.722e-23		False	True

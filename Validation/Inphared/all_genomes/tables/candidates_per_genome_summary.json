@@ -1,0 +1,19 @@
+{
+ "candidates_p08": 52008,
+ "searched_context_candidates": 47463,
+ "pieces_of_annotated_genes": 4545,
+ "candidates_in_genomes_with_nonACGT": 2124,
+ "genomes_with_nonACGT": 1311,
+ "genomes": 36025,
+ "genomes_with_candidates": 21076,
+ "genomes_without": 14949,
+ "median_per_genome": 1.0,
+ "p90_per_genome": 3.0,
+ "max_per_genome": 28,
+ "max_genome": "NC_042013",
+ "median_per_genome_with_any": 2.0,
+ "median_per_10kb": 0.14819205690574985,
+ "p90_per_10kb": 0.5450780068685659,
+ "spearman_genome_length_vs_count": 0.5015369651569392,
+ "median_candidate_aa": 133.0
+}

@@ -16,12 +16,16 @@
 # Queries carry no C-alpha, hence --sort-by-structure-bits 0.
 # Reductions per query: best/ (best by bits), fullcov/ (best with qcov>=0.8
 # and tcov>=0.8). theader is kept for exemplar descriptions.
-#   sbatch --array=1-4 06_foldseek_search.slurm dbs.txt intrinsic
+#   sbatch --array=1-5 06_foldseek_search.slurm dbs.txt intrinsic
 set -euo pipefail
 source "${PHAGE_REPO:?set PHAGE_REPO to the checkout}/Validation/Inphared/scripts/env.sh"
 conda activate "$FSENV"
 EVALUE="${EVALUE:-0.001}"
-db=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "$1")
+# A DB-list line is a name under $FSDB, or name=/path/to/db for a database kept elsewhere (phold).
+line=$(sed -n "${SLURM_ARRAY_TASK_ID}p" "$1")
+db="${line%%=*}"
+dbpath="$FSDB/$db"
+[[ "$line" == *=* ]] && dbpath="${line#*=}"
 fs="${2:-intrinsic}"
 S="$PHAGE_WORK/foldseek_$fs/search"
 TMP="$PHAGE_WORK/tmp/fs_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
@@ -33,13 +37,20 @@ run() {   # qdb tag mode
     [[ -s "$out" && -s "$S/best/$tag.$db.$mode.m8" ]] && { echo "$tag $db $mode done"; return; }
     local res="$TMP/res_${tag}_${mode}"
     if [[ "$mode" == struct ]]; then
-        foldseek search "$q" "$FSDB/$db" "$res" "$TMP/w" --alignment-type 2 --sort-by-structure-bits 0 \
+        foldseek search "$q" "$dbpath" "$res" "$TMP/w" --alignment-type 2 --sort-by-structure-bits 0 \
             -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1
     else
-        foldseek base:search "$q" "$FSDB/$db" "$res" "$TMP/w" -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1
+        foldseek base:search "$q" "$dbpath" "$res" "$TMP/w" -e "$EVALUE" --threads "$SLURM_CPUS_PER_TASK" -v 1
     fi
-    foldseek convertalis "$q" "$FSDB/$db" "$res" "$out.partial" --format-output "$FIELDS" \
-        --threads "$SLURM_CPUS_PER_TASK" -v 1
+    if [[ -e "${dbpath}_taxonomy" ]]; then
+        foldseek convertalis "$q" "$dbpath" "$res" "$out.partial" --format-output "$FIELDS" \
+            --threads "$SLURM_CPUS_PER_TASK" -v 1
+    else   # no taxonomy (phold): convertalis refuses taxid/taxname, so fill them as 0 / unknown
+        foldseek convertalis "$q" "$dbpath" "$res" "$out.notax" --format-output "${FIELDS/,taxid,taxname/}" \
+            --threads "$SLURM_CPUS_PER_TASK" -v 1
+        awk 'BEGIN{FS=OFS="\t"} {th=$11; $11="0"; $12="unknown"; $13=th; print}' "$out.notax" > "$out.partial"
+        rm -f "$out.notax"
+    fi
     mv "$out.partial" "$out"
     awk -F'\t' '{ if (!($1 in b) || $10+0 > b[$1]) { b[$1]=$10+0; l[$1]=$0 } } END { for (q in l) print l[q] }' \
         "$out" > "$S/best/$tag.$db.$mode.m8"
