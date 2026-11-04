@@ -106,17 +106,19 @@ def normalise(d):
 
 
 def prep_cds(cds):
-    """Collapse CDS parts to feature-level lengths/stops when cds_id is available."""
-    c = cds.copy()
-    if "cds_id" in c.columns:
-        c = c.assign(part_len=c.end - c.start)
-        c = c.groupby(["input_id", "strand", "cds_id"], as_index=False).agg(
-            start=("start", "min"), end=("end", "max"), cl=("part_len", "sum")
-        )
-    else:
-        c = c.assign(cl=c.end - c.start)
-    c["stop"] = np.where(c.strand == "+", c.end, c.start)
-    return c
+    """GTDB CDS parts -> one row per feature: input_id, strand, stop, cl (nt, summed over parts).
+
+    cds_intervals.py writes one row per contiguous part, consecutively and in Biopython's
+    biological order, so the last part of a feature holds its stop codon. A feature is a run
+    of consecutive rows with the same (contig, cds_id): IDs need not be unique, and min/max
+    over the parts would put the stop of an origin-crossing CDS at the record end.
+    """
+    new = (cds.input_id != cds.input_id.shift()) | (cds.cds_id != cds.cds_id.shift())
+    c = cds.assign(feat=new.cumsum(), cl=cds.end - cds.start)
+    f = c.groupby("feat", sort=False).agg(input_id=("input_id", "last"), strand=("strand", "last"),
+                                         start=("start", "last"), end=("end", "last"), cl=("cl", "sum"))
+    f["stop"] = np.where(f.strand == "+", f.end, f.start)
+    return f[["input_id", "strand", "stop", "cl"]].reset_index(drop=True)
 
 
 def cover(pos, cds):
@@ -163,7 +165,7 @@ def stage_bac(a):
         n_rows = len(d)
         d = normalise(d[d.in_genbank == "True"].copy())
         c = pd.read_csv(GD / "cds_intervals" / "bac" / f"{ch}.tsv", sep="\t",
-                        usecols=lambda x: x in {"contig", "start", "end", "strand", "cds_id"},
+                        usecols=["contig", "start", "end", "strand", "cds_id"],
                         dtype={"contig": str})
         c = prep_cds(c.rename(columns={"contig": "input_id"}))
         cl_aa = np.maximum(c.cl.to_numpy().astype(np.int64) // 3 - 1, 0)
@@ -197,6 +199,7 @@ def stage_bac(a):
 
 # ------------------------------------------------------------------ phage
 CDS_RE = re.compile(r"^     CDS             (.+)$")
+PART_RE = re.compile(r"<?(\d+)\.\.>?(\d+)")
 
 
 def phage_cds():
@@ -212,10 +215,16 @@ def phage_cds():
             m = CDS_RE.match(line)
             if m:
                 s = m.group(1)
-                nums = [int(x) for x in re.findall(r"\d+", s)]
-                rows.append((loc, min(nums) - 1, max(nums), "-" if "complement" in s else "+",
-                             "join" in s or "order" in s, "<" in s or ">" in s))
-    return pd.DataFrame(rows, columns=["input_id", "start", "end", "strand", "joined", "partial"])
+                # parts in biological order (complement(join(a,b)) runs b then a, as in Biopython);
+                # the last part holds the stop, and min..max would make an origin-crossing CDS
+                # span the whole record
+                parts = [(int(a) - 1, int(b)) for a, b in PART_RE.findall(s)]
+                if s.startswith("complement("):
+                    parts = parts[::-1]
+                strand = "-" if "complement" in s else "+"
+                rows.append((loc, strand, parts[-1][1] if strand == "+" else parts[-1][0],
+                             sum(b - a for a, b in parts), len(parts) > 1, "<" in s or ">" in s))
+    return pd.DataFrame(rows, columns=["input_id", "strand", "stop", "cl", "joined", "partial"])
 
 
 def stage_phage(a):
@@ -232,7 +241,6 @@ def stage_phage(a):
     print(f"  phage CDS {len(c):,} (joined {int(c.joined.sum())}, partial {int(c.partial.sum())})",
           flush=True)
     d = normalise(d[d.in_genbank == "True"].copy())
-    c = prep_cds(c[["input_id", "start", "end", "strand"]])
     m = cover(d[["genome", "input_id", "orf_id", "strand", "stop", "g_start", "g_end",
                  "aa_length", "three_di_entropy", "trunc"]], c[["input_id", "strand", "stop", "cl"]])
     genomes = np.sort(m.genome.unique())
@@ -241,7 +249,7 @@ def stage_phage(a):
     m["grp"] = grp.loc[m.genome].to_numpy().astype(np.int16)
     WORK.mkdir(parents=True, exist_ok=True)
     m.drop(columns=["stop"]).to_parquet(WORK / "phage_pos.parquet", index=False)
-    c.assign(aa=(c.end - c.start) // 3 - 1).to_parquet(WORK / "phage_cds.parquet", index=False)
+    c.assign(aa=c.cl // 3 - 1).to_parquet(WORK / "phage_cds.parquet", index=False)
     print(f"  phage positives {len(m):,}; stop-sharing CDS {(m.covc > 0).mean():.4f}; "
           f"genomes {len(genomes):,}", flush=True)
 
@@ -301,7 +309,7 @@ def stage_states(a):
                             dtype={"in_genbank": str, "genome": str, "input_id": str})
             d = normalise(d[d.in_genbank == "True"].copy())
             c = pd.read_csv(GD / "cds_intervals" / "bac" / f"{name}.tsv", sep="\t",
-                            usecols=lambda x: x in {"contig", "start", "end", "strand", "cds_id"},
+                            usecols=["contig", "start", "end", "strand", "cds_id"],
                             dtype={"contig": str})
             c = prep_cds(c.rename(columns={"contig": "input_id"}))
             meta = cover(d[["genome", "input_id", "orf_id", "strand", "stop", "g_start", "g_end",
@@ -332,21 +340,13 @@ def load_bac():
     hz = [np.load(p) for p in sorted(WORK.glob("bac_hist_*.npz"))]
     if sums.chunk.nunique() != 760:
         sys.exit(f"bac sums cover {sums.chunk.nunique()} chunks, expected 760")
-    if "s_aa" not in sums.columns:
-        sums["s_aa"] = (sums.li.to_numpy() + LMIN) * sums.n.to_numpy()
+    if "s_aa" not in sums.columns or any("cds_all_sum" not in z.files for z in hz):
+        sys.exit("bac work files predate the uncapped length sums; rerun the bac stage")
     hist = sum(z["hist"] for z in hz)
     cds_all = sum(z["cds_all"] for z in hz)
     cds_pos = sum(z["cds_pos"] for z in hz)
-    cds_all_sum = sum(
-        int(z["cds_all_sum"]) if "cds_all_sum" in z.files
-        else int((np.arange(len(z["cds_all"])) * z["cds_all"]).sum())
-        for z in hz
-    )
-    cds_pos_sum = sum(
-        int(z["cds_pos_sum"]) if "cds_pos_sum" in z.files
-        else int((np.arange(len(z["cds_pos"])) * z["cds_pos"]).sum())
-        for z in hz
-    )
+    cds_all_sum = sum(int(z["cds_all_sum"]) for z in hz)
+    cds_pos_sum = sum(int(z["cds_pos_sum"]) for z in hz)
     return sums, hist, cds_all, cds_pos, cds_all_sum, cds_pos_sum
 
 
