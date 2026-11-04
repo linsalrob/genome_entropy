@@ -1,0 +1,35 @@
+# ROADS deposit: items and DOIs
+
+The data packages proposed in [`roads_deposition_candidates.md`](roads_deposition_candidates.md) are deposited in Flinders ROADS (figshare), in the private project **"genome_entropy: structural entropy of open reading frames"** (project 284049, created 2026-11-02).
+
+> **Status: every item is an unpublished draft.** The DOIs below are *reserved*, so they will not resolve until each item is published. Publish from ROADS (or `POST /account/articles/{id}/publish`) after reviewing the metadata. The library may review items before they go public.
+
+## Items
+
+| ID | Document | Description | DOI | Upload status |
+|---|---|---|---|---|
+| R1a-1 | GTDB r232 per-ORF sequence and structural entropy, bacteria part 1 of 4 (chunks bac_000–bac_199) | Per-ORF entropies for every six-frame ORF ≥90 aa of GTDB r232 bacterial representatives, chunks 000–199. 200 gzip TSV files, 39.3 GB. | [10.25451/flinders.34881660](https://doi.org/10.25451/flinders.34881660) | uploading |
+| R1a-2 | GTDB r232 per-ORF sequence and structural entropy, bacteria part 2 of 4 (chunks bac_200–bac_399) | As R1a-1, chunks 200–399. 200 files, 39.4 GB. | [10.25451/flinders.34881663](https://doi.org/10.25451/flinders.34881663) | uploading |
+| R1a-3 | GTDB r232 per-ORF sequence and structural entropy, bacteria part 3 of 4 (chunks bac_400–bac_599) | As R1a-1, chunks 400–599. 200 files, 39.5 GB. | [10.25451/flinders.34881666](https://doi.org/10.25451/flinders.34881666) | **not uploaded: exceeds quota** |
+| R1a-4 | GTDB r232 per-ORF sequence and structural entropy, bacteria part 4 of 4 (chunks bac_600–bac_759) | As R1a-1, chunks 600–759. 160 files, 31.4 GB. | [10.25451/flinders.34881669](https://doi.org/10.25451/flinders.34881669) | **not uploaded: exceeds quota** |
+| R1b | GTDB r232 per-ORF sequence and structural entropy, archaea, with per-genome summaries | Per-ORF entropies for the archaeal representatives (41 chunks), plus the per-genome summary, annotation-status and CDS-count tables for both domains. 47 files, 3.3 GB. | [10.25451/flinders.34881672](https://doi.org/10.25451/flinders.34881672) | uploading |
+| R2 | GTDB r232 missed-gene candidates: structural search, matched comparator (v7), Prodigal coincidence and ranking, with query sequences | Everything needed to recompute the missed-gene shares, evidence ladder, Prodigal share and the ~51–59k structural estimate without re-running Foldseek, plus amino-acid and 3Di FASTA for every query. Two archives (analysis; query sequences) from 5,695 files, 3.25 GB. | [10.25451/flinders.34881675](https://doi.org/10.25451/flinders.34881675) | uploading |
+| R3 | Length-conditioned reference distributions for plug-in entropy of ORFs (GTDB r232) | Empirical and i.i.d. entropy-by-length references for three alphabets and both domains, used by `32_entropy_percentile.py` (Figs G02, GS02). One archive of 111 files, 0.55 GB. | [10.25451/flinders.34881678](https://doi.org/10.25451/flinders.34881678) | uploaded (archive verified) |
+| R4a | Sequence and structural entropy of 43.7 M GMSC benchmark smORFs: entropy table, clusters and summary tables | Per-smORF nucleotide, amino-acid, 3Di and 12-state entropies, MMseqs2 clusters, stripes and manuscript tables (Figs S01, SS01, SS02). 24 files, 1.56 GB. | [10.25451/flinders.34881681](https://doi.org/10.25451/flinders.34881681) | uploading; **do not publish until GMSC terms are confirmed** |
+| R4b | 3Di and 12-state structural strings for 43.7 M GMSC benchmark smORFs | Per-chunk ModernProst 3Di and 12-state strings for the GMSC benchmark smORFs. 45 files, 4.52 GB. | [10.25451/flinders.34881684](https://doi.org/10.25451/flinders.34881684) | uploading; **do not publish until GMSC terms are confirmed** |
+| R5a | LOGAN metagenome accession selection and run provenance (89,994 chunk manifests) | Candidate pool, filter accounting, analysed accessions with final status, and the deterministic archive of all chunk manifests. 10 files, 0.54 GB. | [10.25451/flinders.34881687](https://doi.org/10.25451/flinders.34881687) | uploading |
+| R5b | LOGAN metagenome analysis summaries: inputs to every reported LOGAN statistic | Histograms, model and six-frame samples, scored candidates, separation and model tables, and the final classifier (figL01–L05, figLS1, tabL01–L04). One archive of 466 files, 2.41 GB. | [10.25451/flinders.34881690](https://doi.org/10.25451/flinders.34881690) | uploading |
+| R5c | LOGAN metagenome missed-gene evidence, with query sequences and contigs | Query sets and sequences, Foldseek best and full-length hits, evidence tables, query contigs with Prodigal rerun, Kraken2 taxonomy, and skip and low-score analyses (figL06–L10, tabL05–L09). One archive of 321 files, 1.07 GB. | [10.25451/flinders.34881693](https://doi.org/10.25451/flinders.34881693) | uploading |
+
+## Notes
+
+- **Quota.** The account quota is 250 GiB, of which 161.0 GB was already used, leaving 107.4 GB. Everything except R1a-3 and R1a-4 (70.9 GB together) fits. Those two items exist with reserved DOIs and full metadata. They can be uploaded without changes once the Library raises the quota, by running the same script with `stage R1a_3 R1a_4` and then `upload R1a_3 R1a_4`.
+- **Every item contains** a `README.md` and a `SHA256SUMS.txt`. The checksums are the manifest values from [`roads/`](roads/), with paths as uploaded, or as they appear inside the archive. The uploader re-hashes every file from R1 and R4 against the manifest before sending it. The R5 files are checked with `sha256sum -c` after they are copied from Teams (`genome_entropy:General/LOGAN`). Archives are deterministic GNU tar streams compressed with zstd. Each archive extracts into a directory named after the archive.
+- **Metadata.** Every item has:
+  - **author:** Robert Edwards (ORCID 0000-0001-8383-8949), with co-authors to be added in ROADS if wanted;
+  - **group:** Flinders University;
+  - **type:** dataset;
+  - **categories:** Bioinformatic methods development; Genomics and transcriptomics; Microbial genetics;
+  - **licence:** CC BY 4.0, the licence proposed in the candidates document. Change it before publishing if a different licence is chosen.
+- **R4 (GMSC).** Permission to redistribute per-sequence data derived from the GMSC benchmark is still unconfirmed (open item 2 in the candidates document). R4a and R4b are private drafts in our own storage. Do not publish them until the GMSC authors agree. Otherwise, delete them and deposit the aggregates from #124 instead.
+- **Tooling.** The deposit was made with `/scratch/ob80/re3494/roads_deposit/deposit.py`, run as `copyq` jobs 182879460 and 182879461. The item IDs and DOIs are in `state/`.
