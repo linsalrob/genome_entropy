@@ -216,14 +216,18 @@ def main():
     write(per_length(p, classes), "figPS03_phage_length_3di.tsv.gz")
 
     # length distributions: matched ORF length (3Di measured on it) and the CDS length behind each positive,
-    # plus every annotated CDS of >= 90 aa; bacterial ORF lengths come from the reference n column
-    L = pd.Index(np.arange(LMIN, LMAX + 1), name="aa_length")
+    # plus every annotated CDS; bacterial ORF lengths come from the reference n column. The index spans every
+    # observed length, so CDS shorter than 90 aa behind a 90-999-aa ORF (and CDS > 999 aa) keep their mass
+    L = pd.Index(np.arange(1, int(max(LMAX, p.aa_len.max(), c.aa_len.max())) + 1), name="aa_length")
+    PROV["cds_length"] = dict(matched_cds=int(p.aa_len.notna().sum()), matched_cds_below_90=int((p.aa_len < LMIN).sum()),
+                              matched_cds_min=int(p.aa_len.min()))
     dist = pd.DataFrame({
         "phage_matched_orf": p.aa_length.value_counts().reindex(L, fill_value=0),
         "phage_matched_cds": p.aa_len.value_counts().reindex(L, fill_value=0),
         "phage_cds_all": c.aa_len.value_counts().reindex(L, fill_value=0),
         "phage_matched_orf_cov80": p[cov80].aa_length.value_counts().reindex(L, fill_value=0),
     }).reset_index()
+    assert dist.phage_matched_cds.sum() == p.aa_len.notna().sum() and dist.phage_cds_all.sum() == len(c)
     write(dist, "figPS03_length_dist.tsv.gz")
 
     refs = bacteria_refs(a)

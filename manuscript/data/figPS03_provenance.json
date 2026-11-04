@@ -23,8 +23,8 @@
    "sha256": "29ff2d050823de09ed655bba5f8539b0ed727448727b513bed0383d3ee4117b6"
   },
   "figPS03_length_dist.tsv.gz": {
-   "rows": 910,
-   "sha256": "4040f22de96442212837b04efc955b16eb2a9bafb1e52d5a4fc6012bbaa9d621"
+   "rows": 9164,
+   "sha256": "41b83c49ec5d2b4de5d89f7b171fb93fdd873c2a0bfdf0efb4586bbab3966181"
   },
   "figPS03_gap_by_bin.tsv.gz": {
    "rows": 100,
@@ -57,5 +57,10 @@
   "cov80": 2212627,
   "complete": 2636675,
   "cov80_complete": 2211817
+ },
+ "cds_length": {
+  "matched_cds": 2632145,
+  "matched_cds_below_90": 310048,
+  "matched_cds_min": 27
  }
 }
