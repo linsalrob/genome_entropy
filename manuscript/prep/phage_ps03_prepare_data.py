@@ -105,10 +105,23 @@ def normalise(d):
     return d
 
 
+def prep_cds(cds):
+    """Collapse CDS parts to feature-level lengths/stops when cds_id is available."""
+    c = cds.copy()
+    if "cds_id" in c.columns:
+        c = c.assign(part_len=c.end - c.start)
+        c = c.groupby(["input_id", "strand", "cds_id"], as_index=False).agg(
+            start=("start", "min"), end=("end", "max"), cl=("part_len", "sum")
+        )
+    else:
+        c = c.assign(cl=c.end - c.start)
+    c["stop"] = np.where(c.strand == "+", c.end, c.start)
+    return c
+
+
 def cover(pos, cds):
-    """pos: input_id, strand, stop, g_start, g_end; cds: input_id, strand, start, end (0-based)."""
-    c = cds.assign(stop=np.where(cds.strand == "+", cds.end, cds.start), cl=cds.end - cds.start)
-    c = c.groupby(["input_id", "strand", "stop"], as_index=False).cl.max()
+    """pos: input_id, strand, stop, g_start, g_end; cds: input_id, strand, stop, cl."""
+    c = cds.groupby(["input_id", "strand", "stop"], as_index=False).cl.max()
     m = pos.merge(c, on=["input_id", "strand", "stop"], how="left")
     cov = m.cl.to_numpy() / (m.g_end - m.g_start).to_numpy()
     covc = np.select([np.isnan(cov), cov < 0.5, cov < 0.8], [0, 1, 2], 3).astype(np.int8)
@@ -138,6 +151,8 @@ def stage_bac(a):
     hist = np.zeros((NL, NCOV, NTR, NH), np.int64)
     cds_all = np.zeros(CDS_LMAX + 1, np.int64)      # every deposited CDS, aa (stop excluded)
     cds_pos = np.zeros(CDS_LMAX + 1, np.int64)      # stop-sharing CDS of positives
+    cds_all_sum = 0
+    cds_pos_sum = 0
     sums = []
     for f in mine:
         ch = f.name[:-7]
@@ -148,20 +163,26 @@ def stage_bac(a):
         n_rows = len(d)
         d = normalise(d[d.in_genbank == "True"].copy())
         c = pd.read_csv(GD / "cds_intervals" / "bac" / f"{ch}.tsv", sep="\t",
-                        usecols=["contig", "start", "end", "strand"], dtype={"contig": str})
-        c = c.rename(columns={"contig": "input_id"})
-        cl_aa = (c.end - c.start) // 3 - 1
+                        usecols=lambda x: x in {"contig", "start", "end", "strand", "cds_id"},
+                        dtype={"contig": str})
+        c = prep_cds(c.rename(columns={"contig": "input_id"}))
+        cl_aa = np.maximum(c.cl.to_numpy().astype(np.int64) // 3 - 1, 0)
         np.add.at(cds_all, np.clip(cl_aa, 0, CDS_LMAX), 1)
+        cds_all_sum += int(cl_aa.sum())
         m = cover(d[["input_id", "strand", "stop", "g_start", "g_end", "aa_length",
-                     "three_di_entropy", "trunc"]], c)
+                     "three_di_entropy", "trunc"]], c[["input_id", "strand", "stop", "cl"]])
         ok = ~np.isnan(m["cov"].to_numpy())
-        np.add.at(cds_pos, np.clip(m.cl.to_numpy()[ok].astype(np.int64) // 3 - 1, 0, CDS_LMAX), 1)
+        cl_pos = np.maximum(m.cl.to_numpy()[ok].astype(np.int64) // 3 - 1, 0)
+        np.add.at(cds_pos, np.clip(cl_pos, 0, CDS_LMAX), 1)
+        cds_pos_sum += int(cl_pos.sum())
         li, h = lidx(m.aa_length.to_numpy()), m.three_di_entropy.to_numpy()
         cv, tr = m.covc.to_numpy(), m.trunc.to_numpy()
         np.add.at(hist, (li, cv, tr, hidx(h)), 1)
-        k = pd.DataFrame({"li": li, "covc": cv, "trunc": tr, "h": h, "h2": h * h})
+        k = pd.DataFrame({"li": li, "covc": cv, "trunc": tr, "h": h, "h2": h * h,
+                          "aa": m.aa_length.to_numpy()})
         s = k.groupby(["li", "covc", "trunc"], as_index=False).agg(n=("h", "size"), s1=("h", "sum"),
-                                                                 s2=("h2", "sum"))
+                                                                    s2=("h2", "sum"),
+                                                                    s_aa=("aa", "sum"))
         s.insert(0, "chunk", ch)
         sums.append(s)
         print(f"  {ch}: rows {n_rows:,}, positives {len(m):,}, stop-sharing CDS {ok.mean():.4f}",
@@ -169,7 +190,8 @@ def stage_bac(a):
     WORK.mkdir(parents=True, exist_ok=True)
     pd.concat(sums).to_parquet(WORK / f"bac_sums_{a.task:02d}.parquet", index=False)
     np.savez_compressed(WORK / f"bac_hist_{a.task:02d}.npz", hist=hist, cds_all=cds_all,
-                        cds_pos=cds_pos)
+                        cds_pos=cds_pos, cds_all_sum=np.int64(cds_all_sum),
+                        cds_pos_sum=np.int64(cds_pos_sum))
     print(f"bac task {a.task}: {len(mine)} chunks done", flush=True)
 
 
@@ -210,8 +232,9 @@ def stage_phage(a):
     print(f"  phage CDS {len(c):,} (joined {int(c.joined.sum())}, partial {int(c.partial.sum())})",
           flush=True)
     d = normalise(d[d.in_genbank == "True"].copy())
+    c = prep_cds(c[["input_id", "start", "end", "strand"]])
     m = cover(d[["genome", "input_id", "orf_id", "strand", "stop", "g_start", "g_end",
-                 "aa_length", "three_di_entropy", "trunc"]], c[["input_id", "start", "end", "strand"]])
+                 "aa_length", "three_di_entropy", "trunc"]], c[["input_id", "strand", "stop", "cl"]])
     genomes = np.sort(m.genome.unique())
     perm = np.random.default_rng(SEED).permutation(len(genomes))
     grp = pd.Series(perm % N_PHAGE_GROUPS, index=genomes)
@@ -278,10 +301,12 @@ def stage_states(a):
                             dtype={"in_genbank": str, "genome": str, "input_id": str})
             d = normalise(d[d.in_genbank == "True"].copy())
             c = pd.read_csv(GD / "cds_intervals" / "bac" / f"{name}.tsv", sep="\t",
-                            usecols=["contig", "start", "end", "strand"], dtype={"contig": str})
+                            usecols=lambda x: x in {"contig", "start", "end", "strand", "cds_id"},
+                            dtype={"contig": str})
+            c = prep_cds(c.rename(columns={"contig": "input_id"}))
             meta = cover(d[["genome", "input_id", "orf_id", "strand", "stop", "g_start", "g_end",
                             "aa_length", "three_di_entropy", "trunc"]],
-                         c.rename(columns={"contig": "input_id"}))
+                         c[["input_id", "strand", "stop", "cl"]])
             keep = set(zip(meta.input_id, meta.orf_id))
         s = pd.DataFrame(state_rows(tar, keep), columns=cols)
         if meta is not None:
@@ -307,8 +332,22 @@ def load_bac():
     hz = [np.load(p) for p in sorted(WORK.glob("bac_hist_*.npz"))]
     if sums.chunk.nunique() != 760:
         sys.exit(f"bac sums cover {sums.chunk.nunique()} chunks, expected 760")
+    if "s_aa" not in sums.columns:
+        sums["s_aa"] = (sums.li.to_numpy() + LMIN) * sums.n.to_numpy()
     hist = sum(z["hist"] for z in hz)
-    return sums, hist, sum(z["cds_all"] for z in hz), sum(z["cds_pos"] for z in hz)
+    cds_all = sum(z["cds_all"] for z in hz)
+    cds_pos = sum(z["cds_pos"] for z in hz)
+    cds_all_sum = sum(
+        int(z["cds_all_sum"]) if "cds_all_sum" in z.files
+        else int((np.arange(len(z["cds_all"])) * z["cds_all"]).sum())
+        for z in hz
+    )
+    cds_pos_sum = sum(
+        int(z["cds_pos_sum"]) if "cds_pos_sum" in z.files
+        else int((np.arange(len(z["cds_pos"])) * z["cds_pos"]).sum())
+        for z in hz
+    )
+    return sums, hist, cds_all, cds_pos, cds_all_sum, cds_pos_sum
 
 
 def bac_by_length(sums, cov, tr, groups=False):
@@ -356,7 +395,7 @@ def dense(df, col):
 
 def stage_combine(a):
     OUT.mkdir(parents=True, exist_ok=True)
-    sums, hist, cds_all_b, cds_pos_b = load_bac()
+    sums, hist, cds_all_b, cds_pos_b, cds_all_sum_b, cds_pos_sum_b = load_bac()
     ph = pd.read_parquet(WORK / "phage_pos.parquet")
     ph["li"] = lidx(ph.aa_length.to_numpy())
     pcds = pd.read_parquet(WORK / "phage_cds.parquet")
@@ -390,17 +429,29 @@ def stage_combine(a):
     H.loc[(H.kind == "orf_positive") & (H.aa_length == LTOP), "aa_length"] = LTOP  # >= 1000 pooled
     write(H.sort_values(["kind", "dataset", "aa_length"]), "figPS03_length_hist.tsv.gz")
 
-    def qstats(sub):
+    def qstats(sub, mean_override=None):
         x = sub.aa_length.to_numpy(); w = sub.n.to_numpy().astype(float)
         o = np.argsort(x); x, w = x[o], w[o]; c = np.cumsum(w) / w.sum()
         q = lambda p: int(x[np.searchsorted(c, p)])
-        return w.sum(), q(0.25), q(0.5), q(0.75), (w * x).sum() / w.sum()
+        mu = (w * x).sum() / w.sum() if mean_override is None else mean_override
+        return w.sum(), q(0.25), q(0.5), q(0.75), mu
 
     srows = []
+    ok = ph.covc > 0
+    mean_all = {
+        ("orf_positive", "bacteria"): float(sums.s_aa.sum() / sums.n.sum()),
+        ("orf_positive", "phage"): float(ph.aa_length.mean()),
+        ("cds_all", "bacteria"): float(cds_all_sum_b / cds_all_b.sum()),
+        ("cds_all", "phage"): float(pcds.aa.mean()),
+        ("cds_of_positive", "bacteria"): float(cds_pos_sum_b / cds_pos_b.sum()),
+        ("cds_of_positive", "phage"): float(
+            np.maximum(ph.cl.to_numpy()[ok].astype(np.int64) // 3 - 1, 0).mean()
+        ),
+    }
     for kind in ("orf_positive", "cds_all", "cds_of_positive"):
         for ds in ("bacteria", "phage"):
             sub = H[(H.kind == kind) & (H.dataset == ds)]
-            n, q1, q2, q3, mu = qstats(sub)
+            n, q1, q2, q3, mu = qstats(sub, mean_override=mean_all[(kind, ds)])
             srows.append(dict(kind=kind, dataset=ds, bin="all", n=int(n), q25=q1, median=q2,
                               q75=q3, mean=mu))
             if kind == "orf_positive":
