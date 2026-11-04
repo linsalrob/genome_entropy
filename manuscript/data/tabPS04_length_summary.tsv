@@ -1,0 +1,15 @@
+kind	dataset	bin	n	q25	median	q75	mean
+orf_positive	bacteria	all	309065661	211	323	468	368.474
+orf_positive	bacteria	90-149	35015514	107	122	136	121.307
+orf_positive	bacteria	150-299	103655439	187	225	262	224.456
+orf_positive	bacteria	300-599	129571131	348	406	478	417.936
+orf_positive	bacteria	600-999	33380079	650	719	819	742.151
+orf_positive	phage	all	2685382	128	184	307	256.642
+orf_positive	phage	90-149	962798	102	116	132	117.387
+orf_positive	phage	150-299	1023872	171	199	239	207.246
+orf_positive	phage	300-599	504223	338	391	478	411.989
+orf_positive	phage	600-999	150594	655	730	823	745.977
+cds_all	bacteria	all	330370222	164	274	409	320.804
+cds_all	phage	all	3340852	83	135	245	210.126
+cds_of_positive	bacteria	all	303128508	181	286	418	334.116
+cds_of_positive	phage	all	2675004	110	163	288	245.092
