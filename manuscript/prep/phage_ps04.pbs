@@ -1,0 +1,16 @@
+#!/bin/bash
+# Stages of phage_ps04_prepare_data.py (agent-handoffs#38). Submit with
+#   qsub -J 0-9 -v STAGE=bac,NTASKS=10 phage_ps04.pbs   etc.; see phage_ps04_prepare_data.py.
+#PBS -P ob80
+#PBS -q normal
+#PBS -l ncpus=1,mem=32GB,walltime=03:00:00,jobfs=2GB
+#PBS -l storage=gdata/ob80+scratch/ob80
+#PBS -r y
+#PBS -j oe
+#PBS -N ps03
+set -euo pipefail
+export TMPDIR="$PBS_JOBFS"
+PY=/g/data/ob80/re3494/conda/ms_figs/bin/python
+cd /g/data/ob80/re3494/GitHubs/wt-ge-phage-length/manuscript/prep
+TASK=${PBS_ARRAY_INDEX:-0}
+$PY -I phage_ps04_prepare_data.py "$STAGE" --task "$TASK" --ntasks "${NTASKS:-1}"
