@@ -122,7 +122,7 @@ This document is checkpoint E of agent-handoffs#24 (Gadi). It lists the data pac
   - the density count array.
 - **Size and integrity:** 6.08 GB in 69 files; sha256 in `R4_gmsc_smorf_entropy.SHA256SUMS`.
 - **Provenance:** `genome_entropy` 0.3.0, ModernProst revision `2d68d506`, encoding size 50,000, V100, MMseqs2 14.7e284. See `Validation/smorfs/README.md`.
-- **Licence and permission: UNCONFIRMED.** The positive and negative sets were supplied by the GMSC authors as benchmark data, and their terms of reuse are not recorded anywhere in the project. The 3Di and 12-state strings are derived per sequence from those sets. Before deposit, Rob should confirm with the GMSC authors whether derived per-sequence data can be redistributed. A fallback that needs no permission is to deposit only aggregates. Those are added to GitHub by linsalrob/genome_entropy#124, which **must be merged before this fallback is relied on**. The files are:
+- **Licence and permission: GRANTED.** The GMSC authors agreed to redistribution of the per-sequence derived data (confirmed by Rob, 2026-11-20); R4a and R4b are public in ROADS (see [`roads_deposit_dois.md`](roads_deposit_dois.md)). Original note: The positive and negative sets were supplied by the GMSC authors as benchmark data, and their terms of reuse are not recorded anywhere in the project. The 3Di and 12-state strings are derived per sequence from those sets. Before deposit, Rob should confirm with the GMSC authors whether derived per-sequence data can be redistributed. A fallback that needs no permission is to deposit only aggregates. Those are added to GitHub by linsalrob/genome_entropy#124, which **must be merged before this fallback is relied on**. The files are:
   - `manuscript/data/figS01_length_hist.tsv.gz`, `figS01_entropy_hist.tsv.gz`, `figS01_single_feature_auc.tsv.gz` and `figS01_models_by_split.tsv.gz`;
   - `figSS01_density_aa_3di.tsv.gz` and `figSS02_stripe_bands.tsv.gz`;
   - `tabS01_length_bins.tsv.gz` to `tabS04_dataset_summary.tsv.gz`.
@@ -151,6 +151,6 @@ That file gives the reasons for **not** depositing:
 ## Open items for Rob
 
 1. **Item size limit.** Confirm the ROADS/figshare per-item and per-file size limits. These decide how R1 is split.
-2. **GMSC terms.** Confirm the GMSC terms for R4. Without permission, deposit R4 as aggregates only.
+2. **GMSC terms.** Resolved 2026-11-20: permission granted, and R4 is deposited per sequence.
 3. **Licence.** Choose one (for example CC BY 4.0) for the derived packages R1–R3.
 4. **Order of deposit.** The suggested order is R2 (headline estimate), then R3, R1 and R4.
